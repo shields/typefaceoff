@@ -17,6 +17,7 @@ import Testing
     window.contentView = host
     window.orderFront(nil)
     try await Task.sleep(for: .milliseconds(250))
+    host.layoutSubtreeIfNeeded()
     let inspector = try #require(scrollView(in: host))
     inspector.contentView.scroll(to: NSPoint(x: 0, y: 100))
     inspector.reflectScrolledClipView(inspector.contentView)
@@ -24,9 +25,11 @@ import Testing
     #expect(position.y > 0)
     host.rootView = Fixture(document: document, visible: false)
     try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
     #expect(scrollView(in: host) === inspector)
     host.rootView = Fixture(document: document, visible: true)
     try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
     #expect(scrollView(in: host) === inspector)
     #expect(inspector.contentView.bounds.origin == position)
   }

@@ -12,6 +12,18 @@ public struct FontAxis: Identifiable, Hashable, Sendable {
 }
 
 public struct FontFeature: Identifiable, Hashable, Sendable {
+  public enum Group: String, CaseIterable, Sendable {
+    case common = "Common"
+    case characterVariants = "Character variants"
+    case stylisticSets = "Stylistic sets"
+    case numbers = "Numbers"
+    case automatic = "Automatic shaping"
+  }
+
+  static let automaticTags: Set<String> = [
+    "ccmp", "locl", "rlig", "mark", "mkmk", "init", "medi", "fina", "isol",
+  ]
+
   public struct Option: Hashable, Sendable {
     public let name: String
     public let value: Int
@@ -21,6 +33,34 @@ public struct FontFeature: Identifiable, Hashable, Sendable {
   public let options: [Option]
   public let defaultValue: Int
   public var sample: String? = nil
+
+  public var isAutomatic: Bool {
+    id.hasPrefix("ot.") && Self.automaticTags.contains(String(id.dropFirst(3)))
+  }
+
+  public var group: Group {
+    if isAutomatic { return .automatic }
+    if id.hasPrefix("ot.") {
+      let tag = String(id.dropFirst(3))
+      if tag.hasPrefix("cv") || ["aalt", "salt"].contains(tag) { return .characterVariants }
+      if tag.hasPrefix("ss") { return .stylisticSets }
+      if [
+        "tnum", "pnum", "lnum", "onum", "ordn", "sups", "subs", "sinf", "numr", "dnom", "frac",
+        "zero",
+      ].contains(tag) {
+        return .numbers
+      }
+    } else if let type = id.split(separator: ".").dropFirst().first.flatMap({ Int($0) }) {
+      switch type {
+      case kNumberSpacingType, kVerticalPositionType, kFractionsType, kNumberCaseType:
+        return .numbers
+      case kCharacterAlternativesType, kCharacterShapeType: return .characterVariants
+      case kStylisticAlternativesType: return .stylisticSets
+      default: break
+      }
+    }
+    return .common
+  }
 }
 
 public struct FontFace: Identifiable, Hashable, Sendable {
@@ -116,15 +156,15 @@ public struct FontFace: Identifiable, Hashable, Sendable {
         }
       }
     }
-    let automatic: Set<String> = [
-      "ccmp", "locl", "rlig", "mark", "mkmk", "init", "medi", "fina", "isol",
-    ]
-    var result = tags.subtracting(automatic).sorted().map { tag in
+    var result = tags.sorted().map { tag in
       FontFeature(
         id: "ot.\(tag)", name: labels[tag] ?? featureName(tag),
-        options: [.init(name: "Off", value: 0)]
-          + (alternatives[tag] ?? [.init(name: "On", value: 1)]),
-        defaultValue: ["kern", "liga", "clig", "calt"].contains(tag) ? 1 : 0,
+        options: FontFeature.automaticTags.contains(tag)
+          ? []
+          : [.init(name: "Off", value: 0)]
+            + (alternatives[tag] ?? [.init(name: "On", value: 1)]),
+        defaultValue: FontFeature.automaticTags.contains(tag)
+          || ["kern", "liga", "clig", "calt"].contains(tag) ? 1 : 0,
         sample: samples[tag]?.isEmpty == false ? samples[tag] : nil)
     }
     // AAT-only fonts (including Helvetica Neue) expose selectors through Core Text.
@@ -267,6 +307,10 @@ private func featureName(_ tag: String) -> String {
     "lnum": "Lining numerals", "onum": "Oldstyle numerals", "ordn": "Ordinals",
     "sups": "Superscript", "subs": "Subscript", "salt": "Stylistic alternates",
     "aalt": "Alternate forms",
+    "sinf": "Scientific inferiors", "numr": "Numerators", "dnom": "Denominators",
+    "ccmp": "Glyph composition", "locl": "Localized forms", "rlig": "Required ligatures",
+    "mark": "Mark positioning", "mkmk": "Mark-to-mark positioning", "init": "Initial forms",
+    "medi": "Medial forms", "fina": "Final forms", "isol": "Isolated forms",
   ]
   if let name = names[tag] { return name }
   if tag.hasPrefix("cv") { return "Character variant \(Int(tag.dropFirst(2)) ?? 0)" }

@@ -173,6 +173,7 @@ public struct Comparison: Codable, Equatable, Sendable {
   }
 
   public mutating func setFeature(_ feature: FontFeature, value: Int, side: Side) {
+    guard !feature.isAutomatic else { return }
     self[side]?.features[feature.id] = value
     let partners = [
       "ot.tnum": "ot.pnum", "ot.pnum": "ot.tnum", "ot.lnum": "ot.onum", "ot.onum": "ot.lnum",

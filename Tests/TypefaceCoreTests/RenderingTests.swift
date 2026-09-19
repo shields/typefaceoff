@@ -5,6 +5,22 @@ import Testing
 @testable import TypefaceCore
 
 @Suite struct RenderingTests {
+  @Test func typographyGroupsIncludeReadOnlyAutomaticShaping() throws {
+    let arial = FontConfiguration("ArialMT")
+    let automatic = arial.face.features.filter(\.isAutomatic)
+    #expect(!automatic.isEmpty)
+    #expect(automatic.allSatisfy { $0.group == .automatic && $0.options.isEmpty })
+    let required = try #require(automatic.first)
+    var comparison = Comparison()
+    let original = comparison
+    comparison.setFeature(required, value: 0, side: .b)
+    #expect(comparison == original)
+    let helvetica = FontConfiguration("HelveticaNeue")
+    #expect(helvetica.face.features.first { $0.id == "aat.6" }?.group == .numbers)
+    #expect(helvetica.face.features.first { $0.id == "aat.17" }?.group == .characterVariants)
+    #expect(arial.face.features.first { $0.id == "ot.liga" }?.group == .common)
+  }
+
   @Test func xHeightDoesNotMeasureFallbackGlyphs() throws {
     let syriac = FontConfiguration("NotoSansSyriac-Regular")
     #expect(FontRenderer.isAvailable(syriac))
@@ -94,6 +110,8 @@ import Testing
     let catalog = FontCatalog()
     let face = try #require(catalog.preferredFace(in: "Inter Variable"))
     let variant = try #require(face.features.first { $0.id == "ot.cv11" })
+    #expect(variant.group == .characterVariants)
+    #expect(face.features.contains { $0.group == .stylisticSets })
     #expect(variant.name != "Character variant 11")
     #expect(variant.name.localizedCaseInsensitiveContains("a"))
     let a = FontConfiguration(face.id)

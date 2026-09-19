@@ -8,6 +8,7 @@ struct FontInspector: View {
   @State private var familySearch = ""
   @State private var choosingFamily = false
   @State private var cachedFaces: [FontFace] = []
+  @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
 
   private var config: FontConfiguration? { document.comparison[side] }
 
@@ -88,8 +89,30 @@ struct FontInspector: View {
               }
               .labelStyle(.iconOnly).buttonStyle(.borderless)
             }
-            ForEach(config.face.features) { feature in
-              featureControl(feature, config: config)
+            ForEach(FontFeature.Group.allCases, id: \.self) { group in
+              let features = config.face.features.filter { $0.group == group }
+              if !features.isEmpty {
+                DisclosureGroup(
+                  isExpanded: Binding(
+                    get: { !collapsedGroups.contains(group) },
+                    set: { expanded in
+                      if expanded {
+                        collapsedGroups.remove(group)
+                      } else {
+                        collapsedGroups.insert(group)
+                      }
+                    })
+                ) {
+                  VStack(alignment: .leading, spacing: 14) {
+                    ForEach(features) { feature in
+                      featureControl(feature, config: config)
+                    }
+                  }.padding(.top, 8).frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                  Text(verbatim: group.rawValue).font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                }
+              }
             }
           }.padding(18)
         }
@@ -193,7 +216,12 @@ struct FontInspector: View {
       })
     let binary = feature.options.count == 2 && feature.options.map(\.name) == ["Off", "On"]
     return VStack(alignment: .leading, spacing: 7) {
-      if binary {
+      if feature.isAutomatic {
+        HStack(spacing: 7) {
+          Text("AUTO").font(.system(size: 10)).foregroundStyle(.secondary)
+          Text(verbatim: feature.name).font(.system(size: 12))
+        }.help("Applied automatically by the text shaping engine")
+      } else if binary {
         Toggle(
           feature.name,
           isOn: Binding(

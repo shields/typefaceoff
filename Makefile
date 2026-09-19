@@ -35,12 +35,15 @@ lint:
 	node --check mockups/app.js
 	node --check mockups/differences.js
 	node --check mockups/tests/differences.test.js
+	shellcheck scripts/*.sh
+	shfmt -i 4 -d scripts
 	zizmor --persona pedantic .github/workflows
 
 fmt:
 	swift format format --in-place --recursive Sources Tests Package.swift
 	bunx --no-install prettier --write .
 	uvx ruff format $(RUFF_FLAGS) mockups/server.py
+	shfmt -i 4 -w scripts
 
 setup:
 	bun install --frozen-lockfile

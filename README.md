@@ -7,10 +7,11 @@ characters, and see where their shapes and spacing differ.
 ## Run
 
 Requires macOS 15 or later and Xcode with Swift 6.3 or later. Install XcodeGen
-for the app build; development checks also use Bun, uv, Lefthook, and zizmor:
+for the app build; development checks also use Bun, uv, Lefthook, zizmor,
+ShellCheck, and shfmt:
 
 ```sh
-brew install xcodegen bun node uv lefthook zizmor
+brew install xcodegen bun node uv lefthook zizmor shellcheck shfmt
 make setup
 make run
 ```

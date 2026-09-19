@@ -22,7 +22,15 @@ import TypefaceCore
     var cases: [(String, Double, Comparison)] = [
       ("text", 1440, Comparison()), ("glyph", 1280, glyph), ("single", 1280, single),
       ("spacing", 1280, spacing),
+      ("text-1280", 1280, Comparison()), ("glyph-1440", 1440, glyph),
+      ("single-text", 1280, Comparison(b: nil)),
     ]
+    var missing = Comparison()
+    missing.sample = .custom
+    missing.customText = "Missing characters stay identifiable: 🦄 🦄 👩‍🚀."
+    cases.append(("missing-characters", 1280, missing))
+    missing.b = .init("TypefaceOff-Does-Not-Exist")
+    cases.append(("missing-font", 1280, missing))
     for sample in [Sample.poetry, .alphabet, .numerals] {
       var comparison = Comparison()
       comparison.sample = sample
@@ -51,24 +59,28 @@ import TypefaceCore
       cases.append(("variable", 1440, variable))
     }
     for (name, width, comparison) in cases {
+      let height = width == 1440 ? 900.0 : 800.0
       let document = WorkbenchDocument(comparison: comparison)
       try comparison.encoded().write(
         to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).typefaceoff"))
       let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: width, height: 800),
+        contentRect: NSRect(x: 0, y: 0, width: width, height: height),
         styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
       window.isReleasedWhenClosed = false
       let host = NSHostingView(
         rootView: WorkbenchView(document: document).preferredColorScheme(.dark))
+      host.sizingOptions = []
       window.contentView = host
-      window.orderFront(nil)
+      window.setContentSize(NSSize(width: width, height: height))
+      window.makeKeyAndOrderFront(nil)
       try await Task.sleep(for: .milliseconds(name == "variable" ? 2000 : 750))
       host.layoutSubtreeIfNeeded()
       let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
       let data = try #require(bitmap.representation(using: .png, properties: [:]))
       try data.write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).png"))
-      #expect(host.bounds.width >= width)
+      #expect(abs(host.bounds.width - width) < 0.5)
+      #expect(abs(host.bounds.height - height) < 0.5)
       window.close()
     }
     let match = NSWindow(

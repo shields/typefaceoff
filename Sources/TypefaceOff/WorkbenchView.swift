@@ -45,6 +45,7 @@ struct WorkbenchView: View {
             }
           }
           .background(.white)
+          .environment(\.colorScheme, .light)
         } else {
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
@@ -61,7 +62,8 @@ struct WorkbenchView: View {
         FontInspector(document: document, side: .b).frame(width: 246)
       }
     }
-    .background(Color(white: 0.17))
+    .background(WorkbenchStyle.panel)
+    .tint(WorkbenchStyle.accent)
     .toolbar {
       ToolbarItem(placement: .navigation) {
         Button("Toggle font A inspector", systemImage: "sidebar.left") { showA.toggle() }
@@ -137,7 +139,7 @@ struct WorkbenchView: View {
         }
         .labelStyle(.iconOnly).disabled(comparison.b == nil)
       }
-    }.padding(16)
+    }.padding(16).background(WorkbenchStyle.toolbar)
   }
 
   private func specimen(_ config: FontConfiguration, side: Side) -> some View {

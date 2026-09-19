@@ -42,7 +42,7 @@ struct FontInspector: View {
               })
           ) {
             ForEach(cachedFaces) { Text(verbatim: $0.style).tag($0.id) }
-          }.labelsHidden()
+          }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
         }
       }.padding(18)
       Divider()
@@ -76,7 +76,8 @@ struct FontInspector: View {
               let property: AppearanceProperty = axis.tag == "wght" ? .weight : .axis(axis.id)
               numericControl(
                 axis.name, property: property, value: config.axes[axis.id] ?? axis.defaultValue,
-                range: axis.minimum...axis.maximum, defaultValue: axis.defaultValue)
+                range: axis.minimum...axis.maximum, defaultValue: axis.defaultValue,
+                unit: axis.tag == "opsz" ? "pt" : "")
             }
             numericControl(
               "Size", property: .size, value: config.size, range: 10...144, step: 0.1,
@@ -225,21 +226,32 @@ struct FontInspector: View {
       })
     let binary = feature.options.count == 2 && feature.options.map(\.name) == ["Off", "On"]
     return VStack(alignment: .leading, spacing: 7) {
-      if feature.isAutomatic {
-        HStack(spacing: 7) {
-          Text("AUTO").font(.system(size: 10)).foregroundStyle(.secondary)
+      HStack(alignment: .firstTextBaseline, spacing: 6) {
+        if feature.isAutomatic {
+          HStack(spacing: 7) {
+            Text("AUTO").font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(verbatim: feature.name).font(.system(size: 12))
+          }.help("Applied automatically by the text shaping engine")
+        } else if binary {
+          Toggle(
+            feature.name,
+            isOn: Binding(
+              get: { selection.wrappedValue == feature.options[1].value },
+              set: { selection.wrappedValue = feature.options[$0 ? 1 : 0].value }
+            )
+          ).toggleStyle(.checkbox).font(.system(size: 12))
+        } else {
           Text(verbatim: feature.name).font(.system(size: 12))
-        }.help("Applied automatically by the text shaping engine")
-      } else if binary {
-        Toggle(
-          feature.name,
-          isOn: Binding(
-            get: { selection.wrappedValue == feature.options[1].value },
-            set: { selection.wrappedValue = feature.options[$0 ? 1 : 0].value }
+        }
+        Spacer(minLength: 0)
+        if feature.id.hasPrefix("ot.") {
+          Text(verbatim: String(feature.id.dropFirst(3))).font(
+            .system(size: 10, design: .monospaced)
           )
-        ).toggleStyle(.checkbox).font(.system(size: 12))
-      } else {
-        Text(verbatim: feature.name).font(.system(size: 12))
+          .foregroundStyle(.secondary)
+        }
+      }
+      if !feature.isAutomatic && !binary {
         Picker(feature.name, selection: selection) {
           ForEach(feature.options, id: \.value) { Text(verbatim: $0.name).tag($0.value) }
         }.labelsHidden()
@@ -248,10 +260,6 @@ struct FontInspector: View {
         !sample.isEmpty
       {
         featurePreview(feature, config: config, sample: sample)
-      }
-      if feature.id.hasPrefix("ot.") {
-        Text(verbatim: String(feature.id.dropFirst(3))).font(.system(size: 10, design: .monospaced))
-          .foregroundStyle(.secondary)
       }
     }
   }

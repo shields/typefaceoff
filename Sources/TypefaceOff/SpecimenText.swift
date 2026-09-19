@@ -71,7 +71,7 @@ struct SpecimenText: NSViewRepresentable {
         .foregroundColor, forCharacterRange: NSRange(location: 0, length: content.text.length))
       for span in content.spans where highlights.contains(span.glyph) && span.supported {
         view.layoutManager?.addTemporaryAttribute(
-          .foregroundColor, value: side == .a ? NSColor.systemRed : NSColor.systemBlue,
+          .foregroundColor, value: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue,
           forCharacterRange: span.range)
       }
       if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }

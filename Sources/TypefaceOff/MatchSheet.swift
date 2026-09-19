@@ -12,14 +12,26 @@ struct MatchSheet: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 20) {
-      Text("Match font B to A").font(.title2)
+    VStack(alignment: .leading, spacing: 18) {
+      HStack {
+        Text("Match").font(.title2)
+        Spacer()
+        Button("Cancel matching", systemImage: "xmark.circle.fill") { dismiss() }
+          .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
+      }
       if let b = document.comparison.b, let proposed {
-        Text(verbatim: "\(document.comparison.a.face.family) → \(b.face.family)").foregroundStyle(
-          .secondary)
+        HStack {
+          Text(verbatim: document.comparison.a.face.family).fontWeight(.semibold)
+          Spacer()
+          Image(systemName: "arrow.right").foregroundStyle(.secondary)
+          Spacer()
+          Text(verbatim: b.face.family).fontWeight(.semibold)
+        }.padding(14).frame(maxWidth: .infinity).background(.white)
+          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .overlay(RoundedRectangle(cornerRadius: 6).stroke(WorkbenchStyle.border))
         option(
-          "Weight", value: $options.weight, before: number(b.weight),
-          after: number(suggestion(including: \.weight)?.weight ?? b.weight)
+          "Weight", value: $options.weight, before: weightDescription(b),
+          after: weightDescription(suggestion(including: \.weight) ?? b)
         )
         option(
           "x-height", value: $options.xHeight, before: "\(number(b.size)) pt",
@@ -28,11 +40,13 @@ struct MatchSheet: View {
           "Tracking", value: $options.tracking, before: "\(number(b.tracking, digits: 3)) em",
           after:
             "\(number(suggestion(including: \.tracking)?.tracking ?? b.tracking, digits: 3)) em")
-        HStack(spacing: 1) {
+        HStack(spacing: 16) {
           preview(document.comparison.a, label: "Reference A")
           preview(proposed, label: "Proposed B")
-        }.frame(height: 130).background(.white.opacity(0.1)).clipShape(
-          RoundedRectangle(cornerRadius: 6))
+        }.padding(14).frame(height: 110).background(.white).clipShape(
+          RoundedRectangle(cornerRadius: 6)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(WorkbenchStyle.border))
         Text(
           "Weight uses the nearest numeric weight. It is a heuristic, not a perceptual match. x-height and tracking use measured font data."
         )
@@ -51,7 +65,8 @@ struct MatchSheet: View {
           dismiss()
         }.keyboardShortcut(.defaultAction).disabled(options.isEmpty || proposed == nil)
       }
-    }.padding(24).frame(width: 530).background(Color(white: 0.17))
+    }.padding(24).frame(width: 470).background(WorkbenchStyle.sheet)
+      .environment(\.colorScheme, .light).preferredColorScheme(.light)
   }
 
   private func option(_ title: String, value: Binding<Bool>, before: String, after: String)
@@ -62,7 +77,12 @@ struct MatchSheet: View {
       Spacer()
       Text(verbatim: before == after ? after : "\(before) → \(after)").monospacedDigit()
         .foregroundStyle(.secondary)
-    }
+    }.padding(14).background(.white).clipShape(RoundedRectangle(cornerRadius: 6))
+      .overlay(RoundedRectangle(cornerRadius: 6).stroke(WorkbenchStyle.border))
+  }
+
+  private func weightDescription(_ config: FontConfiguration) -> String {
+    config.face.axes.contains { $0.tag == "wght" } ? number(config.weight) : config.face.style
   }
 
   private func suggestion(including option: WritableKeyPath<MatchOptions, Bool>)
@@ -77,8 +97,9 @@ struct MatchSheet: View {
     var scaled = config
     scaled.size = 29 * config.size / document.comparison.a.size
     return VStack(alignment: .leading, spacing: 8) {
-      Text(verbatim: label).font(.caption).foregroundStyle(.secondary)
-      SpecimenText(config: scaled, text: "Hamburg", inset: NSSize(width: 12, height: 12))
-    }.padding(12).frame(maxWidth: .infinity)
+      Text(verbatim: "\(number(config.weight)) · \(number(config.size)) pt")
+        .font(.caption).foregroundStyle(.secondary).accessibilityLabel(label)
+      SpecimenText(config: scaled, text: "Hamburg", inset: .zero)
+    }.frame(maxWidth: .infinity)
   }
 }

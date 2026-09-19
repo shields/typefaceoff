@@ -43,10 +43,8 @@ struct WorkbenchView: View {
 
   var body: some View {
     HStack(spacing: 0) {
-      if showA {
-        FontInspector(document: document, side: .a).frame(width: 246)
-        Divider()
-      }
+      InspectorPanel(document: document, side: .a, isVisible: showA)
+      if showA { Divider() }
       VStack(spacing: 0) {
         controls
         Divider()
@@ -71,10 +69,8 @@ struct WorkbenchView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      if showB {
-        Divider()
-        FontInspector(document: document, side: .b).frame(width: 246)
-      }
+      if showB { Divider() }
+      InspectorPanel(document: document, side: .b, isVisible: showB)
     }
     .background(WorkbenchStyle.panel)
     .tint(WorkbenchStyle.accent)

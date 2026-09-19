@@ -276,15 +276,8 @@ struct FontInspector: View {
     choosingFamily = false
   }
   private func resetAppearance() {
-    edit("Reset appearance") { comparison in
-      for target in comparison.appearanceLocked && comparison.b != nil ? [Side.a, .b] : [side] {
-        guard let previous = comparison[target] else { continue }
-        var next = FontConfiguration(previous.postScriptName)
-        next.features = previous.features
-        next.set(.weight, to: 400, catalog: document.catalog)
-        comparison[target] = next
-      }
-      comparison.calibrate()
+    edit("Reset appearance") {
+      $0.resetAppearance(side: side, catalog: document.catalog)
     }
   }
 }

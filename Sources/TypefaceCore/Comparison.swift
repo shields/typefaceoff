@@ -172,6 +172,24 @@ public struct Comparison: Codable, Equatable, Sendable {
     calibrate()
   }
 
+  public mutating func resetAppearance(side: Side, catalog: FontCatalog) {
+    for target in appearanceLocked && b != nil ? [Side.a, .b] : [side] {
+      guard let previous = self[target] else { continue }
+      var next = previous
+      if FontRenderer.isAvailable(previous),
+        let regular = catalog.preferredFace(in: previous.face.family)
+      {
+        next = FontConfiguration(regular.id)
+        next.axes = Dictionary(uniqueKeysWithValues: regular.axes.map { ($0.id, $0.defaultValue) })
+        next.features = previous.features
+      }
+      next.size = 22
+      next.tracking = 0
+      self[target] = next
+    }
+    calibrate()
+  }
+
   public mutating func setFeature(_ feature: FontFeature, value: Int, side: Side) {
     guard !feature.isAutomatic else { return }
     self[side]?.features[feature.id] = value

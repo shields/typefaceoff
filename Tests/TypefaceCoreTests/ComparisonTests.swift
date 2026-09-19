@@ -6,6 +6,46 @@ import Testing
 @Suite struct ComparisonTests {
   let catalog = FontCatalog()
 
+  @Test(arguments: [true, false], [Side.a, .b])
+  func appearanceResetRestoresRegularAndRespectsTheLock(locked: Bool, side: Side) {
+    var state = Comparison(a: .init("HelveticaNeue-BoldItalic"), b: .init("Arial-BoldItalicMT"))
+    state.appearanceLocked = locked
+    state.a.size = 44
+    state.b?.tracking = 0.05
+    state.a.features = ["ot.kern": 0]
+    state.b?.features = ["ot.liga": 0]
+    state.calibrate()
+    let previous = state
+    state.resetAppearance(side: side, catalog: catalog)
+    for target in [Side.a, .b] {
+      if locked || side == target {
+        #expect(state[target]?.face.italic == false)
+        #expect(state[target]?.weight == 400)
+        #expect(state[target]?.size == 22)
+        #expect(state[target]?.tracking == 0)
+        #expect(state[target]?.features == previous[target]?.features)
+      } else {
+        #expect(state[target] == previous[target])
+      }
+    }
+    #expect(state.link == AppearanceLink(a: state.a, b: state.b!))
+  }
+
+  @Test func appearanceResetUsesActualAxisDefaultsAndPreservesMissingFonts() throws {
+    let skia = try #require(catalog.preferredFace(in: "Skia"))
+    var state = Comparison(a: .init(skia.id), b: nil)
+    for axis in skia.axes { state.a.axes[axis.id] = axis.maximum }
+    state.resetAppearance(side: .a, catalog: catalog)
+    for axis in skia.axes { #expect(state.a.axes[axis.id] == axis.defaultValue) }
+    state.a = .init("TypefaceOff-Does-Not-Exist")
+    state.a.size = 44
+    state.a.tracking = 0.02
+    state.resetAppearance(side: .a, catalog: catalog)
+    #expect(state.a.postScriptName == "TypefaceOff-Does-Not-Exist")
+    #expect(!FontRenderer.isAvailable(state.a))
+    #expect(state.a.size == 22 && state.a.tracking == 0)
+  }
+
   @Test func linkedStyleSelectionPreservesEquallyWeightedFaces() {
     var state = Comparison(b: .init("HelveticaNeue-CondensedBold"))
     state.selectFace(.named("HelveticaNeue-CondensedBold"), side: .a, catalog: catalog)

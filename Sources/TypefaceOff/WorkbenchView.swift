@@ -26,6 +26,20 @@ struct WorkbenchView: View {
     Differences.highlights(
       ranking.scores, text: comparison.text, shape: comparison.shape, spacing: comparison.spacing)
   }
+  private var highlightKinds: [String: String] {
+    var result: [String: String] = [:]
+    for (enabled, shape, title) in [
+      (comparison.shape, true, "Shape"), (comparison.spacing, false, "Spacing"),
+    ]
+    where enabled {
+      for glyph in Differences.highlights(
+        ranking.scores, text: comparison.text, shape: shape, spacing: !shape)
+      {
+        result[glyph] = result[glyph].map { "\($0) + \(title)" } ?? title
+      }
+    }
+    return result
+  }
 
   var body: some View {
     HStack(spacing: 0) {
@@ -149,12 +163,16 @@ struct WorkbenchView: View {
   private func specimen(_ config: FontConfiguration, side: Side) -> some View {
     SpecimenText(
       config: config, text: comparison.text, sample: comparison.sample, highlights: highlights,
+      highlightKinds: highlightKinds,
       side: side, scrollPosition: scrollPosition, select: selectGlyph
     ).frame(maxWidth: .infinity, maxHeight: .infinity).environment(\.colorScheme, .light)
   }
 
   private var differences: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    let ranked = ranked
+    let maximumShape = ranked.map(\.shape).max() ?? 1
+    let maximumSpacing = ranked.map(\.spacing).max() ?? 1
+    return VStack(alignment: .leading, spacing: 12) {
       HStack {
         Text("Differences").font(.headline)
         if ranking.comparing {
@@ -168,7 +186,7 @@ struct WorkbenchView: View {
       ScrollViewReader { proxy in
         ScrollView(.horizontal) {
           LazyHStack(spacing: 8) {
-            ForEach(ranked) { item in
+            ForEach(Array(ranked.enumerated()), id: \.element.id) { index, item in
               Button {
                 selectGlyph(item.glyph)
               } label: {
@@ -177,12 +195,12 @@ struct WorkbenchView: View {
                     .frame(height: 38)
                   if comparison.shape || !comparison.spacing {
                     differenceBar(
-                      item.shape, maximum: ranked.map(\.shape).max() ?? 1,
+                      item.shape, maximum: maximumShape,
                       color: Color(red: 0.78, green: 0.68, blue: 0.49))
                   }
                   if comparison.spacing || !comparison.shape {
                     differenceBar(
-                      item.spacing, maximum: ranked.map(\.spacing).max() ?? 1, color: .blue)
+                      item.spacing, maximum: maximumSpacing, color: .blue)
                   }
                 }
                 .frame(width: 54, height: 65)
@@ -198,7 +216,9 @@ struct WorkbenchView: View {
               }.buttonStyle(.plain).id(item.glyph)
                 .accessibilityLabel("Inspect \(unicodeDescription(item.glyph))")
                 .help(
-                  String(format: "Shape %.1f%% · Spacing %.3f em", item.shape * 100, item.spacing))
+                  "\(unicodeDescription(item.glyph)) · #\(index + 1) · "
+                    + String(
+                      format: "Shape %.1f%% · Spacing %.3f em", item.shape * 100, item.spacing))
             }
           }.padding(1)
         }.scrollIndicators(.hidden).frame(height: 84)

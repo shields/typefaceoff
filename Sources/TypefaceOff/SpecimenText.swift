@@ -8,6 +8,7 @@ struct SpecimenText: NSViewRepresentable {
   var sample: Sample = .custom
   var inset = NSSize(width: 24, height: 31)
   var highlights: Set<String> = []
+  var highlightKinds: [String: String] = [:]
   var side: Side = .a
   var scrollPosition: SpecimenScrollPosition?
   var select: (String) -> Void = { _ in }
@@ -54,6 +55,7 @@ struct SpecimenText: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let view = scroll.documentView as? SpecimenNSTextView else { return }
     view.select = select
+    view.highlightKinds = highlightKinds
     let key = RenderKey(
       config: config, text: text, sample: sample, highlights: highlights, side: side)
     guard context.coordinator.key != key else {
@@ -75,6 +77,7 @@ struct SpecimenText: NSViewRepresentable {
           forCharacterRange: span.range)
       }
       if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
+      view.refreshToolTips()
       view.setAccessibilityValue(text)
     }
   }
@@ -202,16 +205,44 @@ final class SpecimenScrollView: NSScrollView {
         contentView.bounds.width > 0
       {
         view.layoutManager?.ensureLayout(for: container)
+        (view as? SpecimenNSTextView)?.refreshToolTips()
       }
     }
   }
 }
 
-final class SpecimenNSTextView: NSTextView {
+final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var select: (String) -> Void = { _ in }
+  var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
   var footerRange: NSRange?
   var footerGap = 0.0
+
+  func refreshToolTips() {
+    removeAllToolTips()
+    guard let layoutManager, let textContainer else { return }
+    for span in spans {
+      let glyphs = layoutManager.glyphRange(
+        forCharacterRange: span.range, actualCharacterRange: nil)
+      layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, lineRange, _ in
+        let rect = layoutManager.boundingRect(
+          forGlyphRange: NSIntersectionRange(glyphs, lineRange), in: textContainer
+        )
+        .offsetBy(dx: self.textContainerOrigin.x, dy: self.textContainerOrigin.y)
+        if !rect.isEmpty { self.addToolTip(rect, owner: self, userData: nil) }
+      }
+    }
+  }
+
+  func view(
+    _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+    userData data: UnsafeMutableRawPointer?
+  ) -> String {
+    guard let span = span(at: point) else { return "" }
+    let name = unicodeDescription(span.glyph)
+    if !span.supported { return "Unavailable: \(name)" }
+    return highlightKinds[span.glyph].map { "\(name) · \($0)" } ?? name
+  }
 
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
@@ -232,11 +263,15 @@ final class SpecimenNSTextView: NSTextView {
   }
 
   override func mouseDown(with event: NSEvent) {
-    guard let layoutManager, let textContainer else {
+    if let span = span(at: convert(event.locationInWindow, from: nil)) {
+      select(span.glyph)
+    } else {
       super.mouseDown(with: event)
-      return
     }
-    let point = convert(event.locationInWindow, from: nil)
+  }
+
+  private func span(at point: NSPoint) -> SpecimenText.GlyphSpan? {
+    guard let layoutManager, let textContainer else { return nil }
     let location = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
     let index = layoutManager.characterIndex(
       for: location, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
@@ -244,10 +279,9 @@ final class SpecimenNSTextView: NSTextView {
       let glyphs = layoutManager.glyphRange(
         forCharacterRange: span.range, actualCharacterRange: nil)
       if layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer).contains(location) {
-        select(span.glyph)
-        return
+        return span
       }
     }
-    super.mouseDown(with: event)
+    return nil
   }
 }

@@ -18,6 +18,11 @@ import Combine
     observations.removeAll { $0.scroll === scroll || $0.scroll == nil }
   }
 
+  func reset() {
+    fraction = 0
+    restore()
+  }
+
   func preserveDuringUpdate(_ update: () -> Void) {
     let wasUpdating = updating
     updating = true

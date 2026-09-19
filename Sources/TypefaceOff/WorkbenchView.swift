@@ -74,6 +74,10 @@ struct WorkbenchView: View {
     .onChange(of: comparison.a.size, initial: true) { syncSize() }
     .onChange(of: comparison.b?.size) { syncSize() }
     .onChange(of: locale) { syncSize() }
+    .onChange(of: comparison.sample) { scrollPosition.reset() }
+    .onChange(of: comparison.customText) {
+      if comparison.sample == .custom { scrollPosition.reset() }
+    }
     .sheet(isPresented: $showMatch) { MatchSheet(document: document) }
     .sheet(isPresented: $showEditor) { editor }
   }
@@ -217,6 +221,7 @@ struct WorkbenchView: View {
             $0.customText = customText
             $0.sample = .custom
           }
+          scrollPosition.reset()
           showEditor = false
         }.keyboardShortcut(.defaultAction)
       }

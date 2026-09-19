@@ -25,6 +25,11 @@ import TypefaceCore
     position.attach(lateLayout)
     lateLayout.documentView?.setFrameSize(NSSize(width: 300, height: 2200))
     #expect(abs(progress(lateLayout) - 0.7) < 0.001)
+    position.detach(restored)
+    position.detach(lateLayout)
+    position.reset()
+    position.attach(restored)
+    #expect(progress(restored) == 0)
   }
 
   @Test func resizingAndShortSpecimensDoNotResetTheReadingPosition() {
@@ -48,7 +53,7 @@ import TypefaceCore
     #expect(abs(progress(b) - 0.6) < 0.001)
   }
 
-  @Test func workbenchRestoresScrollingAfterInspectingACharacter() async throws {
+  @Test func workbenchPreservesReadingPositionUntilTheSampleChanges() async throws {
     _ = NSApplication.shared
     var comparison = Comparison()
     comparison.sample = .custom
@@ -93,6 +98,24 @@ import TypefaceCore
     for specimen in specimens(in: host) {
       let scroll = try #require(specimen.enclosingScrollView)
       #expect(abs(progress(scroll) - 0.4) < 0.001)
+    }
+    document.edit("Change sample", undoManager: nil) { $0.sample = .reading }
+    try await Task.sleep(for: .milliseconds(100))
+    document.edit("Restore custom sample", undoManager: nil) { $0.sample = .custom }
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    for specimen in specimens(in: host) {
+      #expect(try #require(specimen.enclosingScrollView).contentView.bounds.minY == 0)
+    }
+    let custom = try #require(specimens(in: host).first?.enclosingScrollView)
+    scroll(custom, to: 0.6)
+    document.edit("Edit sample", undoManager: nil) {
+      $0.customText = String(repeating: "A different long specimen.\n", count: 100)
+    }
+    try await Task.sleep(for: .milliseconds(100))
+    host.layoutSubtreeIfNeeded()
+    for specimen in specimens(in: host) {
+      #expect(try #require(specimen.enclosingScrollView).contentView.bounds.minY == 0)
     }
   }
 

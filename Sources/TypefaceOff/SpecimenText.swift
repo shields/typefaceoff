@@ -222,6 +222,8 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
     removeAllToolTips()
     guard let layoutManager, let textContainer else { return }
     for span in spans {
+      // TextKit can tile while a text replacement is still updating the span list.
+      guard NSMaxRange(span.range) <= (textStorage?.length ?? 0) else { continue }
       let glyphs = layoutManager.glyphRange(
         forCharacterRange: span.range, actualCharacterRange: nil)
       layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, lineRange, _ in

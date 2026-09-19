@@ -31,5 +31,8 @@ import TypefaceCore
     let i = try #require(content.spans.first { $0.glyph == "i" })
     let ligature = content.text.attributedSubstring(from: NSUnionRange(f.range, i.range))
     #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(ligature)) == 1)
+    view.textStorage?.setAttributedString(NSAttributedString(string: ""))
+    view.refreshToolTips()
+    #expect(view.string.isEmpty)
   }
 }

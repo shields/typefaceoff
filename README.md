@@ -7,11 +7,11 @@ characters, and see where their shapes and spacing differ.
 ## Run
 
 Requires macOS 15 or later and Xcode with Swift 6.3 or later. Install XcodeGen
-for the app build; development checks also use Bun, uv, Lefthook, zizmor,
+for the app build; development checks also use Bun, Node.js, Lefthook, zizmor,
 ShellCheck, shfmt, and jq:
 
 ```sh
-brew install xcodegen bun node uv lefthook zizmor shellcheck shfmt jq
+brew install xcodegen bun node lefthook zizmor shellcheck shfmt jq
 make setup
 make run
 ```
@@ -77,8 +77,7 @@ inside the app. `make test-app` runs only the native suite. `make coverage` runs
 both with instrumentation and reports coverage for both the core and app through
 `llvm-cov`, requiring 100% line coverage for every source file. Tests for
 Inter’s optional variable axes and character variants require that font to be
-installed. The browser algorithm’s original tests run alongside the native
-tests.
+installed.
 
 `make review` renders native text, glyph, and single-font windows into
 `.build/review` for visual inspection. It requires an active macOS desktop
@@ -86,8 +85,8 @@ session.
 
 Swift 6 language mode, strict concurrency, warnings as errors, `swift-format`,
 and the shared [right-answers](../right-answers/README.md) guidelines apply.
-Formatting also covers the browser reference, documentation, and configuration.
-CI runs the same Make targets; GitHub Actions are pinned to release commit SHAs.
+Formatting also covers documentation and configuration. CI runs the same Make
+targets; GitHub Actions are pinned to release commit SHAs.
 
 OpenType character variants expose the names, preview characters, and alternate
 options supplied by the font. Other features use binary settings or Core Text’s
@@ -95,17 +94,7 @@ AAT selectors. Importing font files directly, multilingual specimen design, and
 contextual run-level difference analysis remain future work. Comparisons rank
 isolated grapheme clusters, so they do not measure kerning pairs or word rhythm.
 
-## Design reference
-
-The original interactive browser study is preserved in `mockups`:
-
-```sh
-make mockup
-```
-
-Open [the mockup](http://127.0.0.1:8765).
-[Interaction guide and reference screenshots](mockups/README.md).
-[Native parity checks and deliberate improvements](docs/mockup-parity.md).
+## Reading samples
 
 The reading samples are public-domain excerpts from Lewis Carroll’s
 [Alice’s Adventures in Wonderland](https://www.gutenberg.org/files/11/11-h/11-h.htm#chap01)

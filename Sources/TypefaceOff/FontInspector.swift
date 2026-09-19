@@ -19,13 +19,17 @@ struct FontInspector: View {
           choosingFamily = true
         } label: {
           HStack {
-            Text(verbatim: config?.face.family ?? "None").font(.headline).lineLimit(1)
+            Text(
+              verbatim: config.map {
+                FontRenderer.isAvailable($0) ? $0.face.family : $0.postScriptName
+              } ?? "None"
+            ).font(.headline).lineLimit(1)
             Spacer(minLength: 4)
             Image(systemName: "chevron.down").font(.caption)
           }.contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityLabel("Font \(side.rawValue.uppercased()) family")
           .popover(isPresented: $choosingFamily) { familyPicker }
-        if let config {
+        if let config, FontRenderer.isAvailable(config) {
           Picker(
             "Style",
             selection: Binding(
@@ -42,7 +46,7 @@ struct FontInspector: View {
         }
       }.padding(18)
       Divider()
-      if let config {
+      if let config, FontRenderer.isAvailable(config) {
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -124,10 +128,15 @@ struct FontInspector: View {
             FontRenderer.xHeight(config: config).map { "\(number($0, digits: 0)) u" }
               ?? "Unavailable")
           metric("Units/em", String(config.face.unitsPerEm))
-          if !FontRenderer.isAvailable(config) {
-            Text("This font is not installed.").foregroundStyle(.orange)
-          }
         }.font(.system(size: 11)).padding(18)
+      } else if let config {
+        VStack(alignment: .leading, spacing: 10) {
+          Text("Font unavailable").font(.headline).foregroundStyle(.orange)
+          Text(verbatim: config.postScriptName).textSelection(.enabled)
+          Text("This font is not installed. Choose an installed font above.")
+            .foregroundStyle(.secondary)
+        }.padding(18)
+        Spacer()
       } else {
         Text("Choose a second font to compare.").foregroundStyle(.secondary).padding(18)
         Spacer()

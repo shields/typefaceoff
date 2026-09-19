@@ -26,9 +26,28 @@ import TypefaceCore
     #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(sample.text)) == 1)
     #expect(sample.spans.map(\.glyph) == ["f", "i"])
     let missing = SpecimenText.makeContent(config: config, text: "🦄")
-    #expect(missing.text.string == "□")
+    #expect(missing.text.string == "1 unavailable character\n[U+1F984]")
     #expect(missing.spans.first?.glyph == "🦄")
     #expect(missing.spans.first?.supported == false)
+  }
+
+  @Test func unavailableLabelsCountDistinctGraphemesAndKeepEveryScalarAndClickTarget() throws {
+    let content = SpecimenText.makeContent(config: .init("HelveticaNeue"), text: "A🦄🦄👩‍🚀")
+    #expect(content.text.string.hasPrefix("2 unavailable characters\nA"))
+    #expect(content.spans.map(\.glyph) == ["A", "🦄", "🦄", "👩‍🚀"])
+    let astronaut = try #require(content.spans.last)
+    #expect(
+      content.text.attributedSubstring(from: astronaut.range).string == "[U+1F469 U+200D U+1F680]")
+    #expect(!astronaut.supported)
+    let label = try #require(
+      content.text.attribute(.toolTip, at: astronaut.range.location, effectiveRange: nil) as? String
+    )
+    #expect(
+      label.contains("WOMAN") && label.contains("ZERO WIDTH JOINER") && label.contains("ROCKET"))
+    let missingFont = SpecimenText.makeContent(
+      config: .init("TypefaceOff-Does-Not-Exist"), text: "A")
+    #expect(missingFont.text.string.hasPrefix("Font unavailable: TypefaceOff-Does-Not-Exist"))
+    #expect(missingFont.spans.isEmpty)
   }
 
   @Test func specimenHierarchyPreservesConfiguredFontsAndCharacterTargets() throws {

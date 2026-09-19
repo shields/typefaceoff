@@ -93,6 +93,22 @@ struct SpecimenText: NSViewRepresentable {
             "Font unavailable: \(config.postScriptName)\nChoose an installed font in the inspector.",
           attributes: [.font: NSFont.systemFont(ofSize: 16), .foregroundColor: NSColor.darkGray]))
     } else {
+      for glyph in Set(text.map(String.init))
+      where !glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        support[glyph] = FontRenderer.supports(glyph, config: config)
+      }
+      let unavailable = support.values.filter { !$0 }.count
+      if unavailable > 0 {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.paragraphSpacing = 16
+        content.append(
+          NSAttributedString(
+            string: "\(unavailable) unavailable character\(unavailable == 1 ? "" : "s")\n",
+            attributes: [
+              .font: NSFont.systemFont(ofSize: 12),
+              .foregroundColor: NSColor.systemOrange, .paragraphStyle: paragraph,
+            ]))
+      }
       let sections = text.components(separatedBy: "\n\n")
       for (index, section) in sections.enumerated() {
         let heading = sample != .custom && index == 0
@@ -121,11 +137,15 @@ struct SpecimenText: NSViewRepresentable {
           support[glyph] = supported
           var styled = attributes
           if !supported {
-            styled[.font] = NSFont.systemFont(ofSize: size)
+            styled[.font] = NSFont.monospacedSystemFont(
+              ofSize: max(11, size * 0.55), weight: .medium)
             styled[.foregroundColor] = NSColor.systemOrange
             styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
           }
-          let displayed = supported ? glyph : "□"
+          let displayed =
+            supported
+            ? glyph
+            : "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
           if !whitespace {
             spans.append(
               .init(

@@ -53,7 +53,8 @@ struct GlyphComparisonView: View {
         metricRow("LSB", value: metric.leftBearing, em: config.face.unitsPerEm)
         metricRow("RSB", value: metric.rightBearing, em: config.face.unitsPerEm)
       } else {
-        Text("Character unavailable").font(.caption).foregroundStyle(.secondary)
+        Text(FontRenderer.isAvailable(config) ? "Character unavailable" : "Font unavailable")
+          .font(.caption).foregroundStyle(.secondary)
       }
     }.padding(.horizontal, 12).frame(maxWidth: .infinity)
   }
@@ -128,11 +129,14 @@ final class GlyphDrawingView: NSView {
           context, from: CGPoint(x: start, y: 4), to: CGPoint(x: start, y: bounds.height - 5),
           color: .init(gray: 0.86, alpha: 1))
       }
-      let title = overlay ? "Overlay" : configs[indexes[0]].face.family
+      let config = configs[indexes[0]]
+      let available = FontRenderer.isAvailable(config)
+      let title = overlay ? "Overlay" : available ? config.face.family : "Font unavailable"
       label(title, x: start, y: bounds.height - 23, width: width, size: 12, centered: true)
       if !overlay {
         label(
-          "\(configs[indexes[0]].face.unitsPerEm) units/em", x: start, y: bounds.height - 40,
+          available ? "\(config.face.unitsPerEm) units/em" : config.postScriptName, x: start,
+          y: bounds.height - 40,
           width: width, size: 10, centered: true)
       }
       stroke(

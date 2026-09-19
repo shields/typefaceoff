@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Typeface/Off — A closer look</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%232b2b2d'/%3E%3Ctext x='7' y='29' fill='white' font-family='Georgia' font-size='29'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="font-data.js"></script>
+  <script defer src="differences.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="study-bar">
+    <div><span class="study-name">Typeface/Off</span><span class="study-divider">/</span>UX STUDY 04</div>
+    <div class="study-right"><span>Weight matching is illustrative</span><label class="sr-only" for="preset">Demo font pair</label><select id="preset"><option value="classic">Helvetica Neue / Arial</option><option value="variable">Inter / Atkinson Next</option></select></div>
+  </div>
+  <main class="window" aria-label="Typeface/Off comparison" aria-busy="true" inert>
+    <header class="titlebar"><div class="window-identity"><div class="traffic-lights" aria-hidden="true"><i></i><i></i><i></i></div><button id="toggle-a" class="icon-button" aria-label="Toggle font A inspector" aria-pressed="true" title="Show or hide A inspector"><svg viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M7 3v14M4.5 6v2m0 3v2"/></svg></button><div class="app-mark" aria-hidden="true">A<span>a</span></div><strong>Typeface/Off</strong></div><button id="toggle-b" class="icon-button" aria-label="Toggle font B inspector" aria-pressed="true" title="Show or hide B inspector"><svg viewBox="0 0 20 20"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M13 3v14m2.5-11v2m0 3v2"/></svg></button></header>
+    <div class="workspace" id="workspace">
+      <aside id="inspector-a" class="inspector inspector-a" aria-label="Font A settings"></aside>
+      <section class="comparison" aria-label="Specimen comparison">
+        <div class="comparison-toolbar"><div class="mode-control segmented" role="group" aria-label="Comparison mode"><button id="text-mode" data-mode="text" aria-pressed="true">Text</button><button id="glyph-mode" data-mode="glyph" aria-pressed="false">Glyph</button></div><div class="window-actions"><button id="undo" class="icon-button" title="Undo (⌘Z)" aria-label="Undo last change" disabled><svg viewBox="0 0 20 20"><path d="M7 4 3 8l4 4M3 8h8a5 5 0 0 1 0 10"/></svg></button><span class="toolbar-divider"></span><button id="match" class="match-button"><svg viewBox="0 0 20 20"><path d="M4 5h12M4 15h12M7 2v6m6 4v6"/></svg>Match…</button></div></div>
+        <div class="contextbar"><div class="context-start"><span class="sample-icon" aria-hidden="true">¶</span><label class="sr-only" for="sample">Sample text</label><select id="sample"><option value="reading">Alice in Wonderland</option><option value="poetry">Jabberwocky</option><option value="alphabet">Alphabet</option><option value="numerals">Numerals &amp; punctuation</option><option value="custom">Custom text</option></select><button id="edit-text" class="plain-button">Edit text</button></div><div class="context-end"><div class="size-input"><input id="text-size" type="number" min="10" max="144" step="0.1" value="22" aria-label="Shared text size in points"><span>pt</span></div><button id="swap" class="icon-button" aria-label="Swap fonts and settings" title="Swap fonts and settings"><svg viewBox="0 0 20 20"><path d="M3 6h14l-3-3m3 11H3l3 3M17 6l-3 3M3 14l3-3"/></svg></button></div></div>
+        <div class="specimen-area" id="specimen-area"><div id="text-view" class="text-view"></div><div id="glyph-view" class="glyph-view" hidden></div></div>
+        <div class="difference-drawer" id="difference-drawer"></div>
+      </section>
+      <aside id="inspector-b" class="inspector inspector-b" aria-label="Font B settings"></aside>
+    </div>
+  </main>
+  <dialog id="match-dialog" aria-labelledby="match-title"></dialog>
+  <dialog id="text-dialog" aria-labelledby="custom-title"><form method="dialog" id="custom-form"><div class="dialog-heading"><h2 id="custom-title">Sample text</h2><button class="close-button" value="cancel" aria-label="Cancel editing">×</button></div><label class="sr-only" for="custom-text">Custom specimen text</label><textarea id="custom-text" rows="10" spellcheck="false"></textarea><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-text" class="primary-button" value="save">Apply</button></div></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript>This interactive mockup needs JavaScript enabled.</noscript>
+</body>
+</html>

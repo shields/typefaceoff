@@ -1,0 +1,5 @@
+.build/
+TypefaceOff.xcodeproj/
+Config/
+node_modules/
+bun.lock

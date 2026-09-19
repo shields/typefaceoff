@@ -1,0 +1,144 @@
+import Foundation
+
+public struct GlyphDifference: Identifiable, Hashable, Sendable {
+  public var id: String { glyph }
+  public let glyph: String
+  public let shape: Double
+  public let spacing: Double
+
+  public init(glyph: String, shape: Double, spacing: Double) {
+    self.glyph = glyph
+    self.shape = shape
+    self.spacing = spacing
+  }
+}
+
+public enum Differences {
+  public static func inkDifference(_ a: [UInt8], _ b: [UInt8]) -> Double {
+    precondition(a.count == b.count)
+    var intersection = 0.0
+    var union = 0.0
+    for (left, right) in zip(a, b) {
+      intersection += Double(min(left, right))
+      union += Double(max(left, right))
+    }
+    return union == 0 ? 0 : 1 - intersection / union
+  }
+
+  public static func compare(_ glyph: String, a: FontConfiguration, b: FontConfiguration)
+    -> GlyphDifference
+  {
+    let sizes = [192.0, 192 * b.size / a.size]
+    let configs = [a, b]
+    let metrics = zip(configs, sizes).map { FontRenderer.measure(glyph, config: $0, size: $1) }
+    let advances = zip(metrics, zip(configs, sizes)).map { $0.advance + $1.0.tracking * $1.1 }
+    let spacing =
+      (abs(advances[0] - advances[1]) + abs(metrics[0].leftBearing - metrics[1].leftBearing)
+        + abs(metrics[0].rightBearing - metrics[1].rightBearing)) / (3 * 192)
+    let ascent = max(0, metrics.map(\.bounds.maxY).max() ?? 0)
+    let descent = max(0, -(metrics.map(\.bounds.minY).min() ?? 0))
+    let width = max(1, metrics.map(\.bounds.width).max() ?? 1)
+    let height = max(1, ascent + descent)
+    let scale = min(1, 504 / max(width, height))
+    let masks = configs.indices.map { index in
+      FontRenderer.mask(
+        glyph, config: configs[index], size: sizes[index] * scale,
+        width: Int(ceil(width * scale)) + 8, height: Int(ceil(height * scale)) + 8,
+        origin: CGPoint(x: 4 - metrics[index].bounds.minX * scale, y: 4 + descent * scale))
+    }
+    return GlyphDifference(glyph: glyph, shape: inkDifference(masks[0], masks[1]), spacing: spacing)
+  }
+
+  public static func candidates(sample: String) -> [String] {
+    Set(
+      (String((33...126).compactMap(UnicodeScalar.init).map(Character.init)) + sample).map(
+        String.init)
+    )
+    .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.sorted()
+  }
+
+  public static func ranked(_ scores: [GlyphDifference], shape: Bool, spacing: Bool)
+    -> [GlyphDifference]
+  {
+    if shape != spacing {
+      return scores.sorted {
+        let left = shape ? $0.shape : $0.spacing
+        let right = shape ? $1.shape : $1.spacing
+        return left == right ? $0.glyph < $1.glyph : left > right
+      }
+    }
+    let shapeRanks = percentiles(scores, key: \.shape)
+    let spacingRanks = percentiles(scores, key: \.spacing)
+    return scores.sorted {
+      let left = shapeRanks[$0.glyph, default: 0] + spacingRanks[$0.glyph, default: 0]
+      let right = shapeRanks[$1.glyph, default: 0] + spacingRanks[$1.glyph, default: 0]
+      return left == right ? $0.glyph < $1.glyph : left > right
+    }
+  }
+
+  private static func percentiles(
+    _ scores: [GlyphDifference], key: KeyPath<GlyphDifference, Double>
+  ) -> [String: Double] {
+    let sorted = scores.sorted { $0[keyPath: key] < $1[keyPath: key] }
+    var result: [String: Double] = [:]
+    var start = 0
+    while start < sorted.count {
+      var end = start + 1
+      while end < sorted.count, abs(sorted[start][keyPath: key] - sorted[end][keyPath: key]) < 1e-9
+      { end += 1 }
+      let value =
+        sorted[start][keyPath: key] > 1e-9
+        ? Double(start + end - 1) / 2 / Double(max(1, sorted.count - 1)) : 0
+      for index in start..<end { result[sorted[index].glyph] = value }
+      start = end
+    }
+    return result
+  }
+
+  public static func highlights(
+    _ scores: [GlyphDifference], text: String, shape: Bool, spacing: Bool
+  ) -> Set<String> {
+    let present = Set(text.map(String.init))
+    var selected = Set<String>()
+    for isShape in [true, false] where isShape ? shape : spacing {
+      selected.formUnion(
+        ranked(scores, shape: isShape, spacing: !isShape)
+          .filter { present.contains($0.glyph) && (isShape ? $0.shape : $0.spacing) > 1e-9 }
+          .prefix(8).map(\.glyph))
+    }
+    return selected
+  }
+}
+
+/// Work runs off the main actor. Callers cancel obsolete requests between glyphs.
+public actor DifferenceEngine {
+  private struct Key: Hashable {
+    let a: FontConfiguration
+    let b: FontConfiguration
+    let candidates: [String]
+  }
+  private var cache: [Key: [GlyphDifference]] = [:]
+  public init() {}
+
+  public func scores(a: FontConfiguration, b: FontConfiguration, sample: String) throws
+    -> [GlyphDifference]
+  {
+    var left = a
+    var right = b
+    left.size = 22
+    right.size = 22 * b.size / a.size
+    let candidates = Differences.candidates(sample: sample)
+    let key = Key(a: left, b: right, candidates: candidates)
+    if let cached = cache[key] { return cached }
+    var result: [GlyphDifference] = []
+    for glyph in candidates {
+      try Task.checkCancellation()
+      if FontRenderer.supports(glyph, config: left), FontRenderer.supports(glyph, config: right) {
+        result.append(Differences.compare(glyph, a: left, b: right))
+      }
+    }
+    if cache.count >= 8 { cache.removeAll(keepingCapacity: true) }
+    cache[key] = result
+    return result
+  }
+}

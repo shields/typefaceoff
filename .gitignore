@@ -1,3 +1,10 @@
 __pycache__/
 .DS_Store
 .playwright-mcp/
+.build/
+.swiftpm/
+TypefaceOff.xcodeproj/
+Config/Info.plist
+Config/TypefaceOff.entitlements
+node_modules/
+.ruff_cache/

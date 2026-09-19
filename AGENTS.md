@@ -1,0 +1,13 @@
+# Project guidelines
+
+Follow `../right-answers/README.md`, `../right-answers/swift.md`, and
+`../right-answers/ci.md` for shared conventions.
+
+Use `make build`, `make test`, `make coverage`, `make lint`, and `make fmt`.
+`project.yml` is the source of truth for the generated Xcode project and app
+metadata. The Swift package owns the font engine and its tests.
+
+The browser mockup remains a design reference. Preserve its interactions when
+changing the native app, particularly calibrated links, independent typography,
+native-unit metrics, and fixed-baseline glyph navigation. Missing fonts or
+characters must be visible; never compare a silent fallback.

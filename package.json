@@ -1,0 +1,8 @@
+{
+  "name": "typefaceoff-tooling",
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.9.8",
+    "prettier-plugin-toml": "^2.0.6"
+  }
+}

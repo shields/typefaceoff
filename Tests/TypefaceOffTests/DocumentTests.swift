@@ -1,0 +1,94 @@
+import AppKit
+import Combine
+import CoreText
+import Testing
+import TypefaceCore
+
+@testable import TypefaceOff
+
+@Suite @MainActor struct DocumentTests {
+  @Test(arguments: ["en_US", "de_DE", "fr_FR"])
+  func sharedSizeUsesTheDisplayLocale(identifier: String) throws {
+    let locale = Locale(identifier: identifier)
+    let text = SharedSizeFormat.style(locale: locale).format(22.5)
+    #expect(text == (identifier == "en_US" ? "22.5" : "22,5"))
+    #expect(SharedSizeFormat.parse(text, locale: locale) == 22.5)
+    #expect(SharedSizeFormat.parse("44", locale: locale) == 44)
+    #expect(SharedSizeFormat.parse("invalid", locale: locale) == nil)
+    #expect(SharedSizeFormat.parse("22garbage", locale: locale) == nil)
+    #expect(SharedSizeFormat.parse("NaN", locale: locale) == nil)
+    #expect(SharedSizeFormat.parse("∞", locale: locale) == nil)
+  }
+
+  @Test func interactiveSpecimenPreservesLigaturesAndMissingCharacterIdentity() {
+    let config = FontConfiguration("HelveticaNeue")
+    let sample = SpecimenText.makeContent(config: config, text: "fi")
+    #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(sample.text)) == 1)
+    #expect(sample.spans.map(\.glyph) == ["f", "i"])
+    let missing = SpecimenText.makeContent(config: config, text: "🦄")
+    #expect(missing.text.string == "□")
+    #expect(missing.spans.first?.glyph == "🦄")
+    #expect(missing.spans.first?.supported == false)
+  }
+  @Test func sliderGestureHasOneUndoAcrossManyUpdates() {
+    let document = WorkbenchDocument()
+    let undo = UndoManager()
+    undo.groupsByEvent = false
+    let initial = document.comparison
+    document.beginContinuousEdit("Resize")
+    for size in [25.0, 30.0, 44.0] {
+      document.edit("Resize", undoManager: undo) {
+        $0.set(.size, to: size, side: .a, catalog: document.catalog)
+      }
+    }
+    #expect(!undo.canUndo)
+    undo.beginUndoGrouping()
+    document.endContinuousEdit(undoManager: undo)
+    undo.endUndoGrouping()
+    undo.undo()
+    #expect(document.comparison == initial)
+    #expect(!undo.canUndo)
+    undo.redo()
+    #expect(document.comparison.a.size == 44)
+    #expect(document.comparison.b?.size == 44)
+  }
+  @Test func linkedEditsPublishAndUndoAsOneChange() {
+    let document = WorkbenchDocument()
+    let undo = UndoManager()
+    undo.groupsByEvent = false
+    var published = 0
+    let observation = document.objectWillChange.sink { published += 1 }
+    let original = document.comparison
+    undo.beginUndoGrouping()
+    document.edit("Resize", undoManager: undo) {
+      $0.set(.size, to: 44, side: .a, catalog: document.catalog)
+    }
+    undo.endUndoGrouping()
+    #expect(published == 1)
+    #expect(document.comparison.a.size == 44)
+    #expect(document.comparison.b?.size == 44)
+    undo.undo()
+    #expect(document.comparison == original)
+    undo.redo()
+    #expect(document.comparison.a.size == 44)
+    #expect(document.comparison.b?.size == 44)
+    withExtendedLifetime(observation) {}
+  }
+
+  @Test func snapshotsStayStableWhileEditing() throws {
+    let document = WorkbenchDocument()
+    let snapshot = try document.snapshot(contentType: .typefaceComparison)
+    document.edit("Edit sample", undoManager: nil) { $0.customText = "changed" }
+    #expect(snapshot.customText.isEmpty)
+    #expect(try TypefaceCore.Comparison.decode(snapshot.encoded()) == snapshot)
+  }
+
+  @Test func removingBWhileRankingClearsResults() async {
+    let ranking = RankingModel()
+    await ranking.update(Comparison())
+    #expect(!ranking.scores.isEmpty)
+    await ranking.update(Comparison(b: nil))
+    #expect(ranking.scores.isEmpty)
+    #expect(!ranking.comparing)
+  }
+}

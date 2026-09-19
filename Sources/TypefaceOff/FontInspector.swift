@@ -7,7 +7,6 @@ struct FontInspector: View {
   @Environment(\.undoManager) private var undoManager
   @State private var familySearch = ""
   @State private var choosingFamily = false
-  @State private var cachedFaces: [FontFace] = []
   @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
 
   private var config: FontConfiguration? { document.comparison[side] }
@@ -41,7 +40,9 @@ struct FontInspector: View {
                 }
               })
           ) {
-            ForEach(cachedFaces) { Text(verbatim: $0.style).tag($0.id) }
+            ForEach(document.catalog.faces(in: config.face.family)) {
+              Text(verbatim: $0.style).tag($0.id)
+            }
           }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
         }
       }.padding(18)
@@ -142,9 +143,6 @@ struct FontInspector: View {
         Text("Choose a second font to compare.").foregroundStyle(.secondary).padding(18)
         Spacer()
       }
-    }
-    .onChange(of: config?.face.family, initial: true) { _, family in
-      cachedFaces = family.map { document.catalog.faces(in: $0) } ?? []
     }
   }
 

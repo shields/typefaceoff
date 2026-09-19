@@ -92,13 +92,21 @@ struct WorkbenchView: View {
           .disabled(comparison.b == nil)
       }
       HStack(spacing: 12) {
-        Picker("Sample", selection: setting(\.sample, name: "Change sample")) {
+        Picker(
+          "Sample",
+          selection: Binding(
+            get: { comparison.sample },
+            set: { sample in
+              if sample == .custom {
+                openEditor()
+              } else {
+                edit("Change sample") { $0.sample = sample }
+              }
+            })
+        ) {
           ForEach(Sample.allCases, id: \.self) { Text(verbatim: $0.title).tag($0) }
         }.labelsHidden().frame(maxWidth: 245)
-        Button("Edit text") {
-          customText = comparison.text
-          showEditor = true
-        }.buttonStyle(.plain)
+        Button("Edit text", action: openEditor).buttonStyle(.plain)
         Spacer(minLength: 4)
         TextField(
           comparison.b != nil && comparison.a.size != comparison.b?.size ? "Mixed" : "Size",
@@ -213,6 +221,11 @@ struct WorkbenchView: View {
         }.keyboardShortcut(.defaultAction)
       }
     }.padding(24)
+  }
+
+  private func openEditor() {
+    customText = comparison.text
+    showEditor = true
   }
 
   private func differenceBar(_ value: Double, maximum: Double, color: Color) -> some View {

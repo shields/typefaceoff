@@ -18,14 +18,16 @@ struct MatchSheet: View {
         Text(verbatim: "\(document.comparison.a.face.family) → \(b.face.family)").foregroundStyle(
           .secondary)
         option(
-          "Weight", value: $options.weight, before: number(b.weight), after: number(proposed.weight)
+          "Weight", value: $options.weight, before: number(b.weight),
+          after: number(suggestion(including: \.weight)?.weight ?? b.weight)
         )
         option(
           "x-height", value: $options.xHeight, before: "\(number(b.size)) pt",
-          after: "\(number(proposed.size)) pt")
+          after: "\(number(suggestion(including: \.xHeight)?.size ?? b.size)) pt")
         option(
           "Tracking", value: $options.tracking, before: "\(number(b.tracking, digits: 3)) em",
-          after: "\(number(proposed.tracking, digits: 3)) em")
+          after:
+            "\(number(suggestion(including: \.tracking)?.tracking ?? b.tracking, digits: 3)) em")
         HStack(spacing: 1) {
           preview(document.comparison.a, label: "Reference A")
           preview(proposed, label: "Proposed B")
@@ -61,6 +63,14 @@ struct MatchSheet: View {
       Text(verbatim: before == after ? after : "\(before) → \(after)").monospacedDigit()
         .foregroundStyle(.secondary)
     }
+  }
+
+  private func suggestion(including option: WritableKeyPath<MatchOptions, Bool>)
+    -> FontConfiguration?
+  {
+    var choices = options
+    choices[keyPath: option] = true
+    return Matching.proposal(document.comparison, options: choices, catalog: document.catalog)
   }
 
   private func preview(_ config: FontConfiguration, label: String) -> some View {

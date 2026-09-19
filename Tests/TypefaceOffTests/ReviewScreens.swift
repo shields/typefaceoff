@@ -25,6 +25,12 @@ import TypefaceCore
       ("text-1280", 1280, Comparison()), ("glyph-1440", 1440, glyph),
       ("single-text", 1280, Comparison(b: nil)),
     ]
+    var both = glyph
+    both.spacing = true
+    cases.append(("both-differences", 1280, both))
+    var neither = glyph
+    neither.shape = false
+    cases.append(("no-highlights", 1280, neither))
     var missing = Comparison()
     missing.sample = .custom
     missing.customText = "Missing characters stay identifiable: 🦄 🦄 👩‍🚀."

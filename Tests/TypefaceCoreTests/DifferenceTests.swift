@@ -48,4 +48,27 @@ import Testing
       Issue.record("Expected cancellation")
     } catch is CancellationError {} catch { Issue.record(error) }
   }
+
+  @Test func allHighlightCombinationsSelectOnlyTheTopEightPresentPositiveScores() {
+    let letters = Array("abcdefghijkl").map(String.init)
+    let scores =
+      letters.enumerated().map {
+        GlyphDifference(
+          glyph: $0.element, shape: Double($0.offset + 1) / 12,
+          spacing: Double(12 - $0.offset) / 100)
+      } + [.init(glyph: "@", shape: 1, spacing: 1), .init(glyph: "z", shape: 0, spacing: 0)]
+    let sample = letters.joined() + "z"
+    #expect(
+      Differences.highlights(scores, text: sample, shape: true, spacing: false)
+        == Set(Array("efghijkl").map(String.init)))
+    #expect(
+      Differences.highlights(scores, text: sample, shape: false, spacing: true)
+        == Set(Array("abcdefgh").map(String.init)))
+    #expect(
+      Differences.highlights(scores, text: sample, shape: true, spacing: true) == Set(letters))
+    #expect(Differences.highlights(scores, text: sample, shape: false, spacing: false).isEmpty)
+    #expect(
+      Differences.ranked(scores, shape: true, spacing: true)
+        == Differences.ranked(scores, shape: false, spacing: false))
+  }
 }

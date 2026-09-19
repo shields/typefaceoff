@@ -173,6 +173,26 @@ import Testing
     #expect(state.b?.weight == 480)
   }
 
+  @Test(.enabled(if: FontCatalog().preferredFace(in: "Inter Variable") != nil))
+  func sharedOpticalSizeCalibrationWorksInBothDirectionsAndSurvivesClamping() throws {
+    let face = try #require(catalog.preferredFace(in: "Inter Variable"))
+    let axis = try #require(face.axes.first { $0.tag == "opsz" })
+    var state = Comparison(a: .init(face.id), b: .init(face.id))
+    state.a.axes[axis.id] = axis.minimum
+    state.b?.axes[axis.id] = axis.minimum + 2
+    state.calibrate()
+    state.set(.axis(axis.id), to: axis.maximum, side: .a, catalog: catalog)
+    #expect(state.b?.axes[axis.id] == axis.maximum)
+    state.set(.axis(axis.id), to: axis.minimum + 4, side: .a, catalog: catalog)
+    #expect(state.b?.axes[axis.id] == axis.minimum + 6)
+    state.set(.axis(axis.id), to: axis.minimum + 3, side: .b, catalog: catalog)
+    #expect(state.a.axes[axis.id] == axis.minimum + 1)
+    state.swap()
+    #expect(state.link?.axisOffsets[axis.id] == -2)
+    state.set(.axis(axis.id), to: axis.minimum + 4, side: .a, catalog: catalog)
+    #expect(state.b?.axes[axis.id] == axis.minimum + 2)
+  }
+
   @Test func matchingMeasuresXHeightAndDoesNotMutateSource() throws {
     let state = Comparison()
     var options = MatchOptions()

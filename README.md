@@ -53,6 +53,8 @@ reopen the app to refresh its catalog.
   average sample tracking. Cancel leaves the comparison untouched; Apply is one
   undoable edit. Weight matching and geometric rankings are heuristics, not
   perceptual similarity models.
+- Browsing glyphs, switching views, and toggling highlights preserve Undo/Redo.
+  Undoing a font edit keeps the current inspection in view.
 - Save and reopen `.typefaceoff` documents with the standard File menu.
   Documents contain settings and sample text, not font files. Missing fonts and
   glyphs are labeled rather than silently compared using fallback fonts.
@@ -100,6 +102,7 @@ make mockup
 
 Open [the mockup](http://127.0.0.1:8765).
 [Interaction guide and reference screenshots](mockups/README.md).
+[Native parity checks and deliberate improvements](docs/mockup-parity.md).
 
 The reading samples are public-domain excerpts from Lewis Carroll’s
 [Alice’s Adventures in Wonderland](https://www.gutenberg.org/files/11/11-h/11-h.htm#chap01)

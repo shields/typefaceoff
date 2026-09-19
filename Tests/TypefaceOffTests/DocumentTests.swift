@@ -30,6 +30,32 @@ import TypefaceCore
     #expect(missing.spans.first?.glyph == "🦄")
     #expect(missing.spans.first?.supported == false)
   }
+
+  @Test func specimenHierarchyPreservesConfiguredFontsAndCharacterTargets() throws {
+    var config = FontConfiguration("HelveticaNeue-Italic")
+    config.tracking = 0.02
+    config.features["aat.1.2"] = 2
+    let content = SpecimenText.makeContent(
+      config: config, text: Sample.reading.text, sample: .reading)
+    let heading = content.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
+    let bodyIndex = (content.text.string as NSString).range(of: "Alice was").location
+    let body = content.text.attribute(.font, at: bodyIndex, effectiveRange: nil) as! CTFont
+    let footerRange = try #require(content.footerRange)
+    let footer =
+      content.text.attribute(.font, at: footerRange.location, effectiveRange: nil) as! CTFont
+    #expect(CTFontGetSize(heading) > CTFontGetSize(body))
+    #expect(CTFontGetSize(footer) < CTFontGetSize(body))
+    for font in [heading, body, footer] {
+      #expect(CTFontCopyPostScriptName(font) as String == config.postScriptName)
+    }
+    for span in content.spans where span.supported {
+      #expect(content.text.attributedSubstring(from: span.range).string == span.glyph)
+    }
+    let custom = SpecimenText.makeContent(config: config, text: Sample.reading.text)
+    #expect(custom.footerRange == nil)
+    let customFont = custom.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
+    #expect(abs(CTFontGetSize(customFont) - config.size) < 0.000001)
+  }
   @Test func sliderGestureHasOneUndoAcrossManyUpdates() {
     let document = WorkbenchDocument()
     let undo = UndoManager()

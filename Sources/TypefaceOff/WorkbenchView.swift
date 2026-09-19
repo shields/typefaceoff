@@ -138,15 +138,10 @@ struct WorkbenchView: View {
   }
 
   private func specimen(_ config: FontConfiguration, side: Side) -> some View {
-    VStack(alignment: .leading, spacing: 0) {
-      Text(verbatim: config.face.family).font(.system(size: 12, weight: .medium)).foregroundStyle(
-        .gray
-      ).padding(20)
-      SpecimenText(
-        config: config, text: comparison.text, highlights: highlights, side: side,
-        scrollPosition: scrollPosition,
-        select: selectGlyph)
-    }.frame(maxWidth: .infinity, maxHeight: .infinity).environment(\.colorScheme, .light)
+    SpecimenText(
+      config: config, text: comparison.text, sample: comparison.sample, highlights: highlights,
+      side: side, scrollPosition: scrollPosition, select: selectGlyph
+    ).frame(maxWidth: .infinity, maxHeight: .infinity).environment(\.colorScheme, .light)
   }
 
   private var differences: some View {

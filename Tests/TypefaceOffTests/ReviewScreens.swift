@@ -23,6 +23,15 @@ import TypefaceCore
       ("text", 1440, Comparison()), ("glyph", 1280, glyph), ("single", 1280, single),
       ("spacing", 1280, spacing),
     ]
+    for sample in [Sample.poetry, .alphabet, .numerals] {
+      var comparison = Comparison()
+      comparison.sample = sample
+      cases.append((sample.rawValue, 1440, comparison))
+    }
+    var attribution = Comparison()
+    attribution.a.size = 14
+    attribution.b?.size = 14
+    cases.append(("attribution", 1440, attribution))
     var syriac = Comparison(a: .init("NotoSansSyriac-Regular"), b: nil)
     syriac.mode = .glyph
     syriac.selectedGlyph = "ܐ"

@@ -78,7 +78,7 @@ struct MatchSheet: View {
     scaled.size = 29 * config.size / document.comparison.a.size
     return VStack(alignment: .leading, spacing: 8) {
       Text(verbatim: label).font(.caption).foregroundStyle(.secondary)
-      SpecimenText(config: scaled, text: "Hamburg")
+      SpecimenText(config: scaled, text: "Hamburg", inset: NSSize(width: 12, height: 12))
     }.padding(12).frame(maxWidth: .infinity)
   }
 }

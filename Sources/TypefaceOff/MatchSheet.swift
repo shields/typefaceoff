@@ -19,7 +19,7 @@ struct MatchSheet: View {
         Button("Cancel matching", systemImage: "xmark.circle.fill") { dismiss() }
           .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
       }
-      if let b = document.comparison.b, let proposed {
+      if let proposed, let b = document.comparison.b {
         HStack {
           Text(verbatim: document.comparison.a.face.family).fontWeight(.semibold)
           Spacer()
@@ -51,6 +51,8 @@ struct MatchSheet: View {
           "Weight uses the nearest numeric weight. It is a heuristic, not a perceptual match. x-height and tracking use measured font data."
         )
         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+      } else {
+        Text("Choose two installed fonts to preview matching.").foregroundStyle(.secondary)
       }
       HStack {
         Spacer()

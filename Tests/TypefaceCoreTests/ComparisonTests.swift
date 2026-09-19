@@ -183,4 +183,11 @@ import Testing
     #expect(abs(aHeight - bHeight) < 0.001)
     #expect(state.b?.size == 22)
   }
+
+  @Test func matchingRequiresBothConfiguredFontsToBeInstalled() {
+    let missing = FontConfiguration("TypefaceOff-Does-Not-Exist")
+    for comparison in [Comparison(a: missing), Comparison(b: missing), Comparison(b: nil)] {
+      #expect(Matching.proposal(comparison, options: MatchOptions(), catalog: catalog) == nil)
+    }
+  }
 }

@@ -12,7 +12,9 @@ public enum Matching {
   public static func proposal(_ comparison: Comparison, options: MatchOptions, catalog: FontCatalog)
     -> FontConfiguration?
   {
-    guard var b = comparison.b else { return nil }
+    guard var b = comparison.b,
+      FontRenderer.isAvailable(comparison.a), FontRenderer.isAvailable(b)
+    else { return nil }
     let a = comparison.a
     // Numeric weight matching is deliberately a heuristic, not a perceptual model.
     if options.weight { b.set(.weight, to: a.weight, catalog: catalog) }

@@ -98,7 +98,11 @@ struct WorkbenchView: View {
         Button("Undo", systemImage: "arrow.uturn.backward") { undoManager?.undo() }
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")
         Button("Match…", systemImage: "slider.horizontal.3") { showMatch = true }
-          .disabled(comparison.b == nil)
+          .disabled(
+            !FontRenderer.isAvailable(comparison.a)
+              || comparison.b.map { !FontRenderer.isAvailable($0) } != false
+          )
+          .help("Preview matching weight, x-height, and tracking for two installed fonts")
       }
       HStack(spacing: 12) {
         Picker(

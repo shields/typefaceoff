@@ -244,7 +244,9 @@ struct FontInspector: View {
           ForEach(feature.options, id: \.value) { Text(verbatim: $0.name).tag($0.value) }
         }.labelsHidden()
       }
-      if let sample = feature.sample ?? featureSample(feature.id), !sample.isEmpty {
+      if !feature.isAutomatic, let sample = feature.sample ?? featureSample(feature.id),
+        !sample.isEmpty
+      {
         featurePreview(feature, config: config, sample: sample)
       }
       if feature.id.hasPrefix("ot.") {
@@ -264,18 +266,20 @@ struct FontInspector: View {
     after.features[feature.id] =
       selected == feature.options.first?.value ? feature.options.last?.value : selected
     return HStack(spacing: 8) {
-      Text(verbatim: sample).font(Font(FontRenderer.font(before, size: 21)))
+      FontPreviewText(config: before, text: sample)
       Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
-      Text(verbatim: sample).font(Font(FontRenderer.font(after, size: 21)))
-    }.lineLimit(1).accessibilityLabel("Before and after: \(sample)")
+      FontPreviewText(config: after, text: sample)
+    }.frame(height: 30).accessibilityLabel("Before and after: \(sample)")
   }
 
   private func featureSample(_ id: String) -> String? {
-    if id.hasPrefix("ot.cv") || id.hasPrefix("ot.ss") { return "ag" }
-    return [
+    let samples = [
       "ot.liga": "fi fl", "aat.1.2": "fi fl", "ot.dlig": "st", "ot.frac": "1/2", "ot.zero": "0",
       "ot.tnum": "1820", "ot.pnum": "1820", "aat.6": "1820", "aat.17": "!?", "ot.case": "(A)",
-    ][id]
+      "ot.calt": "r ->", "ot.cpsp": "ABC", "ot.aalt": "!?", "ot.salt": "ag",
+      "ot.ss01": "ag", "ot.ss02": "Il", "ot.ss03": "012", "ot.ss04": "ag",
+    ]
+    return samples[id] ?? (id.hasPrefix("ot.cv") || id.hasPrefix("ot.ss") ? "ag" : nil)
   }
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
     document.edit(name, undoManager: undoManager, body)

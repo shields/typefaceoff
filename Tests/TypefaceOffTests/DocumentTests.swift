@@ -50,6 +50,20 @@ import TypefaceCore
     #expect(missingFont.spans.isEmpty)
   }
 
+  @Test func featurePreviewsUseConfiguredShapingAndLabelUnavailableCharacters() {
+    var config = FontConfiguration("HelveticaNeue")
+    config.features["aat.1.2"] = 2
+    let enabled = FontPreviewText.content(config: config, text: "fi")
+    config.features["aat.1.2"] = 3
+    let disabled = FontPreviewText.content(config: config, text: "fi")
+    #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(enabled)) == 1)
+    #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(disabled)) == 2)
+    #expect(FontPreviewText.content(config: config, text: "🦄").string == "Unavailable")
+    #expect(
+      FontPreviewText.content(config: .init("TypefaceOff-Does-Not-Exist"), text: "a").string
+        == "Unavailable")
+  }
+
   @Test func specimenHierarchyPreservesConfiguredFontsAndCharacterTargets() throws {
     var config = FontConfiguration("HelveticaNeue-Italic")
     config.tracking = 0.02

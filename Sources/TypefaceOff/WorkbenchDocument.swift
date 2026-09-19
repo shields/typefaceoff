@@ -23,10 +23,14 @@ final class WorkbenchDocument: @preconcurrency ReferenceFileDocument {
   nonisolated init(comparison: Comparison = Comparison()) { state = Mutex(comparison) }
 
   nonisolated required init(configuration: ReadConfiguration) throws {
-    guard let data = configuration.file.regularFileContents else {
+    state = Mutex(try Self.read(configuration.file))
+  }
+
+  nonisolated static func read(_ file: FileWrapper) throws -> Comparison {
+    guard file.isRegularFile, let data = file.regularFileContents else {
       throw CocoaError(.fileReadCorruptFile)
     }
-    state = Mutex(try Comparison.decode(data))
+    return try Comparison.decode(data)
   }
 
   nonisolated func snapshot(contentType: UTType) throws -> Comparison { state.withLock { $0 } }

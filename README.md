@@ -8,10 +8,10 @@ characters, and see where their shapes and spacing differ.
 
 Requires macOS 15 or later and Xcode with Swift 6.3 or later. Install XcodeGen
 for the app build; development checks also use Bun, uv, Lefthook, zizmor,
-ShellCheck, and shfmt:
+ShellCheck, shfmt, and jq:
 
 ```sh
-brew install xcodegen bun node uv lefthook zizmor shellcheck shfmt
+brew install xcodegen bun node uv lefthook zizmor shellcheck shfmt jq
 make setup
 make run
 ```
@@ -71,11 +71,14 @@ make fmt
 
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, ranking, and versioned document data.
-`Sources/TypefaceOff` contains the macOS UI and document integration. New tests
-use Swift Testing; `make coverage` runs them with instrumentation and reports
-core coverage through `llvm-cov`. Tests for Inter’s optional variable axes and
-character variants require that font to be installed. The browser algorithm’s
-original tests run alongside the native tests.
+`Sources/TypefaceOff` contains the macOS UI and document integration. Tests use
+Swift Testing: SwiftPM runs the core tests, and Xcode runs the native tests
+inside the app. `make test-app` runs only the native suite. `make coverage` runs
+both with instrumentation and reports coverage for both the core and app through
+`llvm-cov`, requiring 100% line coverage for every source file. Tests for
+Inter’s optional variable axes and character variants require that font to be
+installed. The browser algorithm’s original tests run alongside the native
+tests.
 
 `make review` renders native text, glyph, and single-font windows into
 `.build/review` for visual inspection. It requires an active macOS desktop

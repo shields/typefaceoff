@@ -150,6 +150,7 @@ final class GlyphDrawingView: NSView {
     let metrics = zip(configs, sizes).map {
       FontRenderer.measure(comparison.selectedGlyph, config: $0, size: $1)
     }
+    let advances = zip(metrics, zip(configs, sizes)).map { $0.advance + $1.0.tracking * $1.1 }
     let supported = configs.map { FontRenderer.supports(comparison.selectedGlyph, config: $0) }
     let spacingOnly = comparison.spacing && !comparison.shape
     for column in 0..<count {
@@ -175,9 +176,10 @@ final class GlyphDrawingView: NSView {
         context, from: CGPoint(x: start + 8, y: baseline),
         to: CGPoint(x: start + width - 8, y: baseline), color: .init(gray: 0.75, alpha: 1))
       label("baseline", x: start + 10, y: baseline - 16, width: width - 20, size: 9)
-      let maxInk = indexes.map { metrics[$0].bounds.width }.max() ?? 0
-      let maxAdvance =
-        indexes.map { metrics[$0].advance + configs[$0].tracking * sizes[$0] }.max() ?? 0
+      let maxInk =
+        overlay
+        ? max(metrics[0].bounds.width, metrics[1].bounds.width) : metrics[indexes[0]].bounds.width
+      let maxAdvance = overlay ? max(advances[0], advances[1]) : advances[indexes[0]]
       var masks: [[UInt8]] = []
       let pixelScale = window?.backingScaleFactor ?? 2
       let bitmapWidth = max(1, Int(ceil(width * pixelScale)))
@@ -201,7 +203,7 @@ final class GlyphDrawingView: NSView {
             centered: true)
         }
         if comparison.spacing {
-          for offset in [0, metric.advance + configs[index].tracking * sizes[index]] {
+          for offset in [0, advances[index]] {
             stroke(
               context, from: CGPoint(x: start + originX + offset, y: 10),
               to: CGPoint(x: start + originX + offset, y: bounds.height - 48),

@@ -7,6 +7,18 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct DocumentTests {
+  @Test func readingRequiresARegularFileWithValidComparisonData() throws {
+    let comparison = Comparison()
+    #expect(
+      try WorkbenchDocument.read(FileWrapper(regularFileWithContents: comparison.encoded()))
+        == comparison)
+    #expect(throws: CocoaError(.fileReadCorruptFile)) {
+      try WorkbenchDocument.read(FileWrapper(directoryWithFileWrappers: [:]))
+    }
+    #expect(throws: DecodingError.self) {
+      try WorkbenchDocument.read(FileWrapper(regularFileWithContents: Data("invalid".utf8)))
+    }
+  }
   @Test(arguments: ["en_US", "de_DE", "fr_FR"])
   func sharedSizeUsesTheDisplayLocale(identifier: String) throws {
     let locale = Locale(identifier: identifier)

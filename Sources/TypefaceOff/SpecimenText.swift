@@ -135,9 +135,8 @@ struct SpecimenText: NSViewRepresentable {
         for character in sectionText {
           let glyph = String(character)
           let whitespace = glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-          let supported =
-            support[glyph] ?? (whitespace || FontRenderer.supports(glyph, config: config))
-          support[glyph] = supported
+          // Every non-whitespace character was checked before constructing the specimen.
+          let supported = whitespace || support[glyph] == true
           var styled = attributes
           if !supported {
             styled[.font] = NSFont.monospacedSystemFont(

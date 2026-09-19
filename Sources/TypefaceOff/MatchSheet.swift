@@ -7,11 +7,12 @@ struct MatchSheet: View {
   @Environment(\.undoManager) private var undoManager
   @State private var options = MatchOptions()
 
-  private var proposed: FontConfiguration? {
-    Matching.proposal(document.comparison, options: options, catalog: document.catalog)
+  private var matching: MatchPreview? {
+    Matching.preview(document.comparison, options: options, catalog: document.catalog)
   }
 
   var body: some View {
+    let proposal = matching
     VStack(alignment: .leading, spacing: 18) {
       HStack {
         Text("Match").font(.title2)
@@ -19,7 +20,7 @@ struct MatchSheet: View {
         Button("Cancel matching", systemImage: "xmark.circle.fill") { dismiss() }
           .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
       }
-      if let proposed, let b = document.comparison.b {
+      if let matching = proposal, let b = document.comparison.b {
         HStack {
           Text(verbatim: document.comparison.a.face.family).fontWeight(.semibold)
           Spacer()
@@ -31,18 +32,18 @@ struct MatchSheet: View {
           .overlay(RoundedRectangle(cornerRadius: 6).stroke(WorkbenchStyle.border))
         option(
           "Weight", value: $options.weight, before: weightDescription(b),
-          after: weightDescription(suggestion(including: \.weight) ?? b)
+          after: weightDescription(matching.weight)
         )
         option(
           "x-height", value: $options.xHeight, before: "\(number(b.size)) pt",
-          after: "\(number(suggestion(including: \.xHeight)?.size ?? b.size)) pt")
+          after: "\(number(matching.xHeight.size)) pt")
         option(
           "Tracking", value: $options.tracking, before: "\(number(b.tracking, digits: 3)) em",
           after:
-            "\(number(suggestion(including: \.tracking)?.tracking ?? b.tracking, digits: 3)) em")
+            "\(number(matching.tracking.tracking, digits: 3)) em")
         HStack(spacing: 16) {
           preview(document.comparison.a, label: "Reference A")
-          preview(proposed, label: "Proposed B")
+          preview(matching.proposed, label: "Proposed B")
         }.padding(14).frame(height: 110).background(.white).clipShape(
           RoundedRectangle(cornerRadius: 6)
         )
@@ -58,14 +59,14 @@ struct MatchSheet: View {
         Spacer()
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("Apply") {
-          if let proposed {
+          if let matching {
             document.edit("Match fonts", undoManager: undoManager) {
-              $0.b = proposed
+              $0.b = matching.proposed
               $0.calibrate()
             }
           }
           dismiss()
-        }.keyboardShortcut(.defaultAction).disabled(options.isEmpty || proposed == nil)
+        }.keyboardShortcut(.defaultAction).disabled(options.isEmpty || proposal == nil)
       }
     }.padding(24).frame(width: 470).background(WorkbenchStyle.sheet)
       .environment(\.colorScheme, .light).preferredColorScheme(.light)
@@ -85,14 +86,6 @@ struct MatchSheet: View {
 
   private func weightDescription(_ config: FontConfiguration) -> String {
     config.face.axes.contains { $0.tag == "wght" } ? number(config.weight) : config.face.style
-  }
-
-  private func suggestion(including option: WritableKeyPath<MatchOptions, Bool>)
-    -> FontConfiguration?
-  {
-    var choices = options
-    choices[keyPath: option] = true
-    return Matching.proposal(document.comparison, options: choices, catalog: document.catalog)
   }
 
   private func preview(_ config: FontConfiguration, label: String) -> some View {

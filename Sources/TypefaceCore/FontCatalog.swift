@@ -85,14 +85,35 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     let font = CTFontCreateWithName(postScriptName as CFString, 22, nil)
     id = CTFontCopyPostScriptName(font) as String
     family = CTFontCopyFamilyName(font) as String
-    style = CTFontCopyName(font, kCTFontStyleNameKey) as String? ?? "Regular"
     italic = CTFontGetSymbolicTraits(font).contains(.traitItalic)
     unitsPerEm = Int(CTFontGetUnitsPerEm(font))
-    coordinates = Dictionary(
-      uniqueKeysWithValues: ((CTFontCopyVariation(font) as? [NSNumber: NSNumber]) ?? [:]).map {
+    let attributes = Self.readAttributes(
+      styleName: CTFontCopyName(font, kCTFontStyleNameKey) as String?,
+      variation: CTFontCopyVariation(font) as? [NSNumber: NSNumber],
+      axes: CTFontCopyVariationAxes(font) as? [[String: Any]],
+      os2: CTFontCopyTable(font, tagNumber("OS/2"), []) as Data?)
+    style = attributes.style
+    coordinates = attributes.coordinates
+    axes = attributes.axes
+    weight = attributes.weight
+    features = Self.readFeatures(
+      tables: Dictionary(
+        uniqueKeysWithValues: ["GSUB", "GPOS"].compactMap { tag in
+          (CTFontCopyTable(font, tagNumber(tag), []) as Data?).map { (tag, $0) }
+        }),
+      names: Self.readNames(CTFontCopyTable(font, tagNumber("name"), []) as Data?),
+      aat: (CTFontCopyFeatures(font) as? [[String: Any]]) ?? [])
+  }
+
+  /// Interpret optional Core Text metadata independently of installed fonts.
+  static func readAttributes(
+    styleName: String?, variation: [NSNumber: NSNumber]?, axes rawAxes: [[String: Any]]?, os2: Data?
+  ) -> (style: String, coordinates: [UInt32: Double], axes: [FontAxis], weight: Double) {
+    let coordinates = Dictionary(
+      uniqueKeysWithValues: (variation ?? [:]).map {
         ($0.key.uint32Value, $0.value.doubleValue)
       })
-    axes = ((CTFontCopyVariationAxes(font) as? [[String: Any]]) ?? []).compactMap { axis in
+    let axes = (rawAxes ?? []).compactMap { axis -> FontAxis? in
       guard let identifier = axis[kCTFontVariationAxisIdentifierKey as String] as? NSNumber,
         let minimum = axis[kCTFontVariationAxisMinimumValueKey as String] as? Double,
         let maximum = axis[kCTFontVariationAxisMaximumValueKey as String] as? Double,
@@ -105,19 +126,19 @@ public struct FontFace: Identifiable, Hashable, Sendable {
         minimum: minimum, maximum: maximum, defaultValue: value)
     }.sorted { ($0.tag == "wght" ? 0 : 1, $0.name) < ($1.tag == "wght" ? 0 : 1, $1.name) }
     // OS/2 weights use the same 1–1000 scale as the OpenType wght axis.
-    let os2 = CTFontCopyTable(font, tagNumber("OS/2"), []) as Data?
-    weight = coordinates[tagNumber("wght")] ?? Double(os2.flatMap { readUInt16($0, 4) } ?? 400)
-    features = Self.readFeatures(font)
+    let weight = coordinates[tagNumber("wght")] ?? Double(os2.flatMap { readUInt16($0, 4) } ?? 400)
+    return (styleName ?? "Regular", coordinates, axes, weight)
   }
 
-  private static func readFeatures(_ font: CTFont) -> [FontFeature] {
+  static func readFeatures(tables: [String: Data], names: [UInt16: String], aat: [[String: Any]])
+    -> [FontFeature]
+  {
     var tags = Set<String>()
-    let names = readNames(font)
     var labels: [String: String] = [:]
     var alternatives: [String: [FontFeature.Option]] = [:]
     var samples: [String: String] = [:]
     for table in ["GSUB", "GPOS"] {
-      guard let data = CTFontCopyTable(font, tagNumber(table), []) as Data?,
+      guard let data = tables[table],
         let offset = readUInt16(data, 6), let count = readUInt16(data, Int(offset))
       else { continue }
       for index in 0..<Int(count) {
@@ -169,7 +190,7 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     }
     // AAT-only fonts (including Helvetica Neue) expose selectors through Core Text.
     if tags.isEmpty {
-      for group in (CTFontCopyFeatures(font) as? [[String: Any]]) ?? [] {
+      for group in aat {
         guard let type = group[kCTFontFeatureTypeIdentifierKey as String] as? Int,
           let name = group[kCTFontFeatureTypeNameKey as String] as? String,
           let selectors = group[kCTFontFeatureTypeSelectorsKey as String] as? [[String: Any]]
@@ -213,8 +234,8 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     return result
   }
 
-  private static func readNames(_ font: CTFont) -> [UInt16: String] {
-    guard let data = CTFontCopyTable(font, tagNumber("name"), []) as Data?,
+  static func readNames(_ data: Data?) -> [UInt16: String] {
+    guard let data,
       let count = readUInt16(data, 2), let storage = readUInt16(data, 4)
     else { return [:] }
     var result: [UInt16: String] = [:]
@@ -227,7 +248,7 @@ public struct FontFace: Identifiable, Hashable, Sendable {
       else { continue }
       let start = Int(storage) + Int(offset)
       let end = start + Int(length)
-      guard end <= data.count,
+      guard end <= data.count, platform == 1 || length.isMultiple(of: 2),
         let value = String(
           data: data[start..<end], encoding: platform == 1 ? .macOSRoman : .utf16BigEndian)
       else { continue }
@@ -246,11 +267,15 @@ public struct FontCatalog: Sendable {
   public let namesByFamily: [String: [String]]
 
   public init() {
-    let descriptors =
-      CTFontCollectionCreateMatchingFontDescriptors(CTFontCollectionCreateFromAvailableFonts(nil))
-      as? [CTFontDescriptor] ?? []
+    self.init(
+      descriptors:
+        CTFontCollectionCreateMatchingFontDescriptors(CTFontCollectionCreateFromAvailableFonts(nil))
+        as? [CTFontDescriptor])
+  }
+
+  init(descriptors: [CTFontDescriptor]?) {
     var names: [String: Set<String>] = [:]
-    for descriptor in descriptors {
+    for descriptor in descriptors ?? [] {
       guard
         let family = CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute)
           as? String,

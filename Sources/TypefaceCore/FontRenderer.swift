@@ -76,7 +76,8 @@ public enum FontRenderer {
     guard isAvailable(config) else { return false }
     let configuredName = CTFontCopyPostScriptName(font(config, size: 22)) as String
     let shaped = line(text, config: config, size: 22)
-    let runs = CTLineGetGlyphRuns(shaped) as? [CTRun] ?? []
+    // Core Text guarantees that this array contains CTRun objects.
+    let runs = CTLineGetGlyphRuns(shaped) as! [CTRun]
     return runs.allSatisfy { run in
       let attrs = CTRunGetAttributes(run) as NSDictionary
       guard let actual = attrs[kCTFontAttributeName] else { return false }
@@ -130,10 +131,9 @@ public enum FontRenderer {
       context.setShouldSmoothFonts(false)
       context.setFillColor(gray: 1, alpha: 1)
       context.textPosition = origin
-      let attrs = attributes(config, size: size, tracking: false).merging([
-        NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(
-          gray: 1, alpha: 1)
-      ]) { _, new in new }
+      var attrs = attributes(config, size: size, tracking: false)
+      attrs[NSAttributedString.Key(kCTForegroundColorAttributeName as String)] = CGColor(
+        gray: 1, alpha: 1)
       CTLineDraw(
         CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attrs)),
         context)

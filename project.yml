@@ -49,8 +49,27 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shields.typefaceoff
         CODE_SIGN_STYLE: Automatic
+  TypefaceOffTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/TypefaceOffTests]
+    dependencies:
+      - target: TypefaceOff
+      - package: TypefaceCore
+        product: TypefaceCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TypefaceOff.app/Contents/MacOS/TypefaceOff"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 schemes:
   TypefaceOff:
     build:
       targets:
         TypefaceOff: all
+    test:
+      gatherCoverageData: true
+      environmentVariables:
+        TYPEFACEOFF_REVIEW_DIR: "$(TYPEFACEOFF_REVIEW_DIR)"
+      targets:
+        - TypefaceOffTests

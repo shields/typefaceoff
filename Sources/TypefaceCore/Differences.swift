@@ -35,9 +35,9 @@ public enum Differences {
     let spacing =
       (abs(advances[0] - advances[1]) + abs(metrics[0].leftBearing - metrics[1].leftBearing)
         + abs(metrics[0].rightBearing - metrics[1].rightBearing)) / (3 * 192)
-    let ascent = max(0, metrics.map(\.bounds.maxY).max() ?? 0)
-    let descent = max(0, -(metrics.map(\.bounds.minY).min() ?? 0))
-    let width = max(1, metrics.map(\.bounds.width).max() ?? 1)
+    let ascent = max(0, metrics[0].bounds.maxY, metrics[1].bounds.maxY)
+    let descent = max(0, -min(metrics[0].bounds.minY, metrics[1].bounds.minY))
+    let width = max(1, metrics[0].bounds.width, metrics[1].bounds.width)
     let height = max(1, ascent + descent)
     let scale = min(1, 504 / max(width, height))
     let masks = configs.indices.map { index in
@@ -69,9 +69,10 @@ public enum Differences {
     }
     let shapeRanks = percentiles(scores, key: \.shape)
     let spacingRanks = percentiles(scores, key: \.spacing)
+    // Both maps contain every input glyph, including ties and duplicate glyphs.
     return scores.sorted {
-      let left = shapeRanks[$0.glyph, default: 0] + spacingRanks[$0.glyph, default: 0]
-      let right = shapeRanks[$1.glyph, default: 0] + spacingRanks[$1.glyph, default: 0]
+      let left = shapeRanks[$0.glyph]! + spacingRanks[$0.glyph]!
+      let right = shapeRanks[$1.glyph]! + spacingRanks[$1.glyph]!
       return left == right ? $0.glyph < $1.glyph : left > right
     }
   }

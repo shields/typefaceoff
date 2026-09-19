@@ -6,7 +6,8 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct ReviewScreens {
-  @Test(.enabled(if: ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] != nil))
+  @Test(
+    .enabled(if: !(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] ?? "").isEmpty))
   func renderWorkbench() async throws {
     let folder = try #require(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"])
     try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)

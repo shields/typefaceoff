@@ -109,6 +109,38 @@ import TypefaceCore
     #expect(try TypefaceCore.Comparison.decode(snapshot.encoded()) == snapshot)
   }
 
+  @Test func browsingDoesNotConsumeUndoOrRedoAndKeepsTheCurrentInspection() {
+    let document = WorkbenchDocument()
+    let undo = UndoManager()
+    undo.groupsByEvent = false
+    undo.beginUndoGrouping()
+    document.edit("Resize", undoManager: undo) {
+      $0.set(.size, to: 44, side: .a, catalog: document.catalog)
+    }
+    undo.endUndoGrouping()
+    for glyph in ["a", "g", "@"] {
+      document.updatePresentation {
+        $0.mode = .glyph
+        $0.selectedGlyph = glyph
+        $0.shape = false
+        $0.spacing = true
+      }
+    }
+    undo.undo()
+    #expect(document.comparison.a.size == 22)
+    #expect(document.comparison.b?.size == 22)
+    #expect(!undo.canUndo)
+    #expect(document.comparison.mode == .glyph)
+    #expect(document.comparison.selectedGlyph == "@")
+    #expect(!document.comparison.shape && document.comparison.spacing)
+    document.updatePresentation { $0.selectedGlyph = "g" }
+    #expect(undo.canRedo)
+    undo.redo()
+    #expect(document.comparison.a.size == 44)
+    #expect(document.comparison.b?.size == 44)
+    #expect(document.comparison.selectedGlyph == "g")
+  }
+
   @Test func removingBWhileRankingClearsResults() async {
     let ranking = RankingModel()
     await ranking.update(Comparison())

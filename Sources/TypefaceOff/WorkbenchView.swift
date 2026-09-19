@@ -85,7 +85,7 @@ struct WorkbenchView: View {
   private var controls: some View {
     VStack(spacing: 12) {
       HStack {
-        Picker("Comparison mode", selection: setting(\.mode, name: "Change view")) {
+        Picker("Comparison mode", selection: presentation(\.mode)) {
           Text("Text").tag(ComparisonMode.text)
           Text("Glyph").tag(ComparisonMode.glyph)
         }.pickerStyle(.segmented).frame(width: 168).labelsHidden()
@@ -152,8 +152,8 @@ struct WorkbenchView: View {
           ProgressView().controlSize(.small).accessibilityLabel("Comparing glyphs")
         }
         Spacer()
-        Toggle("Shape", isOn: setting(\.shape, name: "Highlight shape")).toggleStyle(.checkbox)
-        Toggle("Spacing", isOn: setting(\.spacing, name: "Highlight spacing")).toggleStyle(
+        Toggle("Shape", isOn: presentation(\.shape)).toggleStyle(.checkbox)
+        Toggle("Spacing", isOn: presentation(\.spacing)).toggleStyle(
           .checkbox)
       }
       ScrollViewReader { proxy in
@@ -238,12 +238,12 @@ struct WorkbenchView: View {
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
     document.edit(name, undoManager: undoManager, body)
   }
-  private func setting<Value>(_ key: WritableKeyPath<Comparison, Value>, name: String) -> Binding<
+  private func presentation<Value>(_ key: WritableKeyPath<Comparison, Value>) -> Binding<
     Value
   > {
     Binding(
       get: { document.comparison[keyPath: key] },
-      set: { value in edit(name) { $0[keyPath: key] = value } })
+      set: { value in document.updatePresentation { $0[keyPath: key] = value } })
   }
   private func syncSize() {
     sharedSize =
@@ -252,7 +252,7 @@ struct WorkbenchView: View {
   }
   private func selectGlyph(_ glyph: String) {
     guard let first = glyph.first else { return }
-    edit("Inspect character") {
+    document.updatePresentation {
       $0.selectedGlyph = String(first)
       $0.mode = .glyph
     }

@@ -51,6 +51,13 @@ final class WorkbenchDocument: @preconcurrency ReferenceFileDocument {
     if continuousEdit == nil { continuousEdit = (name, comparison) }
   }
 
+  /// Browsing changes are saved with the document but do not consume Undo steps.
+  func updatePresentation(_ body: (inout Comparison) -> Void) {
+    var next = comparison
+    body(&next)
+    if next != comparison { comparison = next }
+  }
+
   func endContinuousEdit(undoManager: UndoManager?) {
     guard let edit = continuousEdit else { return }
     continuousEdit = nil
@@ -62,7 +69,15 @@ final class WorkbenchDocument: @preconcurrency ReferenceFileDocument {
   private func registerUndo(_ previous: Comparison, name: String, undoManager: UndoManager?) {
     undoManager?.registerUndo(withTarget: self) { [weak undoManager] target in
       MainActor.assumeIsolated {
-        target.edit(name, undoManager: undoManager) { $0 = previous }
+        target.edit(name, undoManager: undoManager) { current in
+          var restored = previous
+          // Keep the user's current inspection while undoing a font or sample edit.
+          restored.mode = current.mode
+          restored.selectedGlyph = current.selectedGlyph
+          restored.shape = current.shape
+          restored.spacing = current.spacing
+          current = restored
+        }
       }
     }
     undoManager?.setActionName(name)

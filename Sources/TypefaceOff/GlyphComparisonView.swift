@@ -5,6 +5,7 @@ import TypefaceCore
 
 struct GlyphComparisonView: View {
   let comparison: Comparison
+  let focusRequest: UUID
   let select: (String) -> Void
   let navigate: (Int) -> Void
   @State private var input = ""
@@ -22,27 +23,20 @@ struct GlyphComparisonView: View {
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
         Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 11))
           .foregroundStyle(.secondary).lineLimit(2)
-      }.padding(16)
-      GlyphCanvas(comparison: comparison).frame(maxWidth: .infinity, maxHeight: .infinity)
+          .help(unicodeDescription(comparison.selectedGlyph))
+      }.frame(height: 32).padding(16)
+      GlyphCanvas(comparison: comparison, focusRequest: focusRequest, navigate: navigate)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       HStack(alignment: .top, spacing: 0) {
         metrics(comparison.a)
         if let b = comparison.b {
           Color.clear.frame(maxWidth: .infinity).frame(height: 85)
           metrics(b)
         }
-      }.padding(.bottom, 16)
+      }.frame(height: 85, alignment: .top).padding(.bottom, 16)
     }
     .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
     .onChange(of: comparison.selectedGlyph, initial: true) { _, value in input = value }
-    .focusable().focusEffectDisabled()
-    .onKeyPress(.leftArrow) {
-      navigate(-1)
-      return .handled
-    }
-    .onKeyPress(.rightArrow) {
-      navigate(1)
-      return .handled
-    }
   }
 
   private func metrics(_ config: FontConfiguration) -> some View {
@@ -72,16 +66,51 @@ struct GlyphComparisonView: View {
 
 struct GlyphCanvas: NSViewRepresentable {
   let comparison: Comparison
+  let focusRequest: UUID
+  let navigate: (Int) -> Void
   func makeNSView(context: Context) -> GlyphDrawingView { GlyphDrawingView() }
-  func updateNSView(_ view: GlyphDrawingView, context: Context) { view.update(comparison) }
+  func updateNSView(_ view: GlyphDrawingView, context: Context) {
+    view.navigate = navigate
+    view.update(comparison)
+    view.requestFocus(focusRequest)
+  }
 }
 
 final class GlyphDrawingView: NSView {
+  var navigate: (Int) -> Void = { _ in }
+  private var focusRequest: UUID?
   private var comparison = Comparison()
   private var envelope = GlyphMeasurementPlaceholder.defaultBounds
   private var envelopeKey: EnvelopeKey?
   private let red = NSColor(calibratedRed: 0.76, green: 0.32, blue: 0.31, alpha: 1)
   private let blue = NSColor(calibratedRed: 0.25, green: 0.48, blue: 0.68, alpha: 1)
+
+  override var acceptsFirstResponder: Bool { true }
+
+  func requestFocus(_ request: UUID) {
+    guard focusRequest != request else { return }
+    focusRequest = request
+    window?.makeFirstResponder(self)
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if focusRequest != nil { window?.makeFirstResponder(self) }
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    window?.makeFirstResponder(self)
+  }
+
+  override func keyDown(with event: NSEvent) {
+    guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+      [123, 124].contains(event.keyCode)
+    else {
+      super.keyDown(with: event)
+      return
+    }
+    navigate(event.keyCode == 123 ? -1 : 1)
+  }
 
   func update(_ value: Comparison) {
     comparison = value
@@ -93,8 +122,11 @@ final class GlyphDrawingView: NSView {
     }
     setAccessibilityElement(true)
     setAccessibilityLabel(
-      "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
+      value.b == nil
+        ? "\(unicodeDescription(value.selectedGlyph)). Font A."
+        : "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
     )
+    setAccessibilityHelp("Use the Left Arrow and Right Arrow keys to inspect ranked characters.")
     needsDisplay = true
   }
 

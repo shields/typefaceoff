@@ -13,6 +13,7 @@ struct WorkbenchView: View {
   @State private var showEditor = false
   @State private var customText = ""
   @State private var sharedSize = "22"
+  @State private var glyphFocusRequest = UUID()
 
   private var comparison: Comparison { document.comparison }
   private var rankingKey: RankingKey {
@@ -45,7 +46,9 @@ struct WorkbenchView: View {
           }
           .background(.white)
         } else {
-          GlyphComparisonView(comparison: comparison, select: selectGlyph, navigate: navigate)
+          GlyphComparisonView(
+            comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
+            navigate: navigate)
         }
         if comparison.b != nil {
           Divider()
@@ -243,7 +246,10 @@ struct WorkbenchView: View {
   > {
     Binding(
       get: { document.comparison[keyPath: key] },
-      set: { value in document.updatePresentation { $0[keyPath: key] = value } })
+      set: { value in
+        document.updatePresentation { $0[keyPath: key] = value }
+        if comparison.mode == .glyph { glyphFocusRequest = UUID() }
+      })
   }
   private func syncSize() {
     sharedSize =
@@ -256,6 +262,7 @@ struct WorkbenchView: View {
       $0.selectedGlyph = String(first)
       $0.mode = .glyph
     }
+    glyphFocusRequest = UUID()
   }
   private func navigate(_ direction: Int) {
     let glyphs =

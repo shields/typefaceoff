@@ -160,6 +160,7 @@ struct WorkbenchView: View {
         Text("pt").foregroundStyle(.secondary)
         Button("Swap fonts", systemImage: "arrow.left.arrow.right", action: swapFonts)
           .labelStyle(.iconOnly).disabled(comparison.b == nil)
+          .help("Swap fonts A and B, including their appearance and typography settings")
       }
     }.padding(16).background(WorkbenchStyle.toolbar)
   }

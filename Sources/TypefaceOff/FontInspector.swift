@@ -64,6 +64,7 @@ struct FontInspector: View {
               Button("Reset appearance", systemImage: "arrow.counterclockwise") {
                 resetAppearance()
               }.labelStyle(.iconOnly)
+                .help("Reset appearance settings for this font and any linked settings")
               Button(
                 document.comparison.appearanceLocked ? "Unlock appearance" : "Lock appearance",
                 systemImage: document.comparison.appearanceLocked ? "lock.fill" : "lock.open"
@@ -73,6 +74,10 @@ struct FontInspector: View {
                   $0.calibrate()
                 }
               }.labelStyle(.iconOnly).disabled(document.comparison.b == nil)
+                .help(
+                  document.comparison.appearanceLocked
+                    ? "Unlock appearance to adjust each font independently"
+                    : "Link appearance while preserving the current differences between fonts")
             }.buttonStyle(.borderless)
             if config.face.axes.isEmpty {
               HStack {
@@ -102,6 +107,7 @@ struct FontInspector: View {
                 edit("Reset typography") { $0[side]?.features = [:] }
               }
               .labelStyle(.iconOnly).buttonStyle(.borderless)
+              .help("Restore this font’s default typography settings")
             }
             ForEach(FontFeature.Group.allCases, id: \.self) { group in
               let features = config.face.features.filter { $0.group == group }
@@ -195,7 +201,9 @@ struct FontInspector: View {
           binding.wrappedValue = defaultValue
         }
         .labelStyle(.iconOnly).buttonStyle(.borderless).font(.caption).disabled(
-          value == defaultValue)
+          value == defaultValue
+        )
+        .help("Reset \(title.lowercased()) to its default value")
         Spacer(minLength: 0)
         TextField(title, value: binding, format: .number.precision(.fractionLength(0...3)))
           .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 62)

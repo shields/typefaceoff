@@ -16,13 +16,16 @@ struct GlyphComparisonView: View {
     VStack(alignment: .leading, spacing: 0) {
       HStack(spacing: 8) {
         Button("Previous character", systemImage: "chevron.left") { navigate(-1) }.labelStyle(
-          .iconOnly)
+          .iconOnly
+        )
+        .help("Inspect the previous character (Left Arrow when the glyph view has focus)")
         TextField("Character", text: $input).frame(width: 40).multilineTextAlignment(.center)
           .onSubmit {
             select(input)
             input = comparison.selectedGlyph
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
+          .help("Inspect the next character (Right Arrow when the glyph view has focus)")
         Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 11))
           .foregroundStyle(.secondary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))

@@ -3,3 +3,4 @@ TypefaceOff.xcodeproj/
 Config/
 node_modules/
 bun.lock
+Package.resolved

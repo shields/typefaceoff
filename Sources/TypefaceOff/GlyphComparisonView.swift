@@ -36,6 +36,7 @@ struct GlyphComparisonView: View {
         )
         .help("Inspect the previous character (Left Arrow when the glyph view has focus)")
         TextField("Character", text: $input).frame(width: 40).multilineTextAlignment(.center)
+          .accessibilityIdentifier("Character")
           .onSubmit {
             select(input)
             input = comparison.selectedGlyph
@@ -250,6 +251,7 @@ final class GlyphDrawingView: NSView {
     }
     setAccessibilityElement(true)
     setAccessibilityRole(.button)
+    setAccessibilityIdentifier("Glyph canvas")
     setAccessibilityLabel(
       value.b == nil
         ? "\(unicodeDescription(value.selectedGlyph)). Font A."
@@ -263,6 +265,7 @@ final class GlyphDrawingView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
+    defer { FuzzDiagnostics.shared.rendered("glyph") }
     guard let context = NSGraphicsContext.current?.cgContext, bounds.width > 0, bounds.height > 0
     else { return }
     NSColor.white.setFill()
@@ -270,6 +273,11 @@ final class GlyphDrawingView: NSView {
     let count = comparison.b == nil ? 1 : 3
     let width = bounds.width / Double(count)
     let baseline = max(38, (bounds.height - 48) * 0.25)
+    FuzzDiagnostics.shared.glyphGeometry(
+      view: String(ObjectIdentifier(self).hashValue),
+      context:
+        "\(comparison.a.hashValue):\(comparison.b?.hashValue ?? 0):\(comparison.text.hashValue):\(bounds.width):\(bounds.height)",
+      glyph: comparison.selectedGlyph, baseline: baseline)
     let scale = max(
       0.01,
       min(

@@ -80,6 +80,7 @@ struct SpecimenText: NSViewRepresentable {
       view.refreshToolTips()
       view.setAccessibilityValue(text)
     }
+    FuzzDiagnostics.shared.rendered("specimen")
   }
 
   static func makeContent(config: FontConfiguration, text: String, sample: Sample = .custom)

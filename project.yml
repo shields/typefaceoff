@@ -1,4 +1,9 @@
 name: TypefaceOff
+configs:
+  Debug: debug
+  Release: release
+  FuzzCoverage: release
+  FuzzBenchmark: release
 options:
   bundleIdPrefix: dev.msrl
   deploymentTarget:
@@ -38,6 +43,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff
         CODE_SIGN_STYLE: Automatic
+      configs:
+        FuzzCoverage:
+          PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff.fuzz.coverage
+          CODE_SIGN_ENTITLEMENTS: ""
+          CLANG_ENABLE_CODE_COVERAGE: YES
+          SWIFT_OPTIMIZATION_LEVEL: -O
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) TYPEFACEOFF_FUZZING
+        FuzzBenchmark:
+          PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff.fuzz.benchmark
+          CODE_SIGN_ENTITLEMENTS: ""
+          CLANG_ENABLE_CODE_COVERAGE: NO
+          SWIFT_OPTIMIZATION_LEVEL: -O
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) TYPEFACEOFF_FUZZING
   TypefaceOffTests:
     type: bundle.unit-test
     platform: macOS

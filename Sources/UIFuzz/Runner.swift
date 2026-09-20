@@ -1,0 +1,320 @@
+import AppKit
+import Foundation
+import UIFuzzSupport
+
+private enum RunnerError: Error, CustomStringConvertible {
+  case launchFailed(String)
+  case launchTimedOut
+
+  var description: String {
+    switch self {
+    case .launchFailed(let detail): "Could not launch the app: \(detail)"
+    case .launchTimedOut: "LaunchServices did not launch the app within 10 seconds"
+    }
+  }
+}
+
+private final class LaunchResult: @unchecked Sendable {
+  private let lock = NSLock()
+  private var value: Result<NSRunningApplication, Error>?
+
+  func complete(application: NSRunningApplication?, error: Error?) {
+    lock.withLock {
+      if let application {
+        value = .success(application)
+      } else {
+        value = .failure(error ?? RunnerError.launchFailed("no application was returned"))
+      }
+    }
+  }
+
+  func read() -> Result<NSRunningApplication, Error>? { lock.withLock { value } }
+}
+
+struct RunnerConfiguration {
+  var app: URL
+  var artifacts: URL
+  var watchdogSeconds: TimeInterval = 10
+  var completionSeconds: TimeInterval = 30
+  var collectCoverage = true
+
+  var binary: URL {
+    app.appending(path: "Contents/MacOS/TypefaceOff")
+  }
+}
+
+final class SequenceRunner {
+  private let configuration: RunnerConfiguration
+
+  init(configuration: RunnerConfiguration) { self.configuration = configuration }
+
+  func execute(_ input: FuzzTrace) -> ExecutionReport {
+    let startedAt = Date()
+    let start = ProcessInfo.processInfo.systemUptime
+    let runID = UUID().uuidString.lowercased()
+    let runDirectory = configuration.artifacts.appending(path: "runs/\(runID)")
+    let telemetryURL = runDirectory.appending(path: "telemetry.jsonl")
+    var findings: [ExecutionFinding] = []
+    var actionTimes: [Double] = []
+    var coverage = Set<String>()
+    var buckets = Set<String>()
+    var workloadStartedAt: TimeInterval?
+    var workloadDurationMilliseconds: Double?
+    let exitStatus: Int32? = nil
+    var watchdog = false
+    var automationFailed = false
+    var launchedApplication: NSRunningApplication?
+    var executed = input
+    executed.actions = []
+
+    do {
+      try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
+      try TraceIO.save(input, to: runDirectory.appending(path: "candidate.json"))
+      let application = try launch(runDirectory: runDirectory)
+      launchedApplication = application
+      application.activate(options: [.activateAllWindows])
+      let driver = try AXDriver(processIdentifier: application.processIdentifier)
+
+      let startupDeadline = ProcessInfo.processInfo.systemUptime + configuration.watchdogSeconds
+      while !application.isTerminated && ProcessInfo.processInfo.systemUptime < startupDeadline
+        && TelemetryState.read(telemetryURL).lastHeartbeat == nil
+      {
+        Thread.sleep(forTimeInterval: 0.05)
+      }
+      if !application.isTerminated && TelemetryState.read(telemetryURL).lastHeartbeat == nil {
+        automationFailed = true
+        findings.append(
+          ExecutionFinding(
+            kind: .automation, signature: "startup-telemetry",
+            detail:
+              "The diagnostic app did not emit a main-thread heartbeat within \(configuration.watchdogSeconds) seconds."
+          ))
+      }
+
+      if !automationFailed && !application.isTerminated {
+        workloadStartedAt = ProcessInfo.processInfo.systemUptime
+      }
+      for action in input.actions where !automationFailed {
+        executed.actions.append(action)
+        try TraceIO.save(executed, to: runDirectory.appending(path: "executed.json"))
+        guard !application.isTerminated else {
+          findings.append(
+            ExecutionFinding(
+              kind: .crash, signature: "unexpected-termination",
+              detail: "The app exited while dispatching action \(executed.actions.count)."))
+          break
+        }
+        let actionStart = ProcessInfo.processInfo.systemUptime
+        do {
+          try driver.perform(action)
+        } catch {
+          automationFailed = true
+          let available = driver.snapshot().prefix(100).joined(separator: ", ")
+          findings.append(
+            ExecutionFinding(
+              kind: .automation, signature: String(describing: error),
+              detail:
+                "Action \(executed.actions.count): \(error). Visible accessibility elements: \(available)"
+            ))
+          break
+        }
+        actionTimes.append((ProcessInfo.processInfo.systemUptime - actionStart) * 1000)
+        if action.delayMilliseconds > 0 {
+          Thread.sleep(forTimeInterval: Double(action.delayMilliseconds) / 1000)
+        }
+        let telemetry = TelemetryState.read(telemetryURL)
+        if let heartbeat = telemetry.lastHeartbeat,
+          ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds
+        {
+          watchdog = true
+          findings.append(
+            ExecutionFinding(
+              kind: .hang, signature: "main-thread-heartbeat",
+              detail: "No main-thread heartbeat for \(configuration.watchdogSeconds) seconds."))
+          break
+        }
+      }
+
+      if !application.isTerminated && !watchdog && !automationFailed {
+        let completionStart = ProcessInfo.processInfo.systemUptime
+        var idleSince: TimeInterval?
+        var reachedIdle = false
+        while ProcessInfo.processInfo.systemUptime - completionStart
+          < configuration.completionSeconds
+        {
+          let telemetry = TelemetryState.read(telemetryURL)
+          let hasFreshHeartbeat = telemetry.lastHeartbeat.map { $0 >= completionStart } ?? false
+          if telemetry.pendingWork == 0 && hasFreshHeartbeat {
+            if idleSince == nil { idleSince = ProcessInfo.processInfo.systemUptime }
+            if ProcessInfo.processInfo.systemUptime - (idleSince ?? 0) >= 0.2 {
+              reachedIdle = true
+              break
+            }
+          } else {
+            idleSince = nil
+          }
+          if let heartbeat = telemetry.lastHeartbeat,
+            ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds
+          {
+            watchdog = true
+            findings.append(
+              ExecutionFinding(
+                kind: .hang, signature: "main-thread-heartbeat",
+                detail: "The main thread stopped responding after the latest action."))
+            break
+          }
+          Thread.sleep(forTimeInterval: 0.05)
+        }
+        let telemetry = TelemetryState.read(telemetryURL)
+        if !reachedIdle && !watchdog {
+          watchdog = true
+          findings.append(
+            ExecutionFinding(
+              kind: .hang, signature: "completion-timeout",
+              detail:
+                "The latest UI work did not complete within \(configuration.completionSeconds) seconds."
+            ))
+        }
+        for failure in telemetry.correctnessFailures {
+          findings.append(
+            ExecutionFinding(kind: .correctness, signature: failure, detail: failure))
+        }
+      }
+
+      if let workloadStartedAt {
+        workloadDurationMilliseconds =
+          (ProcessInfo.processInfo.systemUptime - workloadStartedAt) * 1000
+      }
+
+      if application.isTerminated && !findings.contains(where: { $0.kind == .crash }) {
+        findings.append(
+          ExecutionFinding(
+            kind: .crash, signature: "unexpected-termination",
+            detail: "The app exited before the driver requested termination."))
+      }
+    } catch {
+      findings.append(
+        ExecutionFinding(
+          kind: .automation, signature: String(describing: error), detail: String(describing: error)
+        ))
+    }
+
+    if let application = launchedApplication {
+      if application.isTerminated && !findings.contains(where: { $0.kind == .crash }) {
+        findings.append(
+          ExecutionFinding(
+            kind: .crash, signature: "unexpected-termination",
+            detail: "The app exited before the driver requested termination."))
+      } else if !application.isTerminated {
+        if watchdog {
+          kill(application.processIdentifier, SIGINT)
+        } else {
+          application.terminate()
+        }
+        waitForExit(application, seconds: 2)
+        if !application.isTerminated {
+          application.forceTerminate()
+          waitForExit(application, seconds: 2)
+        }
+      }
+    }
+
+    if configuration.collectCoverage {
+      do {
+        if let rawProfile = try FileManager.default.contentsOfDirectory(
+          at: runDirectory, includingPropertiesForKeys: nil
+        ).first(where: { $0.pathExtension == "profraw" }) {
+          let result = try CoverageReader.read(
+            rawProfile: rawProfile, binary: configuration.binary, workingDirectory: runDirectory)
+          coverage = result.regions
+          buckets = result.countBuckets
+        }
+      } catch {
+        findings.append(
+          ExecutionFinding(
+            kind: .automation, signature: "coverage-export",
+            detail: "Could not export coverage: \(error)"))
+      }
+    }
+
+    let telemetry = TelemetryState.read(telemetryURL)
+    if telemetry.events == 0
+      && !findings.contains(where: { $0.kind == .automation && $0.signature == "startup-telemetry" }
+      )
+    {
+      findings.append(
+        ExecutionFinding(
+          kind: .automation, signature: "missing-telemetry",
+          detail: "The diagnostic app produced no telemetry events."))
+    }
+    for failure in telemetry.correctnessFailures
+    where !findings.contains(where: { $0.kind == .correctness && $0.signature == failure }) {
+      findings.append(ExecutionFinding(kind: .correctness, signature: failure, detail: failure))
+    }
+    var metadata = machineMetadata()
+    metadata["run"] = runID
+    metadata["telemetry-events"] = String(telemetry.events)
+    metadata["maximum-heartbeat-gap-ms"] = String(telemetry.maximumHeartbeatGap * 1000)
+    metadata["process-model"] = "fresh"
+    if let snapshot = telemetry.latestSnapshot,
+      let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys])
+    {
+      metadata["final-snapshot"] = String(decoding: data, as: UTF8.self)
+    }
+    return ExecutionReport(
+      trace: executed, startedAt: startedAt,
+      durationMilliseconds: (ProcessInfo.processInfo.systemUptime - start) * 1000,
+      workloadDurationMilliseconds: workloadDurationMilliseconds,
+      actionMilliseconds: actionTimes, coverage: coverage, countBuckets: buckets,
+      findings: findings, exitStatus: exitStatus, terminatedByWatchdog: watchdog,
+      metadata: metadata)
+  }
+
+  private func launch(runDirectory: URL) throws -> NSRunningApplication {
+    let environment = [
+      "TYPEFACEOFF_FUZZ_DIR": runDirectory.path,
+      "LLVM_PROFILE_FILE": runDirectory.appending(path: "%p%c.profraw").path,
+    ]
+    let standardOutput = runDirectory.appending(path: "stdout.log")
+    let standardError = runDirectory.appending(path: "stderr.log")
+    FileManager.default.createFile(atPath: standardOutput.path, contents: nil)
+    FileManager.default.createFile(atPath: standardError.path, contents: nil)
+
+    let openConfiguration = NSWorkspace.OpenConfiguration()
+    openConfiguration.activates = true
+    openConfiguration.addsToRecentItems = false
+    openConfiguration.promptsUserIfNeeded = false
+    openConfiguration.createsNewApplicationInstance = true
+    openConfiguration.allowsRunningApplicationSubstitution = false
+    openConfiguration.environment = environment
+    let result = LaunchResult()
+    NSWorkspace.shared.openApplication(
+      at: configuration.app, configuration: openConfiguration
+    ) { application, error in
+      result.complete(application: application, error: error)
+    }
+    let deadline = ProcessInfo.processInfo.systemUptime + 10
+    while result.read() == nil && ProcessInfo.processInfo.systemUptime < deadline {
+      RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.02))
+    }
+    guard let launchResult = result.read() else { throw RunnerError.launchTimedOut }
+    return try launchResult.get()
+  }
+
+  private func waitForExit(_ application: NSRunningApplication, seconds: TimeInterval) {
+    let deadline = ProcessInfo.processInfo.systemUptime + seconds
+    while !application.isTerminated && ProcessInfo.processInfo.systemUptime < deadline {
+      Thread.sleep(forTimeInterval: 0.02)
+    }
+  }
+
+  private func machineMetadata() -> [String: String] {
+    let process = ProcessInfo.processInfo
+    return [
+      "operating-system": process.operatingSystemVersionString,
+      "processor-count": String(process.processorCount),
+      "physical-memory": String(process.physicalMemory),
+      "app": configuration.app.path,
+    ]
+  }
+}

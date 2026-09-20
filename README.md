@@ -88,16 +88,30 @@ make lint
 make fmt
 ```
 
+`make fuzz` builds an optimized, coverage-instrumented diagnostic app and drives
+its real macOS UI until interrupted. It checkpoints coverage-interesting,
+incorrect, crashing, hanging, and slow action sequences under `.build/ui-fuzz`.
+Progress reports use `measured-ms` for the action sequence and resulting UI
+work; `total-ms` also includes app startup, shutdown, and coverage collection.
+Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign. Replay or
+reduce a finding with `make fuzz-replay CASE=…` or `make fuzz-minimize CASE=…`;
+`make fuzz-benchmark` remeasures the corpus in an optimized build without
+coverage instrumentation. The driver requires an active desktop session and
+macOS Accessibility and event-posting permission. On first use, the driver stays
+open while you enable `.build/fuzz-driver/UIFuzzDriver.app` in System Settings,
+then relaunches itself and continues automatically. Its stable bundle identity
+keeps the permission valid across rebuilds.
+
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`
 contains the macOS UI and in-memory comparison state. Tests use Swift Testing:
 SwiftPM runs the core tests, and Xcode runs the native tests inside the app.
 `make test-app` runs only the native suite, saves its result bundle in
 `.build/TestResults.xcresult`, and prints assertion failures when tests fail.
-`make coverage` runs both with instrumentation and reports coverage for both the
-core and app through `llvm-cov`, requiring 100% line coverage for every source
-file. Tests for Inter’s optional variable axes and character variants require
-that font to be installed.
+`make coverage` runs both with instrumentation and reports coverage through
+`llvm-cov`, requiring 100% line coverage for every engine, app, and reusable
+fuzzing-support source file. Tests for Inter’s optional variable axes and
+character variants require that font to be installed.
 
 `make review` renders native text, glyph, and single-font windows into
 `.build/review` for visual inspection and records glyph redraw timings in

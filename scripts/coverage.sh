@@ -32,9 +32,16 @@ xcrun llvm-profdata merge "$@" -o "$profile"
 # Xcode and SwiftPM can spell the same worktree path differently (/tmp and
 # /private/tmp). Exclude tests instead of filtering by the current absolute path.
 exclude='/(Tests|\.build)/'
-xcrun llvm-cov report "$core" -object "$app" -instr-profile="$profile" -ignore-filename-regex="$exclude"
+set -- "$core" -object "$app"
+# Every SwiftPM test bundle has its own executable. Include tooling modules that
+# are intentionally not linked into the font-engine test process.
+tool="$bin/UIFuzzTests.xctest/Contents/MacOS/UIFuzzTests"
+if test -x "$tool"; then
+    set -- "$@" -object "$tool"
+fi
+xcrun llvm-cov report "$@" -instr-profile="$profile" -ignore-filename-regex="$exclude"
 report=.build/coverage/all-sources.json
-xcrun llvm-cov export "$core" -object "$app" -instr-profile="$profile" -ignore-filename-regex="$exclude" >"$report"
+xcrun llvm-cov export "$@" -instr-profile="$profile" -ignore-filename-regex="$exclude" >"$report"
 if ! jq -e '
     [.data[].files[]] |
     any(.filename | contains("/Sources/TypefaceCore/")) and

@@ -2,8 +2,13 @@ export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/ModuleCache
 SWIFT_FLAGS = --disable-sandbox --cache-path .build/cache --config-path .build/config --security-path .build/security
 APP = .build/xcode/Build/Products/Debug/TypefaceOff.app
 XCODE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Debug -derivedDataPath .build/xcode -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
+RAW_FUZZ_TOOL = .build/fuzz-tool/debug/ui-fuzz
+FUZZ_DRIVER_APP = .build/fuzz-driver/UIFuzzDriver.app
+FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff.app
+FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
+FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 
-.PHONY: build project run test test-app coverage lint fmt setup review
+.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark
 
 project:
 	xcodegen generate --spec project.yml
@@ -27,6 +32,27 @@ coverage: test
 
 review: project
 	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(CURDIR)/.build/review" -only-testing:TypefaceOffTests/ReviewScreens test
+
+fuzz-build: project
+	swift build $(FUZZ_SWIFT_FLAGS) --product ui-fuzz
+	./scripts/build-fuzz-driver.sh "$(RAW_FUZZ_TOOL)" "$(FUZZ_DRIVER_APP)"
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration FuzzCoverage -derivedDataPath .build/fuzz-coverage -destination 'platform=macOS' CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -target TypefaceOff -configuration FuzzBenchmark SYMROOT="$(CURDIR)/.build/fuzz-benchmark" OBJROOT="$(CURDIR)/.build/fuzz-benchmark/obj" CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
+
+# Campaigns run until SIGINT or SIGTERM unless FUZZ_ARGS includes --duration.
+fuzz: fuzz-build
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" run --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+
+fuzz-replay: fuzz-build
+	test -n "$(CASE)"
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" replay --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+
+fuzz-minimize: fuzz-build
+	test -n "$(CASE)"
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" minimize --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+
+fuzz-benchmark: fuzz-build
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),.build/ui-fuzz/corpus))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift

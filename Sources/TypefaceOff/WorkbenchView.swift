@@ -177,6 +177,7 @@ struct WorkbenchView: View {
           syncSize()
         }
         .accessibilityLabel("Shared point size")
+        .accessibilityIdentifier("Shared point size")
         Text("pt").foregroundStyle(.secondary)
         Button("Swap fonts", systemImage: "arrow.left.arrow.right", action: swapFonts)
           .labelStyle(.iconOnly).disabled(comparison.b == nil)
@@ -276,6 +277,7 @@ struct WorkbenchView: View {
       Text("Sample text").font(.title2)
       TextEditor(text: $customText).font(.body).frame(width: 600, height: 320)
         .accessibilityLabel("Custom specimen text")
+        .accessibilityIdentifier("Custom specimen text")
       HStack {
         Spacer()
         Button("Cancel") { showEditor = false }.keyboardShortcut(.cancelAction)

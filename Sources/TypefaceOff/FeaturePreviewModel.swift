@@ -21,6 +21,11 @@ final class FeaturePreviewModel: ObservableObject {
   }
 
   func update(_ config: FontConfiguration?) async {
+    let fuzzWork = FuzzDiagnostics.shared.beginWork("feature-preview")
+    defer {
+      FuzzDiagnostics.shared.endWork(
+        fuzzWork, kind: "feature-preview", outcome: Task.isCancelled ? "cancelled" : "completed")
+    }
     let request = UUID()
     self.request = request
     result = nil

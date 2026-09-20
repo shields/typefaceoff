@@ -4,17 +4,27 @@ import TypefaceCore
 
 @MainActor
 final class WorkbenchModel: ObservableObject {
-  @Published var comparison: Comparison
+  @Published var comparison: Comparison {
+    didSet { FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison) }
+  }
   let catalog = FontCatalog()
+  private let fuzzWindow: UUID
   private var continuousEdit: (name: String, initial: Comparison)?
 
-  init(comparison: Comparison = Comparison()) { self.comparison = comparison }
+  init(comparison: Comparison = Comparison()) {
+    fuzzWindow = UUID()
+    self.comparison = comparison
+    FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison)
+  }
 
   func edit(_ name: String, undoManager: UndoManager?, _ body: (inout Comparison) -> Void) {
     let previous = comparison
     var next = previous
     body(&next)
     guard previous != next else { return }
+    if name == "Change typography" {
+      FuzzDiagnostics.shared.validateTypographyEdit(previous: previous, next: next)
+    }
     comparison = next
     if continuousEdit == nil { registerUndo(previous, name: name, undoManager: undoManager) }
   }
@@ -63,6 +73,11 @@ final class RankingModel: ObservableObject {
   private let engine = DifferenceEngine()
 
   func update(_ comparison: Comparison) async {
+    let fuzzWork = FuzzDiagnostics.shared.beginWork("ranking")
+    defer {
+      FuzzDiagnostics.shared.endWork(
+        fuzzWork, kind: "ranking", outcome: Task.isCancelled ? "cancelled" : "completed")
+    }
     scores = []
     guard let b = comparison.b else {
       comparing = false

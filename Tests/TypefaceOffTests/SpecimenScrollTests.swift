@@ -60,13 +60,13 @@ import TypefaceCore
     comparison.customText = String(
       repeating: "A passage with different line lengths and sizes.\n", count: 80)
     comparison.b?.size = 44
-    let document = WorkbenchDocument(comparison: comparison)
+    let model = WorkbenchModel(comparison: comparison)
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1440, height: 800), styleMask: [.titled, .resizable],
       backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     defer { window.close() }
-    let host = NSHostingView(rootView: WorkbenchView(document: document))
+    let host = NSHostingView(rootView: WorkbenchView(model: model))
     window.contentView = host
     window.orderFront(nil)
     try await Task.sleep(for: .milliseconds(250))
@@ -80,9 +80,9 @@ import TypefaceCore
     #expect(abs(progress(b) - 0.4) < 0.001)
     original.first?.select("x")
     try await Task.sleep(for: .milliseconds(100))
-    #expect(document.comparison.mode == .glyph)
+    #expect(model.comparison.mode == .glyph)
     #expect(specimens(in: host).isEmpty)
-    document.edit("Return to text", undoManager: nil) { $0.mode = .text }
+    model.edit("Return to text", undoManager: nil) { $0.mode = .text }
     try await Task.sleep(for: .milliseconds(250))
     host.layoutSubtreeIfNeeded()
     let restored = specimens(in: host)
@@ -91,7 +91,7 @@ import TypefaceCore
       let scroll = try #require(specimen.enclosingScrollView)
       #expect(abs(progress(scroll) - 0.4) < 0.001)
     }
-    document.edit("Resize type", undoManager: nil) { $0.b?.size = 18 }
+    model.edit("Resize type", undoManager: nil) { $0.b?.size = 18 }
     window.setContentSize(NSSize(width: 1250, height: 650))
     try await Task.sleep(for: .milliseconds(250))
     host.layoutSubtreeIfNeeded()
@@ -99,9 +99,9 @@ import TypefaceCore
       let scroll = try #require(specimen.enclosingScrollView)
       #expect(abs(progress(scroll) - 0.4) < 0.001)
     }
-    document.edit("Change sample", undoManager: nil) { $0.sample = .reading }
+    model.edit("Change sample", undoManager: nil) { $0.sample = .reading }
     try await Task.sleep(for: .milliseconds(100))
-    document.edit("Restore custom sample", undoManager: nil) { $0.sample = .custom }
+    model.edit("Restore custom sample", undoManager: nil) { $0.sample = .custom }
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
     for specimen in specimens(in: host) {
@@ -109,7 +109,7 @@ import TypefaceCore
     }
     let custom = try #require(specimens(in: host).first?.enclosingScrollView)
     scroll(custom, to: 0.6)
-    document.edit("Edit sample", undoManager: nil) {
+    model.edit("Edit sample", undoManager: nil) {
       $0.customText = String(repeating: "A different long specimen.\n", count: 100)
     }
     try await Task.sleep(for: .milliseconds(100))

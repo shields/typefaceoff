@@ -2,10 +2,10 @@ import SwiftUI
 import TypefaceCore
 
 struct WorkbenchView: View {
-  @ObservedObject var document: WorkbenchDocument
+  @ObservedObject var model: WorkbenchModel
   @StateObject private var ranking = RankingModel()
   @StateObject private var scrollPosition = SpecimenScrollPosition()
-  @Environment(\.undoManager) private var undoManager
+  @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
   @Environment(\.appearsActive) private var appearsActive
   @State private var showA = true
@@ -17,13 +17,13 @@ struct WorkbenchView: View {
   @State private var glyphFocusRequest = UUID()
   @State private var glyphFocused = false
 
-  private var comparison: Comparison { document.comparison }
+  private var comparison: Comparison { model.comparison }
   private var commands: WorkbenchActions {
     WorkbenchActions(
-      document: document, undoManager: undoManager,
+      model: model, undoManager: undoManager,
       showA: $showA, showB: $showB, mode: presentation(\.mode),
       shape: presentation(\.shape), spacing: presentation(\.spacing),
-      match: { showMatch = true }, editText: openEditor)
+      match: openMatch, editText: openEditor)
   }
   private var rankingKey: RankingKey {
     .init(a: comparison.a, b: comparison.b, text: comparison.text)
@@ -52,7 +52,7 @@ struct WorkbenchView: View {
 
   var body: some View {
     HStack(spacing: 0) {
-      InspectorPanel(document: document, side: .a, isVisible: showA)
+      InspectorPanel(model: model, side: .a, isVisible: showA)
       if showA { Divider() }
       VStack(spacing: 0) {
         controls
@@ -71,7 +71,7 @@ struct WorkbenchView: View {
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
             navigate: navigate,
-            showText: { document.updatePresentation { $0.mode = .text } },
+            showText: { model.updatePresentation { $0.mode = .text } },
             focusChanged: { glyphFocused = $0 })
         }
         if comparison.b != nil {
@@ -81,7 +81,7 @@ struct WorkbenchView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       if showB { Divider() }
-      InspectorPanel(document: document, side: .b, isVisible: showB)
+      InspectorPanel(model: model, side: .b, isVisible: showB)
     }
     .background(WorkbenchStyle.panel)
     .tint(WorkbenchStyle.accent)
@@ -106,7 +106,7 @@ struct WorkbenchView: View {
     .onChange(of: comparison.customText) {
       if comparison.sample == .custom { scrollPosition.reset() }
     }
-    .sheet(isPresented: $showMatch) { MatchSheet(document: document) }
+    .sheet(isPresented: $showMatch) { MatchSheet(model: model) }
     .sheet(isPresented: $showEditor) { editor }
   }
 
@@ -120,7 +120,7 @@ struct WorkbenchView: View {
         Spacer()
         Button("Undo", systemImage: "arrow.uturn.backward") { undoManager?.undo() }
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")
-        Button("Match…", systemImage: "slider.horizontal.3") { showMatch = true }
+        Button("Match…", systemImage: "slider.horizontal.3", action: openMatch)
           .disabled(!commands.canMatch)
           .help("Preview matching weight, x-height, and tracking for two installed fonts")
       }
@@ -149,8 +149,8 @@ struct WorkbenchView: View {
         .onSubmit {
           if let value = SharedSizeFormat.parse(sharedSize, locale: locale) {
             edit("Set both sizes") {
-              $0.a.set(.size, to: value, catalog: document.catalog)
-              $0.b?.set(.size, to: value, catalog: document.catalog)
+              $0.a.set(.size, to: value, catalog: model.catalog)
+              $0.b?.set(.size, to: value, catalog: model.catalog)
               $0.calibrate()
             }
           }
@@ -263,6 +263,8 @@ struct WorkbenchView: View {
     }.padding(24)
   }
 
+  private func openMatch() { showMatch = true }
+
   private func openEditor() {
     customText = comparison.text
     showEditor = true
@@ -280,15 +282,15 @@ struct WorkbenchView: View {
   }
 
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
-    document.edit(name, undoManager: undoManager, body)
+    model.edit(name, undoManager: undoManager, body)
   }
   private func presentation<Value>(_ key: WritableKeyPath<Comparison, Value>) -> Binding<
     Value
   > {
     Binding(
-      get: { document.comparison[keyPath: key] },
+      get: { model.comparison[keyPath: key] },
       set: { value in
-        document.updatePresentation { $0[keyPath: key] = value }
+        model.updatePresentation { $0[keyPath: key] = value }
         if comparison.mode == .glyph { glyphFocusRequest = UUID() }
       })
   }
@@ -299,7 +301,7 @@ struct WorkbenchView: View {
   }
   private func selectGlyph(_ glyph: String) {
     guard let first = glyph.first else { return }
-    document.updatePresentation {
+    model.updatePresentation {
       $0.selectedGlyph = String(first)
       $0.mode = .glyph
     }

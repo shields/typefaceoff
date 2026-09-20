@@ -7,13 +7,13 @@ import Testing
 @Suite @MainActor struct InspectorTests {
   @Test func collapsingRetainsTheInspectorAndItsScrollPosition() async throws {
     _ = NSApplication.shared
-    let document = WorkbenchDocument()
+    let model = WorkbenchModel()
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     defer { window.close() }
-    let host = NSHostingView(rootView: Fixture(document: document, visible: true))
+    let host = NSHostingView(rootView: Fixture(model: model, visible: true))
     window.contentView = host
     window.orderFront(nil)
     try await Task.sleep(for: .milliseconds(250))
@@ -23,11 +23,11 @@ import Testing
     inspector.reflectScrolledClipView(inspector.contentView)
     let position = inspector.contentView.bounds.origin
     #expect(position.y > 0)
-    host.rootView = Fixture(document: document, visible: false)
+    host.rootView = Fixture(model: model, visible: false)
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
     #expect(scrollView(in: host) === inspector)
-    host.rootView = Fixture(document: document, visible: true)
+    host.rootView = Fixture(model: model, visible: true)
     try await Task.sleep(for: .milliseconds(100))
     host.layoutSubtreeIfNeeded()
     #expect(scrollView(in: host) === inspector)
@@ -40,11 +40,11 @@ import Testing
   }
 
   private struct Fixture: View {
-    let document: WorkbenchDocument
+    let model: WorkbenchModel
     let visible: Bool
     var body: some View {
       HStack(spacing: 0) {
-        InspectorPanel(document: document, side: .a, isVisible: visible)
+        InspectorPanel(model: model, side: .a, isVisible: visible)
         Color.white
       }.frame(width: 700, height: 500)
     }

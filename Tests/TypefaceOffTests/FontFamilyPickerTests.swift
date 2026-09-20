@@ -91,9 +91,9 @@ import TypefaceCore
   }
 
   @Test func cancellingTheFontPopoverPreservesTheComparison() async throws {
-    let document = WorkbenchDocument()
-    let initial = document.comparison
-    let host = WorkbenchTestHost(FontInspector(document: document, side: .a), width: 246)
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
     try host.press("Font A family")
@@ -103,10 +103,10 @@ import TypefaceCore
     host.enter("Skia", in: search)
     try await host.settle()
     search.currentEditor()?.doCommand(by: #selector(NSResponder.moveDown(_:)))
-    #expect(document.comparison == initial)
+    #expect(model.comparison == initial)
     search.currentEditor()?.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     try await host.settle()
-    #expect(document.comparison == initial)
+    #expect(model.comparison == initial)
     #expect(!host.subviews.contains { $0 is NSSearchField })
     try host.press("Font A family")
     try await host.settle()
@@ -116,7 +116,7 @@ import TypefaceCore
     try await host.settle()
     reopened.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     try await host.settle()
-    #expect(document.comparison.a.face.family == "Skia")
+    #expect(model.comparison.a.face.family == "Skia")
     try host.press("Font A family")
     try await host.settle()
     let table = try #require(host.subviews.compactMap { $0 as? NSTableView }.first)
@@ -125,7 +125,7 @@ import TypefaceCore
     try sendKey(53, characters: "\u{1b}", to: popover)
     try await host.settle()
     #expect(!host.subviews.contains { $0 is NSSearchField })
-    #expect(document.comparison.a.face.family == "Skia")
+    #expect(model.comparison.a.face.family == "Skia")
   }
 
   private func sendKey(_ code: UInt16, characters: String, to window: NSWindow) throws {

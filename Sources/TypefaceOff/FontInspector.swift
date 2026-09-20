@@ -2,14 +2,14 @@ import SwiftUI
 import TypefaceCore
 
 struct FontInspector: View {
-  @ObservedObject var document: WorkbenchDocument
+  @ObservedObject var model: WorkbenchModel
   let side: Side
-  @Environment(\.undoManager) private var undoManager
+  @Environment(\.workbenchUndoManager) private var undoManager
   @State private var choosingFamily = false
   @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
   @StateObject private var previews = FeaturePreviewModel()
 
-  private var config: FontConfiguration? { document.comparison[side] }
+  private var config: FontConfiguration? { model.comparison[side] }
   private var previewConfig: FontConfiguration? {
     config.map {
       var config = $0
@@ -43,11 +43,11 @@ struct FontInspector: View {
               set: { name in
                 edit("Change style") {
                   $0.selectFace(
-                    FontFace(postScriptName: name), side: side, catalog: document.catalog)
+                    FontFace(postScriptName: name), side: side, catalog: model.catalog)
                 }
               })
           ) {
-            ForEach(document.catalog.faces(in: config.face.family)) {
+            ForEach(model.catalog.faces(in: config.face.family)) {
               Text(verbatim: $0.style).tag($0.id)
             }
           }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
@@ -65,16 +65,16 @@ struct FontInspector: View {
               }.labelStyle(.iconOnly)
                 .help("Reset appearance settings for this font and any linked settings")
               Button(
-                document.comparison.appearanceLocked ? "Unlock appearance" : "Lock appearance",
-                systemImage: document.comparison.appearanceLocked ? "lock.fill" : "lock.open"
+                model.comparison.appearanceLocked ? "Unlock appearance" : "Lock appearance",
+                systemImage: model.comparison.appearanceLocked ? "lock.fill" : "lock.open"
               ) {
                 edit("Link appearance") {
                   $0.appearanceLocked.toggle()
                   $0.calibrate()
                 }
-              }.labelStyle(.iconOnly).disabled(document.comparison.b == nil)
+              }.labelStyle(.iconOnly).disabled(model.comparison.b == nil)
                 .help(
-                  document.comparison.appearanceLocked
+                  model.comparison.appearanceLocked
                     ? "Unlock appearance to adjust each font independently"
                     : "Link appearance while preserving the current differences between fonts")
             }.buttonStyle(.borderless)
@@ -162,7 +162,7 @@ struct FontInspector: View {
 
   private var familyPicker: some View {
     FontFamilyPicker(
-      families: document.catalog.families, currentFamily: config?.face.family,
+      families: model.catalog.families, currentFamily: config?.face.family,
       allowsNone: side == .b, choose: choose)
   }
 
@@ -174,7 +174,7 @@ struct FontInspector: View {
       get: { value },
       set: { value in
         edit("Adjust \(title.lowercased())") {
-          $0.set(property, to: value, side: side, catalog: document.catalog)
+          $0.set(property, to: value, side: side, catalog: model.catalog)
         }
       })
     return VStack(spacing: 8) {
@@ -200,9 +200,9 @@ struct FontInspector: View {
           }), in: range,
         onEditingChanged: { editing in
           if editing {
-            document.beginContinuousEdit("Adjust \(title.lowercased())")
+            model.beginContinuousEdit("Adjust \(title.lowercased())")
           } else {
-            document.endContinuousEdit(undoManager: undoManager)
+            model.endContinuousEdit(undoManager: undoManager)
           }
         }
       ).accessibilityLabel("Font \(side.rawValue.uppercased()) \(title)")
@@ -283,15 +283,15 @@ struct FontInspector: View {
     }.frame(height: 30)
   }
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
-    document.edit(name, undoManager: undoManager, body)
+    model.edit(name, undoManager: undoManager, body)
   }
   private func choose(_ family: String?) {
-    edit("Change font") { $0.selectFamily(family, side: side, catalog: document.catalog) }
+    edit("Change font") { $0.selectFamily(family, side: side, catalog: model.catalog) }
     choosingFamily = false
   }
   private func resetAppearance() {
     edit("Reset appearance") {
-      $0.resetAppearance(side: side, catalog: document.catalog)
+      $0.resetAppearance(side: side, catalog: model.catalog)
     }
   }
 }

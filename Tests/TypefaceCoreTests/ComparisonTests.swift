@@ -144,17 +144,6 @@ import Testing
     #expect(state.b?.postScriptName == "HelveticaNeue")
   }
 
-  @Test func savedComparisonRoundTripsAndRejectsInvalidInput() throws {
-    var state = Comparison()
-    state.customText = "*literal* _text_ 🐇 e\u{301}"
-    state.sample = .custom
-    state.selectedGlyph = "e\u{301}"
-    #expect(try Comparison.decode(state.encoded()) == state)
-    state.a.size = -1
-    #expect(throws: ComparisonFileError.self) { try Comparison.decode(state.encoded()) }
-    #expect(throws: (any Error).self) { try Comparison.decode(Data("{}".utf8)) }
-  }
-
   @Test(.enabled(if: FontCatalog().preferredFace(in: "Inter Variable") != nil))
   func variableWeightCalibrationSurvivesClamping() throws {
     let face = try #require(catalog.preferredFace(in: "Inter Variable"))

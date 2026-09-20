@@ -29,22 +29,10 @@ targets:
         LSApplicationCategoryType: public.app-category.graphics-design
         NSHumanReadableCopyright: Copyright © 2026 Michael Shields
         NSPrincipalClass: NSApplication
-        CFBundleDocumentTypes:
-          - CFBundleTypeName: Typeface comparison
-            CFBundleTypeRole: Editor
-            LSHandlerRank: Owner
-            LSItemContentTypes: [com.shields.typefaceoff.comparison]
-        UTExportedTypeDeclarations:
-          - UTTypeIdentifier: com.shields.typefaceoff.comparison
-            UTTypeDescription: Typeface comparison
-            UTTypeConformsTo: [public.json]
-            UTTypeTagSpecification:
-              public.filename-extension: [typefaceoff]
     entitlements:
       path: Config/TypefaceOff.entitlements
       properties:
         com.apple.security.app-sandbox: true
-        com.apple.security.files.user-selected.read-write: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shields.typefaceoff

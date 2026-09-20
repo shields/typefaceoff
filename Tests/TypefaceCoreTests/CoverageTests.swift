@@ -95,28 +95,6 @@ import Testing
     #expect(comparison.a.axes == FontConfiguration(face.id).axes)
   }
 
-  @Test func documentsRejectInvalidStoredSettingsAndUnknownVersions() throws {
-    for change: (inout Comparison) -> Void in [
-      { $0.a.size = 0 }, { $0.a.tracking = 4 }, { $0.a.postScriptName = "" },
-      { $0.selectedGlyph = "" }, { $0.selectedGlyph = "ab" },
-      { $0.link?.sizeRatio = -1 }, { $0.removedB = .init("") },
-    ] {
-      var comparison = Comparison()
-      change(&comparison)
-      let data = try comparison.encoded()
-      #expect(throws: ComparisonFileError.self) { try Comparison.decode(data) }
-    }
-    var comparison = Comparison()
-    comparison.a.axes[tagNumber("wght")] = 500
-    comparison.link?.axisOffsets[tagNumber("wght")] = 20
-    #expect(try Comparison.decode(comparison.encoded()) == comparison)
-    let data = try comparison.encoded()
-    var json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    json["version"] = 2
-    let future = try JSONSerialization.data(withJSONObject: json)
-    #expect(throws: ComparisonFileError.self) { try Comparison.decode(future) }
-  }
-
   @Test func featureGroupsAndExclusivePartnersReflectTheFontMetadata() {
     let groups: [(String, FontFeature.Group)] = [
       ("ot.cv01", .characterVariants), ("ot.ss01", .stylisticSets), ("ot.tnum", .numbers),

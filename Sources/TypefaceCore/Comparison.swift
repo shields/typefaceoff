@@ -1,13 +1,13 @@
 import Foundation
 
 public enum Side: String, Sendable { case a, b }
-public enum ComparisonMode: String, Codable, Sendable { case text, glyph }
+public enum ComparisonMode: String, Sendable { case text, glyph }
 public enum AppearanceProperty: Hashable, Sendable {
   case size, tracking, weight
   case axis(UInt32)
 }
 
-public struct FontConfiguration: Codable, Hashable, Sendable {
+public struct FontConfiguration: Hashable, Sendable {
   public var postScriptName: String
   public var size: Double = 22
   public var tracking: Double = 0
@@ -56,7 +56,7 @@ public struct FontConfiguration: Codable, Hashable, Sendable {
   }
 }
 
-public struct AppearanceLink: Codable, Equatable, Sendable {
+public struct AppearanceLink: Equatable, Sendable {
   public var sizeRatio: Double
   public var weightOffset: Double
   public var trackingOffset: Double
@@ -72,7 +72,7 @@ public struct AppearanceLink: Codable, Equatable, Sendable {
   }
 }
 
-public struct Comparison: Codable, Equatable, Sendable {
+public struct Comparison: Equatable, Sendable {
   public var a: FontConfiguration
   public var b: FontConfiguration?
   public var removedB: FontConfiguration?
@@ -199,37 +199,7 @@ public struct Comparison: Codable, Equatable, Sendable {
     ]
     if value != 0, let partner = partners[feature.id] { self[side]?.features[partner] = 0 }
   }
-
-  public func encoded() throws -> Data {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    return try encoder.encode(ComparisonFile(version: 1, comparison: self))
-  }
-
-  public static func decode(_ data: Data) throws -> Comparison {
-    let file = try JSONDecoder().decode(ComparisonFile.self, from: data)
-    guard file.version == 1 else { throw ComparisonFileError.unsupportedVersion }
-    let state = file.comparison
-    for config in [state.a, state.b, state.removedB].compactMap({ $0 }) {
-      guard (10...144).contains(config.size), (-0.12...0.15).contains(config.tracking),
-        config.axes.values.allSatisfy(\.isFinite), !config.postScriptName.isEmpty
-      else { throw ComparisonFileError.invalidValues }
-    }
-    if let link = state.link {
-      guard link.sizeRatio.isFinite, link.sizeRatio > 0, link.weightOffset.isFinite,
-        link.trackingOffset.isFinite, link.axisOffsets.values.allSatisfy(\.isFinite)
-      else { throw ComparisonFileError.invalidValues }
-    }
-    guard state.selectedGlyph.count == 1 else { throw ComparisonFileError.invalidValues }
-    return state
-  }
 }
-
-private struct ComparisonFile: Codable {
-  let version: Int
-  let comparison: Comparison
-}
-public enum ComparisonFileError: Error { case unsupportedVersion, invalidValues }
 
 extension Double {
   func clamped(to range: ClosedRange<Double>) -> Double {

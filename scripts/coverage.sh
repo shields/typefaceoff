@@ -15,7 +15,7 @@ done
 test -n "$core"
 test -f "$profile"
 
-# Xcode's app-hosted tests cover SwiftUI's document and window lifecycle.
+# Xcode's app-hosted tests cover SwiftUI's window lifecycle.
 app=.build/xcode/Build/Products/Debug/TypefaceOff.app/Contents/MacOS/TypefaceOff
 if test -f "$app.debug.dylib"; then
     app="$app.debug.dylib"

@@ -15,7 +15,7 @@ import TypefaceCore
   let editText: () -> Void
 
   init(
-    document: WorkbenchDocument, undoManager: UndoManager?, showA: Binding<Bool>,
+    model: WorkbenchModel, undoManager: UndoManager?, showA: Binding<Bool>,
     showB: Binding<Bool>, mode: Binding<ComparisonMode>, shape: Binding<Bool>,
     spacing: Binding<Bool>, match: @escaping () -> Void, editText: @escaping () -> Void
   ) {
@@ -25,11 +25,11 @@ import TypefaceCore
     self.shape = shape
     self.spacing = spacing
     canMatch =
-      FontRenderer.isAvailable(document.comparison.a)
-      && document.comparison.b.map { FontRenderer.isAvailable($0) } == true
-    canSwap = document.comparison.b != nil
+      FontRenderer.isAvailable(model.comparison.a)
+      && model.comparison.b.map { FontRenderer.isAvailable($0) } == true
+    canSwap = model.comparison.b != nil
     self.match = match
-    swap = { document.edit("Swap fonts", undoManager: undoManager) { $0.swap() } }
+    swap = { model.edit("Swap fonts", undoManager: undoManager) { $0.swap() } }
     self.editText = editText
   }
 }

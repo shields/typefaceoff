@@ -296,15 +296,13 @@ import TypefaceCore
     let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: height)
     defer { host.window.close() }
     try await host.settle()
-    let size = try await host.element("Font A Size")
-    #expect(size.accessibilityPerformIncrement?() == true)
+    try await host.incrementSlider("Font A Size", title: "Size")
     try await host.settle()
     #expect(model.comparison.a.size > 22)
     #expect(model.comparison.b?.size == model.comparison.a.size)
     let axis = try #require(model.comparison.a.face.axes.first { $0.tag == "wdth" })
     let initial = model.comparison.a.axes[axis.id]
-    let width = try await host.element("Font A \(axis.name)")
-    #expect(width.accessibilityPerformIncrement?() == true)
+    try await host.incrementSlider("Font A \(axis.name)", title: axis.name)
     try await host.settle()
     #expect(model.comparison.a.axes[axis.id] != initial)
   }
@@ -329,18 +327,20 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     let original = model.comparison.a.postScriptName
-    try await host.choose("Font A style")
+    let styles = model.catalog.faces(in: model.comparison.a.face.family).map(\.style)
+    try await host.choose("Font A style", nativeTitles: styles)
     try await host.settle()
     #expect(model.comparison.a.postScriptName != original)
-    try await host.choose("Sample", item: Sample.poetry.title)
+    let samples = Sample.allCases.map(\.title)
+    try await host.choose("Sample", nativeTitles: samples, item: Sample.poetry.title)
     try await host.settle()
     #expect(model.comparison.sample == .poetry)
     for sample in [Sample.alphabet, .numerals] {
-      try await host.choose("Sample", item: sample.title)
+      try await host.choose("Sample", nativeTitles: samples, item: sample.title)
       try await host.settle()
       #expect(model.comparison.sample == sample)
     }
-    try await host.choose("Sample", item: Sample.custom.title)
+    try await host.choose("Sample", nativeTitles: samples, item: Sample.custom.title)
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
     try await host.press("Cancel")
@@ -453,7 +453,41 @@ import TypefaceCore
     _ = control.accessibilityPerformPress?()
   }
 
-  func choose(_ label: String, item: String? = nil) async throws {
+  func incrementSlider(_ label: String, title: String) async throws {
+    let sliders = subviews.compactMap { $0 as? NSSlider }
+    if !sliders.isEmpty {
+      // Older SwiftUI omits the native sliders' AX names. The
+      // labeled value field immediately above each slider identifies its setting.
+      let fields = subviews.compactMap { $0 as? NSTextField }.filter {
+        $0.placeholderString == title
+      }
+      try #require(fields.count == 1, "Expected one value field for \(title)")
+      let fieldY = fields[0].convert(fields[0].bounds, to: view).midY
+      let slider = try #require(
+        sliders.min {
+          abs($0.convert($0.bounds, to: view).midY - fieldY)
+            < abs($1.convert($1.bounds, to: view).midY - fieldY)
+        })
+      // AppKit dispatches the action but returns false. Check model changes in
+      // the caller rather than using that return value as the success signal.
+      _ = slider.accessibilityPerformIncrement()
+    } else {
+      _ = try await element(label).accessibilityPerformIncrement?()
+    }
+  }
+
+  func choose(_ label: String, nativeTitles: [String], item: String? = nil) async throws {
+    let pickers = subviews.compactMap { $0 as? NSPopUpButton }.filter {
+      Set(nativeTitles).isSubset(of: Set($0.itemTitles))
+    }
+    if !pickers.isEmpty {
+      try #require(pickers.count == 1, "Expected one native picker for \(label)")
+      let picker = pickers[0]
+      let menu = try #require(picker.menu)
+      WorkbenchTestMenuSelection.select(
+        menu, title: item, selectedIndex: picker.indexOfSelectedItem)
+      return
+    }
     let control = try await element(label)
     let selection = WorkbenchTestMenuSelection(title: item)
     menuSelection = selection
@@ -564,21 +598,24 @@ import TypefaceCore
   @objc private func select(_ timer: Timer) {
     guard let menu = timer.userInfo as? NSMenu else { return }
     defer { completed = true }
+    Self.select(menu, title: title)
+    menu.cancelTracking()
+  }
+
+  static func select(_ menu: NSMenu, title: String?, selectedIndex: Int? = nil) {
     if let title {
       if let index = menu.items.firstIndex(where: { $0.title == title }) {
         menu.performActionForItem(at: index)
       } else {
         Issue.record("Missing menu item: \(title)")
       }
-      menu.cancelTracking()
       return
     }
-    let selected = menu.items.firstIndex { $0.state == .on } ?? 0
+    let selected = selectedIndex ?? menu.items.firstIndex { $0.state == .on } ?? 0
     let next =
       menu.items.indices.dropFirst(selected + 1).first {
         menu.items[$0].isEnabled && !menu.items[$0].isSeparatorItem
       } ?? 0
     menu.performActionForItem(at: next)
-    menu.cancelTracking()
   }
 }

@@ -24,6 +24,7 @@ targets:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: Typeface/Off
+        CFBundleName: Typeface/Off
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         LSApplicationCategoryType: public.app-category.graphics-design

@@ -29,13 +29,18 @@ test "$#" -gt 1
 mkdir -p .build/coverage
 profile=.build/coverage/all.profdata
 xcrun llvm-profdata merge "$@" -o "$profile"
-xcrun llvm-cov report "$core" -object "$app" -instr-profile="$profile" Sources
+# Xcode and SwiftPM can spell the same worktree path differently (/tmp and
+# /private/tmp). Exclude tests instead of filtering by the current absolute path.
+exclude='/(Tests|\.build)/'
+xcrun llvm-cov report "$core" -object "$app" -instr-profile="$profile" -ignore-filename-regex="$exclude"
 report=.build/coverage/all-sources.json
-xcrun llvm-cov export "$core" -object "$app" -instr-profile="$profile" Sources >"$report"
+xcrun llvm-cov export "$core" -object "$app" -instr-profile="$profile" -ignore-filename-regex="$exclude" >"$report"
 if ! jq -e '
-    [.data[].files[].summary.lines] |
-    length > 0 and all(.covered == .count)
+    [.data[].files[]] |
+    any(.filename | contains("/Sources/TypefaceCore/")) and
+    any(.filename | contains("/Sources/TypefaceOff/")) and
+    all(.summary.lines.covered == .summary.lines.count)
 ' "$report" >/dev/null; then
-    echo "Swift line coverage must be 100% for every source file." >&2
+    echo "Coverage must include core and app sources, with 100% line coverage for every file." >&2
     exit 1
 fi

@@ -69,10 +69,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
-    // Borderless SwiftUI buttons bridge to NSButton inside the inspector's scroll view.
-    let buttons = host.subviews.compactMap { $0 as? NSButton }
-    try #require(buttons.count == 5)
-    buttons[1].performClick(nil)
+    try host.press("Unlock appearance")
     try await host.settle()
     #expect(!model.comparison.appearanceLocked)
     model.edit("Configure sample", undoManager: nil) {
@@ -81,21 +78,21 @@ import TypefaceCore
       $0.a.features["ot.kern"] = 0
     }
     try await host.settle()
-    buttons[2].performClick(nil)
+    try host.press("Reset size")
     try await host.settle()
     #expect(model.comparison.a.size == 22)
-    buttons[3].performClick(nil)
+    try host.press("Reset tracking")
     try await host.settle()
     #expect(model.comparison.a.tracking == 0)
-    buttons[4].performClick(nil)
+    try host.press("Reset typography")
     try await host.settle()
     #expect(model.comparison.a.features.isEmpty)
-    buttons[1].performClick(nil)
+    try host.press("Lock appearance")
     try await host.settle()
     #expect(model.comparison.appearanceLocked)
     model.edit("Resize", undoManager: nil) { $0.a.size = 44 }
     try await host.settle()
-    buttons[0].performClick(nil)
+    try host.press("Reset appearance")
     try await host.settle()
     #expect(model.comparison.a.size == 22)
     #expect(model.comparison.b?.size == 22)
@@ -254,9 +251,8 @@ import TypefaceCore
     try await host.settle()
     #expect(model.comparison.a.size == 32.5)
     #expect(field.stringValue == "32,5")
-    host.view.rootView = AnyView(
-      WorkbenchView(model: model).environment(\.locale, Locale(identifier: "en_US"))
-        .environment(\.accessibilityEnabled, true))
+    host.setContent(
+      WorkbenchView(model: model).environment(\.locale, Locale(identifier: "en_US")))
     try await host.settle()
     #expect(field.stringValue == "32.5")
   }
@@ -367,10 +363,17 @@ import TypefaceCore
       contentRect: NSRect(x: 0, y: 0, width: width, height: height),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
-    view = NSHostingView(rootView: AnyView(content.environment(\.accessibilityEnabled, true)))
+    view = NSHostingView(rootView: AnyView(EmptyView()))
+    setContent(content)
     view.sceneBridgingOptions = .all
     window.contentView = view
     window.makeKeyAndOrderFront(nil)
+  }
+
+  func setContent(_ content: Content) {
+    view.rootView = AnyView(
+      content.environment(\.accessibilityEnabled, true)
+        .environment(\.workbenchUndoManager, window.undoManager))
   }
 
   func settle() async throws {
@@ -448,6 +451,13 @@ import TypefaceCore
     var result: [AnyObject] = []
     for root in contentRoots {
       guard let owner = root.window else { continue }
+      // Small native controls can fall between the fallback grid's sample points.
+      for view in descendants(of: root) where view is NSControl {
+        let frame = owner.convertToScreen(view.convert(view.bounds, to: nil))
+        if let hit = root.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) {
+          result.append(hit as AnyObject)
+        }
+      }
       let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
       for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: 16) {
         for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
@@ -460,11 +470,10 @@ import TypefaceCore
     return result
   }
 
-  var subviews: [NSView] {
-    func descendants(_ element: NSView) -> [NSView] {
-      [element] + element.subviews.flatMap(descendants)
-    }
-    return contentRoots.flatMap(descendants)
+  var subviews: [NSView] { contentRoots.flatMap { descendants(of: $0) } }
+
+  private func descendants(of view: NSView) -> [NSView] {
+    [view] + view.subviews.flatMap { descendants(of: $0) }
   }
 
   var elements: [AnyObject] {

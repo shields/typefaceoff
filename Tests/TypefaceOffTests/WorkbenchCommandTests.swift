@@ -42,9 +42,7 @@ import TypefaceCore
     try host.press("Edit sample text…")
     try host.press("Match fonts…")
     #expect(first.editRequested && first.matchRequested)
-    host.view.rootView = AnyView(
-      CommandTestView(fixture: second, model: second.model)
-        .environment(\.accessibilityEnabled, true))
+    host.setContent(CommandTestView(fixture: second, model: second.model))
     try await host.settle()
     #expect(try host.element("Swap fonts").isAccessibilityEnabled?() == false)
     #expect(try host.element("Match fonts…").isAccessibilityEnabled?() == false)

@@ -66,6 +66,12 @@ reopen the app to refresh its catalog.
   feature. Some fonts’ ligatures apply to scripts other than Latin. Features
   without a verified example show **No preview available**.
 
+The **View** menu switches between Text (⌘1) and Glyph (⌘2), toggles the font
+inspectors (⌥⌘1 and ⌥⌘2), and toggles Shape and Spacing highlights (⇧⌘1 and
+⇧⌘2). The **Comparison** menu offers Match (⇧⌘M), Swap Fonts (⌥⌘S), and Edit
+Sample Text (⇧⌘E). Commands apply to the active comparison window and are
+unavailable while its editing or matching sheet is open.
+
 ## Develop
 
 ```sh

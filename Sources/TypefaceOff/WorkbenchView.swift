@@ -16,6 +16,13 @@ struct WorkbenchView: View {
   @State private var glyphFocusRequest = UUID()
 
   private var comparison: Comparison { document.comparison }
+  private var commands: WorkbenchActions {
+    WorkbenchActions(
+      document: document, undoManager: undoManager,
+      showA: $showA, showB: $showB, mode: presentation(\.mode),
+      shape: presentation(\.shape), spacing: presentation(\.spacing),
+      match: { showMatch = true }, editText: openEditor)
+  }
   private var rankingKey: RankingKey {
     .init(a: comparison.a, b: comparison.b, text: comparison.text)
   }
@@ -75,6 +82,7 @@ struct WorkbenchView: View {
     }
     .background(WorkbenchStyle.panel)
     .tint(WorkbenchStyle.accent)
+    .focusedSceneValue(\.workbenchActions, showMatch || showEditor ? nil : commands)
     .toolbar {
       ToolbarItem(placement: .navigation) {
         Button("Toggle font A inspector", systemImage: "sidebar.left") { showA.toggle() }
@@ -110,10 +118,7 @@ struct WorkbenchView: View {
         Button("Undo", systemImage: "arrow.uturn.backward") { undoManager?.undo() }
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")
         Button("Match…", systemImage: "slider.horizontal.3") { showMatch = true }
-          .disabled(
-            !FontRenderer.isAvailable(comparison.a)
-              || comparison.b.map { !FontRenderer.isAvailable($0) } != false
-          )
+          .disabled(!commands.canMatch)
           .help("Preview matching weight, x-height, and tracking for two installed fonts")
       }
       HStack(spacing: 12) {
@@ -150,10 +155,8 @@ struct WorkbenchView: View {
         }
         .accessibilityLabel("Shared point size")
         Text("pt").foregroundStyle(.secondary)
-        Button("Swap fonts", systemImage: "arrow.left.arrow.right") {
-          edit("Swap fonts") { $0.swap() }
-        }
-        .labelStyle(.iconOnly).disabled(comparison.b == nil)
+        Button("Swap fonts", systemImage: "arrow.left.arrow.right", action: swapFonts)
+          .labelStyle(.iconOnly).disabled(comparison.b == nil)
       }
     }.padding(16).background(WorkbenchStyle.toolbar)
   }
@@ -253,6 +256,10 @@ struct WorkbenchView: View {
   private func openEditor() {
     customText = comparison.text
     showEditor = true
+  }
+
+  private func swapFonts() {
+    commands.swap()
   }
 
   private func differenceBar(_ value: Double, maximum: Double, color: Color) -> some View {

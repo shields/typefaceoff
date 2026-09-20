@@ -19,7 +19,7 @@ struct TypefaceOffApp: App {
     }
     .defaultLaunchBehavior(.suppressed)
     .defaultSize(width: 1440, height: 900)
-    .commands { SidebarCommands() }
+    .commands { WorkbenchCommands() }
   }
 }
 

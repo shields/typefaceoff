@@ -26,8 +26,8 @@ struct GlyphComparisonView: View {
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
           .help("Inspect the next character (Right Arrow when the glyph view has focus)")
-        Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 11))
-          .foregroundStyle(.secondary).lineLimit(2)
+        Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 14))
+          .foregroundStyle(.primary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))
       }.frame(height: 32).padding(16)
       GlyphCanvas(

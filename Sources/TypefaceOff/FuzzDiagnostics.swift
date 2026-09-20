@@ -155,7 +155,7 @@ import TypefaceCore
   }
 
   private final class FuzzEventWriter: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "dev.msrl.typefaceoff.fuzz-events", qos: .utility)
+    private let queue = DispatchQueue(label: "com.typefaceoff.fuzz-events", qos: .utility)
     private let handle: FileHandle
 
     init?(url: URL) {

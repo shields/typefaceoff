@@ -5,7 +5,7 @@ configs:
   FuzzCoverage: release
   FuzzBenchmark: release
 options:
-  bundleIdPrefix: dev.msrl
+  bundleIdPrefix: com.typefaceoff
   deploymentTarget:
     macOS: "15.0"
 packages:
@@ -41,17 +41,17 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff
+        PRODUCT_BUNDLE_IDENTIFIER: com.typefaceoff
         CODE_SIGN_STYLE: Automatic
       configs:
         FuzzCoverage:
-          PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff.fuzz.coverage
+          PRODUCT_BUNDLE_IDENTIFIER: com.typefaceoff.fuzz.coverage
           CODE_SIGN_ENTITLEMENTS: ""
           CLANG_ENABLE_CODE_COVERAGE: YES
           SWIFT_OPTIMIZATION_LEVEL: -O
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) TYPEFACEOFF_FUZZING
         FuzzBenchmark:
-          PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff.fuzz.benchmark
+          PRODUCT_BUNDLE_IDENTIFIER: com.typefaceoff.fuzz.benchmark
           CODE_SIGN_ENTITLEMENTS: ""
           CLANG_ENABLE_CODE_COVERAGE: NO
           SWIFT_OPTIMIZATION_LEVEL: -O

@@ -9,6 +9,6 @@ executable="$contents/MacOS/ui-fuzz"
 mkdir -p "$contents/MacOS"
 install -m 755 "$source_executable" "$executable"
 install -m 644 Config/UIFuzzDriver-Info.plist "$contents/Info.plist"
-codesign --force --sign - --identifier dev.msrl.typefaceoff.ui-fuzz \
-    --requirements '=designated => identifier "dev.msrl.typefaceoff.ui-fuzz"' \
+codesign --force --sign - --identifier com.typefaceoff.ui-fuzz \
+    --requirements '=designated => identifier "com.typefaceoff.ui-fuzz"' \
     "$driver_app"

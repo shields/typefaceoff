@@ -5,6 +5,22 @@ import Testing
 @testable import TypefaceCore
 
 @Suite struct RenderingTests {
+  @Test func emphasisUsesTheSelectedFamilyAndPreservesItsSettings() throws {
+    var config = FontConfiguration("HelveticaNeue-Bold")
+    config.size = 31
+    config.tracking = 0.025
+    config.features["aat.1.2"] = 3
+    let italic = try #require(FontRenderer.italicConfiguration(config))
+    #expect(italic.postScriptName == "HelveticaNeue-BoldItalic")
+    #expect(italic.size == config.size)
+    #expect(italic.tracking == config.tracking)
+    #expect(italic.features == config.features)
+    #expect(FontRenderer.italicConfiguration(italic) == italic)
+    let skia = try #require(FontCatalog().preferredFace(in: "Skia"))
+    #expect(FontRenderer.italicConfiguration(.init(skia.id)) == nil)
+    #expect(FontRenderer.italicConfiguration(.init("TypefaceOff-Does-Not-Exist")) == nil)
+  }
+
   @Test func typographyGroupsIncludeReadOnlyAutomaticShaping() throws {
     let arial = FontConfiguration("ArialMT")
     let automatic = arial.face.features.filter(\.isAutomatic)

@@ -160,7 +160,7 @@ import TypefaceCore
     #expect(host.window.sheets.isEmpty)
   }
 
-  @Test(arguments: [Sample.poetry, .alphabet, .numerals])
+  @Test(arguments: [Sample.reading, .alphabet, .numerals])
   func readingSamplesRenderTheirCompleteText(sample: Sample) async throws {
     var comparison = Comparison(b: nil)
     comparison.sample = sample
@@ -332,9 +332,10 @@ import TypefaceCore
     try await host.settle()
     #expect(model.comparison.a.postScriptName != original)
     let samples = Sample.allCases.map(\.title)
-    try await host.choose("Sample", nativeTitles: samples, item: Sample.poetry.title)
+    try await host.choose("Sample", nativeTitles: samples, item: Sample.alphabet.title)
+    try await host.choose("Sample", nativeTitles: samples, item: Sample.reading.title)
     try await host.settle()
-    #expect(model.comparison.sample == .poetry)
+    #expect(model.comparison.sample == .reading)
     for sample in [Sample.alphabet, .numerals] {
       try await host.choose("Sample", nativeTitles: samples, item: sample.title)
       try await host.settle()

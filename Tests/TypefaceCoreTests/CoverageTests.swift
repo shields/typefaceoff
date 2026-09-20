@@ -28,8 +28,7 @@ import Testing
   }
   @Test func samplesKeepTheirTextAndAttribution() {
     let expected: [(Sample, String, String)] = [
-      (.reading, "Alice in Wonderland", "Alice’s Adventures in Wonderland"),
-      (.poetry, "Jabberwocky", "Through the Looking-Glass"),
+      (.reading, "Queen Alice", "Through the Looking-Glass"),
       (.alphabet, "Alphabet", "The quick brown fox jumps over the lazy dog."),
       (.numerals, "Numerals & punctuation", "0,000.00"),
       (.custom, "Custom text", ""),
@@ -44,6 +43,27 @@ import Testing
     }
     #expect(Sample.custom.text.isEmpty)
     #expect(unicodeDescription("\u{1}") == "U+0001 UNNAMED CHARACTER")
+  }
+
+  @Test func queenAliceKeepsTheCompleteChapterAndSourceEmphasis() {
+    let sample = Sample.reading
+    #expect(Sample.allCases == [.reading, .alphabet, .numerals, .custom])
+    #expect(sample.text.hasPrefix("Chapter IX. Queen Alice\n\n“Well, this is grand!”"))
+    #expect(sample.text.contains("Un-dish-cover the fish, or dishcover the riddle?”"))
+    #expect(
+      sample.text.hasSuffix(
+        "“I’ll shake you into a kitten, that I will!”\n\nLewis Carroll · Through the Looking-Glass")
+    )
+    #expect(
+      sample.text.contains("Till the feast’s ready, we’ve time for a nap:\nWhen the feast’s over"))
+    let emphasized = sample.italicRanges.map { (sample.text as NSString).substring(with: $0) }
+    #expect(emphasized.count == 45)
+    #expect(emphasized.first == "is")
+    #expect(Array(emphasized.suffix(3)) == ["you", "now", "you"])
+    #expect(!sample.text.contains("*"))
+    for plain in [Sample.alphabet, .numerals, .custom] {
+      #expect(plain.italicRanges.isEmpty)
+    }
   }
 
   @Test func linkedAxesPreserveTheirOffsetsInBothDirections() throws {

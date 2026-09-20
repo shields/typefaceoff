@@ -1,12 +1,11 @@
 import Foundation
 
 public enum Sample: String, CaseIterable, Sendable {
-  case reading, poetry, alphabet, numerals, custom
+  case reading, alphabet, numerals, custom
 
   public var title: String {
     switch self {
-    case .reading: "Alice in Wonderland"
-    case .poetry: "Jabberwocky"
+    case .reading: "Queen Alice"
     case .alphabet: "Alphabet"
     case .numerals: "Numerals & punctuation"
     case .custom: "Custom text"
@@ -15,37 +14,7 @@ public enum Sample: String, CaseIterable, Sendable {
 
   public var text: String {
     switch self {
-    case .reading:
-      """
-      Down the Rabbit-Hole
-
-      Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, “and what is the use of a book,” thought Alice “without pictures or conversations?”
-
-      So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.
-
-      Lewis Carroll · Alice’s Adventures in Wonderland
-      """
-    case .poetry:
-      """
-      Jabberwocky
-
-      ’Twas brillig, and the slithy toves
-          Did gyre and gimble in the wabe;
-      All mimsy were the borogoves,
-          And the mome raths outgrabe.
-
-      “Beware the Jabberwock, my son!
-          The jaws that bite, the claws that catch!
-      Beware the Jubjub bird, and shun
-          The frumious Bandersnatch!”
-
-      He took his vorpal sword in hand:
-          Long time the manxome foe he sought—
-      So rested he by the Tumtum tree,
-          And stood awhile in thought.
-
-      Lewis Carroll · Through the Looking-Glass
-      """
+    case .reading: String(QueenAlice.content.characters)
     case .alphabet:
       """
       Aa Bb Cc
@@ -82,6 +51,18 @@ public enum Sample: String, CaseIterable, Sendable {
       0,000.00
       """
     case .custom: ""
+    }
+  }
+
+  /// Emphasis ranges in the plain text’s UTF-16 coordinates.
+  public var italicRanges: [NSRange] {
+    guard self == .reading else { return [] }
+    var offset = 0
+    return QueenAlice.content.runs.compactMap { run in
+      let length = String(QueenAlice.content[run.range].characters).utf16.count
+      defer { offset += length }
+      return run.inlinePresentationIntent?.contains(.emphasized) == true
+        ? NSRange(location: offset, length: length) : nil
     }
   }
 }

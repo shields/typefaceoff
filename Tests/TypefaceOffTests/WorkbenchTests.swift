@@ -71,7 +71,7 @@ import TypefaceCore
     let content = SpecimenText.makeContent(
       config: config, text: Sample.reading.text, sample: .reading)
     let heading = content.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
-    let bodyIndex = (content.text.string as NSString).range(of: "Alice was").location
+    let bodyIndex = (content.text.string as NSString).range(of: "Well, this").location
     let body = content.text.attribute(.font, at: bodyIndex, effectiveRange: nil) as! CTFont
     let footerRange = try #require(content.footerRange)
     let footer =
@@ -89,6 +89,56 @@ import TypefaceCore
     let customFont = custom.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
     #expect(abs(CTFontGetSize(customFont) - config.size) < 0.000001)
   }
+
+  @Test func chapterEmphasisSurvivesParagraphLayoutAndKeepsCharacterTargets() throws {
+    var config = FontConfiguration("HelveticaNeue")
+    config.tracking = 0.025
+    config.features["aat.1.2"] = 3
+    let sample = Sample.reading
+    let content = SpecimenText.makeContent(config: config, text: sample.text, sample: sample)
+    let expected = sample.text.components(separatedBy: "\n\n")
+      .map { $0.replacingOccurrences(of: "\n", with: "\u{2028}") }.joined(separator: "\n")
+    #expect(content.text.string == expected)
+    var emphasizedWords: [String] = []
+    content.text.enumerateAttribute(.font, in: NSRange(location: 0, length: content.text.length)) {
+      value, range, _ in
+      let font = value as! CTFont
+      if CTFontGetSymbolicTraits(font).contains(.traitItalic) {
+        #expect(CTFontCopyPostScriptName(font) as String == "HelveticaNeue-Italic")
+        emphasizedWords.append(content.text.attributedSubstring(from: range).string)
+        #expect(
+          content.text.attribute(
+            NSAttributedString.Key(kCTTrackingAttributeName as String), at: range.location,
+            effectiveRange: nil) as? Double == config.tracking * config.size)
+        #expect(
+          content.text.attribute(.ligature, at: range.location, effectiveRange: nil) as? Int == 0)
+      }
+    }
+    #expect(
+      emphasizedWords == sample.italicRanges.map { (sample.text as NSString).substring(with: $0) })
+    for span in content.spans {
+      #expect(span.supported)
+      #expect(content.text.attributedSubstring(from: span.range).string == span.glyph)
+    }
+    let plain = SpecimenText.makeContent(config: config, text: "Keep *literal* punctuation.")
+    #expect(plain.text.string == "Keep *literal* punctuation.")
+  }
+
+  @Test func unavailableItalicIsVisibleWithoutSubstitutingAnotherFamily() throws {
+    let sample = Sample.reading
+    let skia = try #require(FontCatalog().preferredFace(in: "Skia"))
+    let content = SpecimenText.makeContent(
+      config: .init(skia.id), text: sample.text, sample: sample)
+    #expect(content.text.string.contains("Italic unavailable: Skia\n"))
+    let range = (content.text.string as NSString).range(of: "is grand!")
+    try #require(range.location != NSNotFound)
+    let font = content.text.attribute(.font, at: range.location, effectiveRange: nil) as! CTFont
+    #expect(CTFontCopyFamilyName(font) as String == "Skia")
+    #expect(
+      content.text.attribute(.toolTip, at: range.location, effectiveRange: nil) as? String
+        == "Italic unavailable: Skia")
+  }
+
   @Test func sliderGestureHasOneUndoAcrossManyUpdates() {
     let model = WorkbenchModel()
     let undo = UndoManager()

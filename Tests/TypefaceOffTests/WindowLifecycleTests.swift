@@ -5,7 +5,7 @@ import Testing
 
 @Suite(.serialized) @MainActor struct WindowLifecycleTests {
   @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
-    #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Typeface/Off" })
+    #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Helvetica Neue vs. Arial" })
     let fileMenu = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)
     #expect(
       !fileMenu.items.contains { item in
@@ -62,7 +62,8 @@ import Testing
     try await Task.sleep(for: .milliseconds(250))
     let window = try #require(
       NSApp.windows.first {
-        $0.isVisible && $0.title == "Typeface/Off" && !existing.contains(ObjectIdentifier($0))
+        $0.isVisible && $0.title == "Helvetica Neue vs. Arial"
+          && !existing.contains(ObjectIdentifier($0))
       })
     window.contentView?.layoutSubtreeIfNeeded()
     return window

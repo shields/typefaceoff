@@ -32,6 +32,13 @@ struct WorkbenchView: View {
   }
 
   private var comparison: Comparison { model.comparison }
+  private var windowTitle: String {
+    [comparison.a, comparison.b].compactMap { $0 }.map { config in
+      FontRenderer.isAvailable(config)
+        ? config.face.family : "\(config.postScriptName) (unavailable)"
+    }.joined(separator: " vs. ")
+  }
+
   private var commands: WorkbenchActions {
     WorkbenchActions(
       model: model, undoManager: undoManager,
@@ -99,6 +106,7 @@ struct WorkbenchView: View {
     }
     .background(WorkbenchStyle.panel)
     .tint(WorkbenchStyle.accent)
+    .navigationTitle(windowTitle)
     .focusedSceneValue(\.workbenchActions, showMatch || showEditor ? nil : commands)
     .toolbar {
       ToolbarItem(placement: .navigation) {

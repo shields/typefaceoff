@@ -177,9 +177,10 @@ import TypefaceCore
 
   @Test func familyPickerCanRemoveAndRestoreTheSecondFont() async throws {
     let model = WorkbenchModel()
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .b), width: 246)
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
+    #expect(host.window.title == "Helvetica Neue vs. Arial")
     try await host.press("Font B family")
     try await host.settle()
     let initialSearch = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
@@ -188,6 +189,7 @@ import TypefaceCore
     try await host.press("None")
     try await host.settle()
     #expect(model.comparison.b == nil)
+    #expect(host.window.title == "Helvetica Neue")
     try await host.press("Font B family")
     try await host.settle()
     let search = try #require(
@@ -200,6 +202,7 @@ import TypefaceCore
     try await host.settle()
     #expect(model.comparison.b?.face.family == "Skia")
     #expect(model.comparison.b?.face.axes.isEmpty == false)
+    #expect(host.window.title == "Helvetica Neue vs. Skia")
   }
 
   @Test func glyphButtonsAndCharacterEntrySelectTheRequestedGlyph() async throws {

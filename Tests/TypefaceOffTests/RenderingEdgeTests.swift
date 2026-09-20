@@ -128,6 +128,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     #expect(try await host.element("Match…").isAccessibilityEnabled?() == false)
+    #expect(host.window.title.hasSuffix(" vs. TypefaceOff-Does-Not-Exist (unavailable)"))
     let bitmap = try #require(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
     host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
     #expect(bitmap.pixelsWide > 0)

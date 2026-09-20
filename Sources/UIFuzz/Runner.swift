@@ -45,10 +45,14 @@ struct RunnerConfiguration {
 
 final class SequenceRunner {
   private let configuration: RunnerConfiguration
+  private var explorer: ActionExplorer
 
-  init(configuration: RunnerConfiguration) { self.configuration = configuration }
+  init(configuration: RunnerConfiguration, mutator: TraceMutator = TraceMutator()) {
+    self.configuration = configuration
+    explorer = ActionExplorer(mutator: mutator)
+  }
 
-  func execute(_ input: FuzzTrace) -> ExecutionReport {
+  func execute(_ input: FuzzTrace, explorationActions: Int = 0) -> ExecutionReport {
     let startedAt = Date()
     let start = ProcessInfo.processInfo.systemUptime
     let runID = UUID().uuidString.lowercased()
@@ -60,12 +64,14 @@ final class SequenceRunner {
     var buckets = Set<String>()
     var workloadStartedAt: TimeInterval?
     var workloadDurationMilliseconds: Double?
+    var discoveryMilliseconds = 0.0
     let exitStatus: Int32? = nil
     var watchdog = false
     var automationFailed = false
     var launchedApplication: NSRunningApplication?
     var executed = input
     executed.actions = []
+    var random = SplitMix64(seed: input.seed)
 
     do {
       try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
@@ -94,9 +100,7 @@ final class SequenceRunner {
       if !automationFailed && !application.isTerminated {
         workloadStartedAt = ProcessInfo.processInfo.systemUptime
       }
-      for action in input.actions where !automationFailed {
-        executed.actions.append(action)
-        try TraceIO.save(executed, to: runDirectory.appending(path: "executed.json"))
+      for index in 0..<(input.actions.count + explorationActions) where !automationFailed {
         guard !application.isTerminated else {
           findings.append(
             ExecutionFinding(
@@ -104,6 +108,16 @@ final class SequenceRunner {
               detail: "The app exited while dispatching action \(executed.actions.count)."))
           break
         }
+        let action: FuzzAction
+        if index < input.actions.count {
+          action = input.actions[index]
+        } else {
+          let discoveryStart = ProcessInfo.processInfo.systemUptime
+          action = explorer.next(from: driver.availableActions(), using: &random)
+          discoveryMilliseconds += (ProcessInfo.processInfo.systemUptime - discoveryStart) * 1000
+        }
+        executed.actions.append(action)
+        try TraceIO.save(executed, to: runDirectory.appending(path: "executed.json"))
         let actionStart = ProcessInfo.processInfo.systemUptime
         do {
           try driver.perform(action)
@@ -183,7 +197,7 @@ final class SequenceRunner {
 
       if let workloadStartedAt {
         workloadDurationMilliseconds =
-          (ProcessInfo.processInfo.systemUptime - workloadStartedAt) * 1000
+          (ProcessInfo.processInfo.systemUptime - workloadStartedAt) * 1000 - discoveryMilliseconds
       }
 
       if application.isTerminated && !findings.contains(where: { $0.kind == .crash }) {
@@ -256,6 +270,7 @@ final class SequenceRunner {
     metadata["telemetry-events"] = String(telemetry.events)
     metadata["maximum-heartbeat-gap-ms"] = String(telemetry.maximumHeartbeatGap * 1000)
     metadata["process-model"] = "fresh"
+    metadata["discovery-ms"] = String(discoveryMilliseconds)
     if let snapshot = telemetry.latestSnapshot,
       let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys])
     {

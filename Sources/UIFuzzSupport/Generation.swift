@@ -116,11 +116,14 @@ public struct TraceMutator: Sendable {
         seed: seed &+ UInt64(result.count),
         actions: [FuzzAction(kind: .selectFont, target: "Font B family", value: "None")],
         origin: "seed"))
-    for family in installedFontFamilies {
+    // Seed both sides without making startup proportional to the font registry.
+    var random = SplitMix64(seed: seed)
+    for side in ["A", "B"] where !installedFontFamilies.isEmpty {
+      let family = installedFontFamilies[Int(random.next() % UInt64(installedFontFamilies.count))]
       result.append(
         FuzzTrace(
           seed: seed &+ UInt64(result.count),
-          actions: [FuzzAction(kind: .selectFont, target: "Font A family", value: family)],
+          actions: [FuzzAction(kind: .selectFont, target: "Font \(side) family", value: family)],
           origin: "seed"))
     }
     return result.map(constrained)
@@ -145,13 +148,6 @@ public struct TraceMutator: Sendable {
     let delay = settled ? 400 : [0, 5, 20, 50][Int(random.next() % 4)]
     switch random.next() % 13 {
     case 0:
-      if !installedFontFamilies.isEmpty {
-        return FuzzAction(
-          kind: .selectFont,
-          target: random.next().isMultiple(of: 2) ? "Font A family" : "Font B family",
-          value: installedFontFamilies[Int(random.next() % UInt64(installedFontFamilies.count))],
-          delayMilliseconds: max(delay, 400))
-      }
       let targets = [
         "Swap fonts", "Match…", "Apply", "Cancel", "Weight", "x-height", "Tracking",
         "Previous character", "Next character", "Zoom in", "Zoom out", "Reset glyph zoom",
@@ -199,23 +195,31 @@ public struct TraceMutator: Sendable {
         kind: .key, keyCode: random.next().isMultiple(of: 2) ? 123 : 124,
         delayMilliseconds: delay)
     case 7:
+      let targets = ["Glyph canvas", "Font A specimen", "Font B specimen"]
       return FuzzAction(
-        kind: .scroll, target: random.next().isMultiple(of: 2) ? "Glyph canvas" : "Font A specimen",
+        kind: .scroll, target: targets[Int(random.next() % UInt64(targets.count))],
         deltaX: Double(Int64(random.next() % 21) - 10),
         deltaY: Double(Int64(random.next() % 81) - 40), delayMilliseconds: delay)
     case 8:
       return FuzzAction(
         kind: .pause, delayMilliseconds: [1, 30, 119, 121, 500][Int(random.next() % 5)])
     case 9:
+      let targets = ["Glyph canvas", "Font A specimen", "Font B specimen"]
       return FuzzAction(
         kind: .click,
-        target: random.next().isMultiple(of: 2) ? "Glyph canvas" : "Font A specimen",
+        target: targets[Int(random.next() % UInt64(targets.count))],
         delayMilliseconds: delay)
     case 10:
       return FuzzAction(
         kind: .drag, target: "Glyph canvas",
         deltaX: Double(Int64(random.next() % 121) - 60),
         deltaY: Double(Int64(random.next() % 121) - 60), delayMilliseconds: delay)
+    case 11 where !installedFontFamilies.isEmpty:
+      return FuzzAction(
+        kind: .selectFont,
+        target: random.next().isMultiple(of: 2) ? "Font A family" : "Font B family",
+        value: installedFontFamilies[Int(random.next() % UInt64(installedFontFamilies.count))],
+        delayMilliseconds: max(delay, 400))
     default:
       return FuzzAction(
         kind: .press, target: random.next().isMultiple(of: 2) ? "Shape" : "Spacing",
@@ -223,7 +227,7 @@ public struct TraceMutator: Sendable {
     }
   }
 
-  private func text(using random: inout SplitMix64) -> String {
+  func text(using random: inout SplitMix64) -> String {
     let units = [0, 1, 16, 256, 4096, maximumTextUnits]
       .map { min($0, maximumTextUnits) }[Int(random.next() % 6)]
     guard units > 0 else { return "" }

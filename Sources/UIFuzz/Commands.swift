@@ -80,36 +80,34 @@ struct Run: ParsableCommand {
       }
     }
     var state = try loadState(artifactURL.appending(path: "campaign.json"))
-    let runner = SequenceRunner(configuration: common.runnerConfiguration)
+    let runner = SequenceRunner(configuration: common.runnerConfiguration, mutator: mutator)
     var slowest = try loadSlowCandidates(artifactURL)
-    let seedCorpus = corpus.filter { $0.origin == "seed" }
     outputLine(
       "seed \(campaignSeed); \(corpus.count) corpus entries; \(installedFonts.count) installed font families; running until interrupted"
     )
 
     while !stop.isStopped && deadline.map({ ProcessInfo.processInfo.systemUptime < $0 }) != false {
-      let trace: FuzzTrace
-      if state.executions < seedCorpus.count {
-        trace = seedCorpus[state.executions]
-      } else {
-        let base = corpus[Int(random.next() % UInt64(corpus.count))]
-        trace = mutator.mutate(base, seed: random.next())
-      }
-      let report = runner.execute(trace)
+      let trace = mutator.campaignTrace(
+        execution: state.executions, corpus: corpus, seed: random.next())
+      let report = runner.execute(
+        trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
       let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
       let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
       if delta.isInteresting {
-        corpus.append(trace)
-        try TraceIO.save(trace, to: corpusURL.appending(path: "\(identifier).json"))
+        corpus.append(report.trace)
+        try TraceIO.save(report.trace, to: corpusURL.appending(path: "\(identifier).json"))
       }
       try preserveFindings(report, identifier: identifier, artifacts: artifactURL)
       slowest = try preserveSlowCandidate(
         report, identifier: identifier, artifacts: artifactURL, current: slowest)
       try saveState(state, to: artifactURL.appending(path: "campaign.json"))
       let findingKinds = report.findings.map(\.kind.rawValue).joined(separator: ",")
+      let inputs = Dictionary(grouping: report.trace.actions, by: \.kind.rawValue)
+        .sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.count)" }.joined(separator: ",")
       outputLine(
-        "#\(state.executions) actions=\(trace.actions.count) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
+        "#\(state.executions) mode=\(trace.origin) actions=\(report.trace.actions.count) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
           + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
+          + " inputs=\(inputs)"
           + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
     }
     outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")

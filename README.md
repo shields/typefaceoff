@@ -91,6 +91,13 @@ make fmt
 `make fuzz` builds an optimized, coverage-instrumented diagnostic app and drives
 its real macOS UI until interrupted. It checkpoints coverage-interesting,
 incorrect, crashing, hanging, and slow action sequences under `.build/ui-fuzz`.
+Campaigns alternate live UI exploration with coverage-directed trace mutations.
+Exploration discovers enabled, visible controls after each action and balances
+clicks, button presses, menus, text entry, sliders, scrolling, dragging, and
+keyboard input. Font seeds cover both sides without queuing every installed
+family; mutations still sample the full font registry. Existing campaigns adopt
+the same schedule when resumed. Discovered actions record their accessibility
+paths, roles, and labels for replay, including controls with duplicate labels.
 Progress reports use `measured-ms` for the action sequence and resulting UI
 work; `total-ms` also includes app startup, shutdown, and coverage collection.
 Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign. Replay or

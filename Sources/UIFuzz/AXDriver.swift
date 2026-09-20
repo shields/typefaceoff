@@ -103,24 +103,27 @@ struct AXDriver {
   func perform(_ action: FuzzAction) throws {
     switch action.kind {
     case .press:
-      let element = try require(action.target)
+      let element = try require(action)
       try perform(kAXPressAction as String, on: element)
     case .setValue:
-      let element = try require(action.target)
+      let element = try require(action)
       try focus(element)
       let result = AXUIElementSetAttributeValue(
         element, kAXValueAttribute as CFString, (action.value ?? "") as CFTypeRef)
       guard result == .success else { throw DriverError.actionFailed("set value", result) }
-      try postKey(code: 36, modifiers: 0)
+      if action.commitValue != false { try postKey(code: 36, modifiers: 0) }
     case .increment:
-      try perform(kAXIncrementAction as String, on: require(action.target))
+      try perform(kAXIncrementAction as String, on: require(action))
     case .decrement:
-      try perform(kAXDecrementAction as String, on: require(action.target))
+      try perform(kAXDecrementAction as String, on: require(action))
+    case .showMenu:
+      try perform(kAXShowMenuAction as String, on: require(action))
     case .shortcut, .key:
       try postKey(code: action.keyCode ?? 0, modifiers: action.modifiers ?? 0)
     case .scroll:
-      let target = try require(action.target)
-      let point = center(of: target) ?? .zero
+      let target = try require(action)
+      let point = try center(of: target).unwrap(
+        DriverError.actionFailed("locate scroll target", .noValue))
       guard
         let event = CGEvent(
           scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
@@ -131,7 +134,7 @@ struct AXDriver {
     case .pause:
       break
     case .selectFont:
-      let familyButton = try require(action.target)
+      let familyButton = try require(action)
       let search = try revealFontSearch(byPressing: familyButton)
       try focus(search)
       let result = AXUIElementSetAttributeValue(
@@ -140,12 +143,12 @@ struct AXDriver {
       Thread.sleep(forTimeInterval: 0.05)
       try postKey(code: 36, modifiers: 0)
     case .click:
-      let point = try center(of: require(action.target)).unwrap(
+      let point = try center(of: require(action)).unwrap(
         DriverError.actionFailed("locate click target", .noValue))
       try postMouse(.leftMouseDown, at: point)
       try postMouse(.leftMouseUp, at: point)
     case .drag:
-      let start = try center(of: require(action.target)).unwrap(
+      let start = try center(of: require(action)).unwrap(
         DriverError.actionFailed("locate drag target", .noValue))
       let end = CGPoint(x: start.x + (action.deltaX ?? 0), y: start.y + (action.deltaY ?? 0))
       try postMouse(.leftMouseDown, at: start)
@@ -184,6 +187,40 @@ struct AXDriver {
     throw DriverError.controlMissing(target)
   }
 
+  private func require(_ action: FuzzAction) throws -> AXUIElement {
+    guard let path = action.targetPath else { return try require(action.target) }
+    let deadline = ProcessInfo.processInfo.systemUptime + 2
+    repeat {
+      if let element = element(at: path),
+        action.targetRole == stringAttribute(kAXRoleAttribute, of: element),
+        action.target.map({ names(of: element).contains($0) }) ?? true
+      {
+        return element
+      }
+      // SwiftUI can insert siblings during layout. A unique label and role still
+      // identify the same control; duplicate or unnamed controls must match the path.
+      if let target = action.target {
+        let matches = descendants(of: application).filter {
+          stringAttribute(kAXRoleAttribute, of: $0) == action.targetRole
+            && names(of: $0).contains(target)
+        }
+        if matches.count == 1 { return matches[0] }
+      }
+      Thread.sleep(forTimeInterval: 0.05)
+    } while ProcessInfo.processInfo.systemUptime < deadline
+    throw DriverError.controlMissing(action.target ?? "\(path)")
+  }
+
+  private func element(at path: [Int]) -> AXUIElement? {
+    var element = application
+    for index in path {
+      let elements = children(of: element)
+      guard elements.indices.contains(index) else { return nil }
+      element = elements[index]
+    }
+    return element
+  }
+
   private func perform(_ action: String, on element: AXUIElement) throws {
     let result = AXUIElementPerformAction(element, action as CFString)
     guard result == .success else { throw DriverError.actionFailed(action, result) }
@@ -204,10 +241,12 @@ struct AXDriver {
   }
 
   private func postKey(code: UInt16, modifiers: UInt64) throws {
-    let activation = AXUIElementSetAttributeValue(
-      application, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
-    guard activation == .success else {
-      throw DriverError.actionFailed("activate application", activation)
+    // Setting AXFrontmost can time out while AppKit is tracking a menu. Avoid
+    // that synchronous accessibility write when delivering keys into menus or sheets.
+    if attribute(kAXFrontmostAttribute, of: application) as? Bool != true {
+      guard NSRunningApplication(processIdentifier: processIdentifier)?.activate() == true else {
+        throw DriverError.actionFailed("activate application", .failure)
+      }
     }
     let source = CGEventSource(stateID: .combinedSessionState)
     guard
@@ -275,7 +314,7 @@ extension Optional {
   }
 }
 
-private func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
+func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
   var value: CFTypeRef?
   guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else {
     return nil
@@ -283,6 +322,6 @@ private func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
   return value
 }
 
-private func children(of element: AXUIElement) -> [AXUIElement] {
+func children(of element: AXUIElement) -> [AXUIElement] {
   attribute(kAXChildrenAttribute, of: element) as? [AXUIElement] ?? []
 }

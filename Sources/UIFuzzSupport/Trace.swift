@@ -29,10 +29,14 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
     case selectFont
     case click
     case drag
+    case showMenu
   }
 
   public var kind: Kind
   public var target: String?
+  public var targetPath: [Int]?
+  public var targetRole: String?
+  public var commitValue: Bool?
   public var value: String?
   public var keyCode: UInt16?
   public var modifiers: UInt64?
@@ -43,10 +47,14 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
   public init(
     kind: Kind, target: String? = nil, value: String? = nil, keyCode: UInt16? = nil,
     modifiers: UInt64? = nil, deltaX: Double? = nil, deltaY: Double? = nil,
-    delayMilliseconds: Int = 30
+    delayMilliseconds: Int = 30, targetPath: [Int]? = nil, targetRole: String? = nil,
+    commitValue: Bool? = nil
   ) {
     self.kind = kind
     self.target = target
+    self.targetPath = targetPath
+    self.targetRole = targetRole
+    self.commitValue = commitValue
     self.value = value
     self.keyCode = keyCode
     self.modifiers = modifiers

@@ -27,7 +27,8 @@ import Testing
     }
     let fontMutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: ["A", "B"])
     let fonts = fontMutator.initialCorpus(seed: 2)
-    #expect(fonts.suffix(2).map { $0.actions[0].value } == ["A", "B"])
+    #expect(fonts.suffix(2).map { $0.actions[0].target } == ["Font A family", "Font B family"])
+    #expect(fonts.suffix(2).allSatisfy { ["A", "B"].contains($0.actions[0].value ?? "") })
     let selected = (0..<100).flatMap {
       fontMutator.mutate(FuzzTrace(seed: 1), seed: UInt64($0)).actions
     }
@@ -44,6 +45,99 @@ import Testing
     let constrained = tightlyBounded.constrained(oversized)
     #expect(constrained.actions.count == 1)
     #expect(constrained.actions[0].value?.utf16.count == 4)
+  }
+
+  @Test func installedFontsDoNotCrowdOutUIActionsOrStartup() {
+    let families = (0..<2000).map { "Family \($0)" }
+    let mutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: families)
+    #expect(mutator.initialCorpus(seed: 42).count == 17)
+    #expect(mutator.initialCorpus(seed: 42) == mutator.initialCorpus(seed: 42))
+    let actions = (0..<2000).flatMap {
+      mutator.mutate(FuzzTrace(seed: 0), seed: UInt64($0)).actions
+    }
+    for target in ["Swap fonts", "Match…", "Edit text", "Toggle font B inspector"] {
+      #expect(actions.contains { $0.kind == .press && $0.target == target })
+    }
+    for side in ["A", "B"] {
+      #expect(actions.contains { $0.kind == .selectFont && $0.target == "Font \(side) family" })
+      for kind: FuzzAction.Kind in [.click, .scroll] {
+        #expect(actions.contains { $0.kind == kind && $0.target == "Font \(side) specimen" })
+      }
+    }
+  }
+
+  @Test func campaignExploresImmediatelyAndOnResumeWithLegacyFontSeeds() {
+    let mutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: ["A", "B"])
+    let legacy = (0..<2000).map {
+      FuzzTrace(
+        seed: UInt64($0),
+        actions: [FuzzAction(kind: .selectFont, target: "Font A family", value: "Family \($0)")],
+        origin: "seed")
+    }
+    for execution in 0..<100 {
+      let trace = mutator.campaignTrace(
+        execution: execution, corpus: legacy, seed: UInt64(execution))
+      #expect(
+        trace
+          == mutator.campaignTrace(execution: execution, corpus: legacy, seed: UInt64(execution)))
+      if execution.isMultiple(of: 2) {
+        #expect(trace.origin == "exploration")
+        #expect(trace.actions.isEmpty)
+      } else {
+        #expect(!trace.actions.isEmpty)
+      }
+    }
+    #expect(mutator.campaignTrace(execution: 998, corpus: legacy, seed: 0).origin == "exploration")
+    #expect(mutator.campaignTrace(execution: 999, corpus: [], seed: 0).origin == "mutation")
+  }
+
+  @Test func explorationBalancesKindsAndDistinctControls() {
+    var explorer = ActionExplorer(mutator: TraceMutator())
+    var random = SplitMix64(seed: 42)
+    let buttons = (0..<1000).map {
+      FuzzAction(kind: .press, target: "Duplicate label", targetPath: [$0], targetRole: "AXButton")
+    }
+    let candidates = buttons + [FuzzAction(kind: .scroll, target: "Inspector")]
+    var actions: [FuzzAction] = []
+    for _ in 0..<100 { actions.append(explorer.next(from: candidates, using: &random)) }
+    let pressed = actions.filter { $0.kind == .press }
+    #expect(pressed.count == 50)
+    #expect(Set(pressed.compactMap(\.targetPath)).count == 50)
+    #expect(actions.filter { $0.kind == .scroll }.count == 50)
+    #expect(explorer.next(from: [], using: &random).keyCode == 53)
+  }
+
+  @Test func explorationGeneratesReplayableBoundedValuesAndKeyboardInput() {
+    let mutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: ["Font"])
+    var first = ActionExplorer(mutator: mutator)
+    var second = ActionExplorer(mutator: mutator)
+    var left = SplitMix64(seed: 7)
+    var right = SplitMix64(seed: 7)
+    let edits = ["Search installed fonts", "Character", "Custom specimen text", "Size"].map {
+      FuzzAction(
+        kind: .setValue, target: $0, targetPath: [1, 2], targetRole: "AXTextField",
+        commitValue: false)
+    }
+    let candidates =
+      edits + [FuzzAction(kind: .drag, target: "Canvas")]
+      + ActionExplorer.keyboardActions(includeShortcuts: true)
+    #expect(ActionExplorer.keyboardActions(includeShortcuts: false).allSatisfy { $0.kind == .key })
+    #expect(candidates.contains { $0.kind == .shortcut })
+    for _ in 0..<200 {
+      let action = first.next(from: candidates, using: &left)
+      #expect(action == second.next(from: candidates, using: &right))
+      if action.kind == .setValue {
+        #expect(action.value != nil)
+        #expect(action.targetPath == [1, 2])
+        #expect(action.targetRole == "AXTextField")
+        #expect(action.commitValue == false)
+        if action.target == "Custom specimen text" { #expect(action.value!.utf16.count <= 32) }
+      }
+      if action.kind == .drag {
+        #expect((-60...60).contains(action.deltaX!))
+        #expect((-120...120).contains(action.deltaY!))
+      }
+    }
   }
 
   @Test func corpusReportsOnlyNewFeedback() {
@@ -82,7 +176,8 @@ import Testing
     let reportURL = folder.appending(path: "report.json")
     let action = FuzzAction(
       kind: .scroll, target: "canvas", value: "value", keyCode: 4, modifiers: 8,
-      deltaX: 1, deltaY: -2, delayMilliseconds: 9)
+      deltaX: 1, deltaY: -2, delayMilliseconds: 9,
+      targetPath: [1, 0, 3], targetRole: "AXScrollArea", commitValue: false)
     let trace = FuzzTrace(seed: 123, actions: [action])
     try TraceIO.save(trace, to: traceURL)
     #expect(try TraceIO.load(traceURL) == trace)

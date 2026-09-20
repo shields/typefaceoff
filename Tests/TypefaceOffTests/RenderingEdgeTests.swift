@@ -127,7 +127,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(comparison: comparison)))
     defer { host.window.close() }
     try await host.settle()
-    #expect(try host.element("Match…").isAccessibilityEnabled?() == false)
+    #expect(try await host.element("Match…").isAccessibilityEnabled?() == false)
     let bitmap = try #require(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
     host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
     #expect(bitmap.pixelsWide > 0)

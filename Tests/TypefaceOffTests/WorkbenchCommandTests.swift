@@ -14,7 +14,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     first.undo.beginUndoGrouping()
-    try host.press("Swap fonts")
+    try await host.press("Swap fonts")
     first.undo.endUndoGrouping()
     try await host.settle()
     #expect(first.model.comparison.a == initial.b)
@@ -23,36 +23,36 @@ import TypefaceCore
     first.undo.undo()
     #expect(first.model.comparison.a == initial.a)
     #expect(first.model.comparison.b == initial.b)
-    try host.press("Glyph view")
+    try await host.press("Glyph view")
     try await host.settle()
     #expect(first.model.comparison.mode == .glyph)
-    try host.press("Glyph view")
+    try await host.press("Glyph view")
     #expect(first.model.comparison.mode == .glyph)
-    try host.press("Text view")
+    try await host.press("Text view")
     try await host.settle()
     #expect(first.model.comparison.mode == .text)
     #expect(first.undo.canRedo)
-    try host.press("Highlight shape differences")
-    try host.press("Highlight spacing differences")
+    try await host.press("Highlight shape differences")
+    try await host.press("Highlight spacing differences")
     #expect(first.model.comparison.shape != initial.shape)
     #expect(first.model.comparison.spacing != initial.spacing)
-    try host.press("Font A inspector")
-    try host.press("Font B inspector")
+    try await host.press("Font A inspector")
+    try await host.press("Font B inspector")
     #expect(!first.showA && !first.showB)
-    try host.press("Edit sample text…")
-    try host.press("Match fonts…")
+    try await host.press("Edit sample text…")
+    try await host.press("Match fonts…")
     #expect(first.editRequested && first.matchRequested)
     host.setContent(CommandTestView(fixture: second, model: second.model))
     try await host.settle()
-    #expect(try host.element("Swap fonts").isAccessibilityEnabled?() == false)
-    #expect(try host.element("Match fonts…").isAccessibilityEnabled?() == false)
-    try host.press("Glyph view")
+    #expect(try await host.element("Swap fonts").isAccessibilityEnabled?() == false)
+    #expect(try await host.element("Match fonts…").isAccessibilityEnabled?() == false)
+    try await host.press("Glyph view")
     #expect(second.model.comparison.mode == .glyph)
     #expect(first.model.comparison.mode == .text)
     second.model.comparison = Comparison(a: .init("Missing-Font"))
     try await host.settle()
-    #expect(try host.element("Match fonts…").isAccessibilityEnabled?() == false)
-    #expect(try host.element("Swap fonts").isAccessibilityEnabled?() == true)
+    #expect(try await host.element("Match fonts…").isAccessibilityEnabled?() == false)
+    #expect(try await host.element("Swap fonts").isAccessibilityEnabled?() == true)
   }
 
   @Test func commandsAreDisabledWithoutAnAvailableWorkbench() async throws {
@@ -69,7 +69,7 @@ import TypefaceCore
       "Highlight shape differences", "Highlight spacing differences", "Match fonts…",
       "Swap fonts", "Edit sample text…",
     ] {
-      #expect(try host.element(title).isAccessibilityEnabled?() == false)
+      #expect(try await host.element(title).isAccessibilityEnabled?() == false)
     }
   }
 }

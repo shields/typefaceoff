@@ -12,14 +12,14 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Weight")
+    try await host.press("Weight")
     try await host.settle()
-    #expect(try host.element("Apply").isAccessibilityEnabled?() == false)
-    try host.press("x-height")
-    try host.press("Tracking")
+    #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
+    try await host.press("x-height")
+    try await host.press("Tracking")
     try await host.settle()
     #expect(model.comparison == initial)
-    try host.press("Apply")
+    try await host.press("Apply")
     try await host.settle()
     let candidate = try #require(model.comparison.b)
     let aHeight = try #require(FontRenderer.xHeight(config: initial.a, size: initial.a.size))
@@ -36,9 +36,9 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("x-height")
+    try await host.press("x-height")
     try await host.settle()
-    try host.press(button)
+    try await host.press(button)
     #expect(model.comparison == initial)
   }
 
@@ -47,7 +47,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    #expect(try host.element("Apply").isAccessibilityEnabled?() == false)
+    #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
     #expect(model.comparison.b == nil)
   }
 
@@ -59,7 +59,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Apply")
+    try await host.press("Apply")
     #expect(model.comparison.a == comparison.a)
     #expect(model.comparison.b?.weight == comparison.a.weight)
   }
@@ -69,7 +69,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Unlock appearance")
+    try await host.press("Unlock appearance")
     try await host.settle()
     #expect(!model.comparison.appearanceLocked)
     model.edit("Configure sample", undoManager: nil) {
@@ -78,21 +78,21 @@ import TypefaceCore
       $0.a.features["ot.kern"] = 0
     }
     try await host.settle()
-    try host.press("Reset size")
+    try await host.press("Reset size")
     try await host.settle()
     #expect(model.comparison.a.size == 22)
-    try host.press("Reset tracking")
+    try await host.press("Reset tracking")
     try await host.settle()
     #expect(model.comparison.a.tracking == 0)
-    try host.press("Reset typography")
+    try await host.press("Reset typography")
     try await host.settle()
     #expect(model.comparison.a.features.isEmpty)
-    try host.press("Lock appearance")
+    try await host.press("Lock appearance")
     try await host.settle()
     #expect(model.comparison.appearanceLocked)
     model.edit("Resize", undoManager: nil) { $0.a.size = 44 }
     try await host.settle()
-    try host.press("Reset appearance")
+    try await host.press("Reset appearance")
     try await host.settle()
     #expect(model.comparison.a.size == 22)
     #expect(model.comparison.b?.size == 22)
@@ -103,28 +103,32 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Edit text")
+    try await host.press("Edit text")
     try await host.settle()
     let editor = try #require(
-      host.subviews.compactMap { $0 as? NSTextView }.first { $0.isEditable })
-    editor.string = "Discarded sample"
-    editor.didChangeText()
-    try host.press("Cancel")
+      host.subviews.compactMap { $0 as? NSTextView }.first {
+        $0.isEditable && !$0.isFieldEditor && $0.window?.sheetParent === host.window
+      })
+    host.enter("Discarded sample", in: editor)
+    try await host.settle()
+    try await host.press("Cancel")
     try await host.settle()
     #expect(model.comparison.sample == .reading)
     #expect(model.comparison.customText.isEmpty)
-    try host.press("Edit text")
+    try await host.press("Edit text")
     try await host.settle()
     let replacement = try #require(
-      host.subviews.compactMap { $0 as? NSTextView }.first { $0.isEditable })
-    replacement.string = "A custom specimen with punctuation: @ & !"
-    replacement.didChangeText()
-    try host.press("Apply")
+      host.subviews.compactMap { $0 as? NSTextView }.first {
+        $0.isEditable && !$0.isFieldEditor && $0.window?.sheetParent === host.window
+      })
+    host.enter("A custom specimen with punctuation: @ & !", in: replacement)
+    try await host.settle()
+    try await host.press("Apply")
     try await host.settle()
     #expect(model.comparison.sample == .custom)
     #expect(model.comparison.text == replacement.string)
     #expect(host.window.sheets.isEmpty)
-    try host.press("Undo")
+    try await host.press("Undo")
     try await host.settle()
     #expect(model.comparison.sample == .reading)
   }
@@ -135,23 +139,23 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Swap fonts")
+    try await host.press("Swap fonts")
     try await host.settle()
     #expect(model.comparison.a == initial.b)
     #expect(model.comparison.b == initial.a)
-    try host.press("Spacing")
+    try await host.press("Spacing")
     try await host.settle()
     #expect(model.comparison.spacing && model.comparison.shape)
-    try host.press("Shape")
+    try await host.press("Shape")
     try await host.settle()
     #expect(!model.comparison.shape && model.comparison.spacing)
-    try host.press("Spacing")
+    try await host.press("Spacing")
     try await host.settle()
     #expect(!model.comparison.shape && !model.comparison.spacing)
-    try host.press("Match…")
+    try await host.press("Match…")
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
-    try host.press("Cancel")
+    try await host.press("Cancel")
     try await host.settle()
     #expect(host.window.sheets.isEmpty)
   }
@@ -176,15 +180,15 @@ import TypefaceCore
     let host = WorkbenchTestHost(FontInspector(model: model, side: .b), width: 246)
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Font B family")
+    try await host.press("Font B family")
     try await host.settle()
     let initialSearch = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
     host.enter("None", in: initialSearch)
     try await host.settle()
-    try host.press("None")
+    try await host.press("None")
     try await host.settle()
     #expect(model.comparison.b == nil)
-    try host.press("Font B family")
+    try await host.press("Font B family")
     try await host.settle()
     let search = try #require(
       host.subviews.compactMap { $0 as? NSTextField }.first {
@@ -192,7 +196,7 @@ import TypefaceCore
       })
     host.enter("Skia", in: search)
     try await host.settle()
-    try host.press("Skia")
+    try await host.press("Skia")
     try await host.settle()
     #expect(model.comparison.b?.face.family == "Skia")
     #expect(model.comparison.b?.face.axes.isEmpty == false)
@@ -208,10 +212,10 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Next character")
+    try await host.press("Next character")
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "b")
-    try host.press("Previous character")
+    try await host.press("Previous character")
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "a")
     let field = try #require(
@@ -227,7 +231,7 @@ import TypefaceCore
       $0.selectedGlyph = "🦄"
     }
     try await host.settle()
-    try host.press("Next character")
+    try await host.press("Next character")
     #expect(model.comparison.selectedGlyph == "\"")
   }
 
@@ -257,41 +261,49 @@ import TypefaceCore
     #expect(field.stringValue == "32.5")
   }
 
-  @Test func inspectorTypographyAndDisclosureControlsChangeOnlyTheirOwnSide() async throws {
+  @Test(arguments: [480.0, 900.0])
+  func inspectorTypographyAndDisclosureControlsChangeOnlyTheirOwnSide(height: Double) async throws {
     let model = WorkbenchModel(comparison: Comparison(a: .init("ArialMT")))
     let originalB = model.comparison.b
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: height)
     defer { host.window.close() }
     try await host.settle()
-    try host.press("Kerning")
+    try await host.press("Kerning")
     try await host.settle()
     #expect(model.comparison.a.features["ot.kern"] == 0)
-    try host.press("Kerning")
+    try await host.press("Kerning")
     try await host.settle()
     #expect(model.comparison.a.features["ot.kern"] != 0)
-    try host.press("Common")
+    let scroll = try #require(host.subviews.compactMap { $0 as? NSScrollView }.first)
+    let document = try #require(scroll.documentView)
+    let expandedHeight = document.frame.height
+    try await host.press("Common")
     try await host.settle()
-    try host.press("Common")
+    let collapsedHeight = document.frame.height
+    #expect(collapsedHeight < expandedHeight)
+    try await host.press("Common")
     try await host.settle()
-    try host.press("Automatic shaping")
+    #expect(document.frame.height > collapsedHeight)
+    try await host.press("Automatic shaping")
     try await host.settle()
     #expect(model.comparison.b == originalB)
   }
 
-  @Test func inspectorSlidersAdjustAndResetVariableAxes() async throws {
+  @Test(arguments: [480.0, 900.0])
+  func inspectorSlidersAdjustAndResetVariableAxes(height: Double) async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: height)
     defer { host.window.close() }
     try await host.settle()
-    let size = try host.element("Font A Size")
+    let size = try await host.element("Font A Size")
     #expect(size.accessibilityPerformIncrement?() == true)
     try await host.settle()
     #expect(model.comparison.a.size > 22)
     #expect(model.comparison.b?.size == model.comparison.a.size)
     let axis = try #require(model.comparison.a.face.axes.first { $0.tag == "wdth" })
     let initial = model.comparison.a.axes[axis.id]
-    let width = try host.element("Font A \(axis.name)")
+    let width = try await host.element("Font A \(axis.name)")
     #expect(width.accessibilityPerformIncrement?() == true)
     try await host.settle()
     #expect(model.comparison.a.axes[axis.id] != initial)
@@ -302,12 +314,12 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     for side in ["A", "B"] {
-      try host.press("Toggle font \(side) inspector")
+      try await host.press("Toggle font \(side) inspector")
       try await host.settle()
       #expect(!host.elements.contains { $0.accessibilityLabel?() == "Font \(side) family" })
-      try host.press("Toggle font \(side) inspector")
+      try await host.press("Toggle font \(side) inspector")
       try await host.settle()
-      _ = try host.element("Font \(side) family")
+      _ = try await host.element("Font \(side) family")
     }
   }
 
@@ -317,7 +329,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     let original = model.comparison.a.postScriptName
-    try await host.choose("Style")
+    try await host.choose("Font A style")
     try await host.settle()
     #expect(model.comparison.a.postScriptName != original)
     try await host.choose("Sample", item: Sample.poetry.title)
@@ -331,7 +343,7 @@ import TypefaceCore
     try await host.choose("Sample", item: Sample.custom.title)
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
-    try host.press("Cancel")
+    try await host.press("Cancel")
     try await host.settle()
     #expect(model.comparison.sample == .numerals)
   }
@@ -367,6 +379,9 @@ import TypefaceCore
     setContent(content)
     view.sceneBridgingOptions = .all
     window.contentView = view
+    if let screen = window.screen {
+      window.setFrameTopLeftPoint(NSPoint(x: screen.visibleFrame.minX, y: screen.visibleFrame.maxY))
+    }
     window.makeKeyAndOrderFront(nil)
   }
 
@@ -381,41 +396,65 @@ import TypefaceCore
     view.layoutSubtreeIfNeeded()
   }
 
-  func element(_ label: String) throws -> AnyObject {
-    var result = elements.first {
-      ($0.accessibilityLabel?() ?? "") == label || ($0.accessibilityTitle?() ?? "") == label
-    }
-    if result == nil {
-      result = hitElements.first {
-        ($0.accessibilityLabel?() ?? "") == label || ($0.accessibilityTitle?() ?? "") == label
+  func element(_ label: String) async throws -> AnyObject {
+    if let result = visibleElement(label) { return result }
+    // Older SwiftUI versions expose only the visible portion of a scroll view.
+    for scroll in subviews.compactMap({ $0 as? NSScrollView }) {
+      guard let document = scroll.documentView else { continue }
+      let original = scroll.contentView.bounds.origin
+      let maximum = document.bounds.height - scroll.contentView.bounds.height
+      guard maximum > 0 else { continue }
+      let step = max(1, scroll.contentView.bounds.height / 2)
+      for offset in stride(from: 0, through: maximum + step, by: step) {
+        scroll.contentView.scroll(to: NSPoint(x: original.x, y: min(offset, maximum)))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        try await settle()
+        if let result = visibleElement(label) { return result }
       }
+      scroll.contentView.scroll(to: original)
+      scroll.reflectScrolledClipView(scroll.contentView)
+      try await settle()
     }
-    if result == nil {
-      let description = (elements + hitElements).map {
-        "\(type(of: $0)) | \(String(describing: $0.accessibilityLabel?())) | \(String(describing: $0.accessibilityTitle?()))"
-      }.joined(separator: "\n")
-      try ("Missing: \(label)\n" + description).write(
-        to: FileManager.default.temporaryDirectory.appendingPathComponent(
-          "typefaceoff-accessibility.txt"), atomically: true, encoding: .utf8)
-    }
-    return try #require(result, "Missing control: \(label)")
+    let available = Set(
+      (elements + hitElements).flatMap { element in
+        [
+          element.accessibilityIdentifier?(), element.accessibilityLabel?(),
+          element.accessibilityTitle?(),
+        ].compactMap { $0 }.filter { !$0.isEmpty }
+      }
+    ).sorted().joined(separator: ", ")
+    throw MissingControl(label: label, available: available)
   }
 
-  func press(_ label: String) throws {
+  private func visibleElement(_ label: String) -> AnyObject? {
+    func matches(_ element: AnyObject) -> Bool {
+      element.accessibilityIdentifier?() == label || element.accessibilityLabel?() == label
+        || element.accessibilityTitle?() == label
+    }
+    return elements.first(where: matches) ?? hitElements.first(where: matches)
+  }
+
+  private struct MissingControl: Error, CustomStringConvertible {
+    let label: String
+    let available: String
+    var description: String { "Missing control: \(label). Available controls: \(available)" }
+  }
+
+  func press(_ label: String) async throws {
     if let item = window.toolbar?.items.first(where: { $0.label == label }),
       let action = item.action
     {
       #expect(NSApp.sendAction(action, to: item.target, from: item))
       return
     }
-    let control = try element(label)
+    let control = try await element(label)
     // SwiftUI toolbar proxies can return false after dispatching the action.
     // Callers verify the resulting model or view state after settling.
     _ = control.accessibilityPerformPress?()
   }
 
   func choose(_ label: String, item: String? = nil) async throws {
-    let control = try element(label)
+    let control = try await element(label)
     let selection = WorkbenchTestMenuSelection(title: item)
     menuSelection = selection
     #expect(control.accessibilityPerformPress?() == true)
@@ -426,6 +465,12 @@ import TypefaceCore
     try #require(selection.completed, "Menu selection did not complete: \(label)")
     // AppKit animates dismissal after the selection action and tracking loop end.
     try await Task.sleep(for: .milliseconds(350))
+  }
+
+  func enter(_ value: String, in editor: NSTextView) {
+    editor.window?.makeFirstResponder(editor)
+    editor.insertText(
+      value, replacementRange: NSRange(location: 0, length: editor.string.utf16.count))
   }
 
   func enter(_ value: String, in field: NSTextField) {

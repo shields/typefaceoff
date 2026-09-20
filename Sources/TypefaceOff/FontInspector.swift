@@ -51,6 +51,7 @@ struct FontInspector: View {
               Text(verbatim: $0.style).tag($0.id)
             }
           }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("Font \(side.rawValue.uppercased()) style")
         }
       }.padding(18)
       Divider()
@@ -206,6 +207,7 @@ struct FontInspector: View {
           }
         }
       ).accessibilityLabel("Font \(side.rawValue.uppercased()) \(title)")
+        .accessibilityIdentifier("Font \(side.rawValue.uppercased()) \(title)")
     }.font(.system(size: 12))
   }
 

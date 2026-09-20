@@ -28,8 +28,10 @@ reopen the app to refresh its catalog.
 ## Use
 
 - Search either inspector’s font selector for an installed family, then choose a
-  style. Select **None** for B to inspect one font; reselecting that family
-  restores its previous settings.
+  style. The selector focuses its search field; use ↑/↓ to highlight a result,
+  Return to choose it, or Escape to dismiss it. Browsing leaves the current font
+  unchanged until confirmation. Search for **None** in B to inspect one font;
+  reselecting that family restores its previous settings.
 - Appearance is linked initially. Size preserves the B/A ratio, and weight,
   tracking, and shared axes preserve their offsets, including after a range
   limit temporarily clamps a value. Unlock either inspector to adjust sides

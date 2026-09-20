@@ -5,7 +5,6 @@ struct FontInspector: View {
   @ObservedObject var document: WorkbenchDocument
   let side: Side
   @Environment(\.undoManager) private var undoManager
-  @State private var familySearch = ""
   @State private var choosingFamily = false
   @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
   @StateObject private var previews = FeaturePreviewModel()
@@ -162,25 +161,9 @@ struct FontInspector: View {
   }
 
   private var familyPicker: some View {
-    VStack(spacing: 10) {
-      TextField("Search installed fonts", text: $familySearch).textFieldStyle(.roundedBorder)
-        .padding([.top, .horizontal])
-      List {
-        if side == .b { Button("None") { choose(nil) }.buttonStyle(.plain) }
-        ForEach(
-          document.catalog.families.filter {
-            familySearch.isEmpty || $0.localizedCaseInsensitiveContains(familySearch)
-          }, id: \.self
-        ) { family in
-          Button {
-            choose(family)
-          } label: {
-            Text(verbatim: family).frame(maxWidth: .infinity, alignment: .leading).contentShape(
-              Rectangle())
-          }.buttonStyle(.plain)
-        }
-      }
-    }.frame(width: 300, height: 400)
+    FontFamilyPicker(
+      families: document.catalog.families, currentFamily: config?.face.family,
+      allowsNone: side == .b, choose: choose)
   }
 
   private func numericControl(

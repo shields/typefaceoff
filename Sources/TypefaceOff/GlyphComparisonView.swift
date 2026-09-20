@@ -26,8 +26,8 @@ struct GlyphComparisonView: View {
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
           .help("Inspect the next character (Right Arrow when the glyph view has focus)")
-        Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 11))
-          .foregroundStyle(.secondary).lineLimit(2)
+        Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 14))
+          .foregroundStyle(.primary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))
       }.frame(height: 32).padding(16)
       GlyphCanvas(
@@ -107,13 +107,13 @@ final class GlyphDrawingView: NSView {
 
   override func becomeFirstResponder() -> Bool {
     let accepted = super.becomeFirstResponder()
-    updateFocusAppearance()
+    updateFocusState()
     return accepted
   }
 
   override func resignFirstResponder() -> Bool {
     let accepted = super.resignFirstResponder()
-    updateFocusAppearance()
+    updateFocusState()
     return accepted
   }
 
@@ -129,21 +129,21 @@ final class GlyphDrawingView: NSView {
     if let window {
       for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
         NotificationCenter.default.addObserver(
-          self, selector: #selector(updateFocusAppearance), name: name, object: window)
+          self, selector: #selector(updateFocusState), name: name, object: window)
       }
     }
     if focusRequest != nil { window?.makeFirstResponder(self) }
-    updateFocusAppearance()
+    updateFocusState()
   }
 
   deinit { NotificationCenter.default.removeObserver(self) }
 
-  @objc private func updateFocusAppearance() {
+  @objc private func updateFocusState() {
+    // WorkbenchView indicates keyboard focus on the ranked character; the canvas stays borderless.
     // First-responder callbacks run before the window finishes changing responders.
     // Defer the SwiftUI state update until both AppKit and view updates finish.
     Task { @MainActor [weak self] in
       guard let self else { return }
-      needsDisplay = true
       focusChanged(hasKeyboardFocus)
     }
   }
@@ -193,12 +193,6 @@ final class GlyphDrawingView: NSView {
     else { return }
     NSColor.white.setFill()
     bounds.fill()
-    if hasKeyboardFocus {
-      NSColor.keyboardFocusIndicatorColor.setStroke()
-      let ring = NSBezierPath(roundedRect: bounds.insetBy(dx: 3, dy: 3), xRadius: 4, yRadius: 4)
-      ring.lineWidth = 2
-      ring.stroke()
-    }
     let count = comparison.b == nil ? 1 : 3
     let width = bounds.width / Double(count)
     let baseline = max(38, (bounds.height - 48) * 0.25)
@@ -226,11 +220,12 @@ final class GlyphDrawingView: NSView {
           context, from: CGPoint(x: start, y: 4), to: CGPoint(x: start, y: bounds.height - 5),
           color: .init(gray: 0.86, alpha: 1))
       }
-      let config = configs[indexes[0]]
-      let available = FontRenderer.isAvailable(config)
-      let title = overlay ? "Overlay" : available ? config.face.family : "Font unavailable"
-      label(title, x: start, y: bounds.height - 23, width: width, size: 12, centered: true)
+      // Only the outer columns need headings to identify the compared fonts.
       if !overlay {
+        let config = configs[indexes[0]]
+        let available = FontRenderer.isAvailable(config)
+        let title = available ? config.face.family : "Font unavailable"
+        label(title, x: start, y: bounds.height - 23, width: width, size: 12, centered: true)
         label(
           available ? "\(config.face.unitsPerEm) units/em" : config.postScriptName, x: start,
           y: bounds.height - 40,

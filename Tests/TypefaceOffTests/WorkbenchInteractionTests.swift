@@ -358,6 +358,10 @@ import TypefaceCore
       (host.elements + host.hitElements).first {
         ($0.accessibilityLabel?() ?? "").hasPrefix("Inspect U+")
       })
+    let help = try #require(button.accessibilityHelp?())
+    #expect(help.contains("\nShape "))
+    #expect(help.contains("\nSpacing "))
+    #expect(!help.contains(" · ") && !help.contains("#"))
     #expect(button.accessibilityPerformPress?() == true)
     try await host.settle()
     #expect(model.comparison.mode == .glyph)

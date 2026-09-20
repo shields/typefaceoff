@@ -189,13 +189,21 @@ struct WorkbenchView: View {
       ScrollViewReader { proxy in
         ScrollView(.horizontal) {
           LazyHStack(spacing: 8) {
-            ForEach(Array(ranked.enumerated()), id: \.element.id) { index, item in
+            ForEach(ranked) { item in
               Button {
                 selectGlyph(item.glyph)
               } label: {
                 VStack(spacing: 5) {
-                  Text(verbatim: item.glyph).font(Font(FontRenderer.font(comparison.a, size: 30)))
-                    .frame(height: 38)
+                  if let b = comparison.b {
+                    GlyphDifferencePreview(
+                      glyph: item.glyph, a: comparison.a, b: b,
+                      spacingOnly: comparison.spacing && !comparison.shape
+                    )
+                    .frame(width: 46, height: 38)
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                  }
                   if comparison.shape || !comparison.spacing {
                     differenceBar(
                       item.shape, maximum: maximumShape,
@@ -225,9 +233,9 @@ struct WorkbenchView: View {
                     ? .isSelected : []
                 )
                 .help(
-                  "\(unicodeDescription(item.glyph)) · #\(index + 1) · "
+                  unicodeDescription(item.glyph).replacingOccurrences(of: " · ", with: "\n") + "\n"
                     + String(
-                      format: "Shape %.1f%% · Spacing %.3f em", item.shape * 100, item.spacing))
+                      format: "Shape %.1f%%\nSpacing %.3f em", item.shape * 100, item.spacing))
             }
           }.padding(1)
         }.scrollIndicators(.hidden).frame(height: 84)

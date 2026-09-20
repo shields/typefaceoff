@@ -292,7 +292,7 @@ final class GlyphDrawingView: NSView {
         }
       }
       if overlay, masks.count == 2 {
-        drawOverlay(
+        GlyphOverlay.draw(
           masks[0], masks[1], width: bitmapWidth, height: bitmapHeight, context: context,
           rect: CGRect(x: start, y: 0, width: width, height: bounds.height))
       } else if indexes.contains(where: { !supported[$0] }) {
@@ -301,34 +301,6 @@ final class GlyphDrawingView: NSView {
           centered: true)
       }
     }
-  }
-
-  private func drawOverlay(
-    _ a: [UInt8], _ b: [UInt8], width: Int, height: Int, context: CGContext, rect: CGRect
-  ) {
-    var pixels = [UInt8](repeating: 0, count: width * height * 4)
-    for index in a.indices {
-      let left = Double(a[index]) / 255
-      let right = Double(b[index]) / 255
-      let shared = min(left, right)
-      let alpha = max(left, right)
-      for (channel, values) in [(0, (0.76, 0.25)), (1, (0.32, 0.48)), (2, (0.31, 0.68))] {
-        pixels[index * 4 + channel] = UInt8(
-          min(
-            255,
-            max(0, ((left - shared) * values.0 + (right - shared) * values.1 + shared * 0.14) * 255)
-          ))
-      }
-      pixels[index * 4 + 3] = UInt8(alpha * 255)
-    }
-    guard let provider = CGDataProvider(data: Data(pixels) as CFData),
-      let image = CGImage(
-        width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
-        space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
-    else { return }
-    context.draw(image, in: rect)
   }
 
   private func stroke(
@@ -365,4 +337,35 @@ final class GlyphDrawingView: NSView {
   private enum GlyphMeasurementPlaceholder {
     static let defaultBounds = CGRect(x: 0, y: -25, width: 100, height: 125)
   }
+}
+
+enum GlyphOverlay {
+  static func draw(
+    _ a: [UInt8], _ b: [UInt8], width: Int, height: Int, context: CGContext, rect: CGRect
+  ) {
+    var pixels = [UInt8](repeating: 0, count: width * height * 4)
+    for index in a.indices {
+      let left = Double(a[index]) / 255
+      let right = Double(b[index]) / 255
+      let shared = min(left, right)
+      let alpha = max(left, right)
+      for (channel, values) in [(0, (0.76, 0.25)), (1, (0.32, 0.48)), (2, (0.31, 0.68))] {
+        pixels[index * 4 + channel] = UInt8(
+          min(
+            255,
+            max(0, ((left - shared) * values.0 + (right - shared) * values.1 + shared * 0.14) * 255)
+          ))
+      }
+      pixels[index * 4 + 3] = UInt8(alpha * 255)
+    }
+    guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+      let image = CGImage(
+        width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    else { return }
+    context.draw(image, in: rect)
+  }
+
 }

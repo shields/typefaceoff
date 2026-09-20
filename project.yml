@@ -1,6 +1,6 @@
 name: TypefaceOff
 options:
-  bundleIdPrefix: com.shields
+  bundleIdPrefix: dev.msrl
   deploymentTarget:
     macOS: "15.0"
 packages:
@@ -35,7 +35,7 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shields.typefaceoff
+        PRODUCT_BUNDLE_IDENTIFIER: dev.msrl.typefaceoff
         CODE_SIGN_STYLE: Automatic
   TypefaceOffTests:
     type: bundle.unit-test

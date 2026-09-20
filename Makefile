@@ -20,8 +20,7 @@ test:
 	$(MAKE) test-app
 
 test-app: project
-	rm -rf .build/xcode/Build/ProfileData
-	xcodebuild $(XCODE_FLAGS) test
+	./scripts/test-app.sh $(XCODE_FLAGS)
 
 coverage: test
 	./scripts/coverage.sh $(SWIFT_FLAGS)

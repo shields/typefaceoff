@@ -86,11 +86,12 @@ make fmt
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`
 contains the macOS UI and in-memory comparison state. Tests use Swift Testing:
 SwiftPM runs the core tests, and Xcode runs the native tests inside the app.
-`make test-app` runs only the native suite. `make coverage` runs both with
-instrumentation and reports coverage for both the core and app through
-`llvm-cov`, requiring 100% line coverage for every source file. Tests for
-Inter’s optional variable axes and character variants require that font to be
-installed.
+`make test-app` runs only the native suite, saves its result bundle in
+`.build/TestResults.xcresult`, and prints assertion failures when tests fail.
+`make coverage` runs both with instrumentation and reports coverage for both the
+core and app through `llvm-cov`, requiring 100% line coverage for every source
+file. Tests for Inter’s optional variable axes and character variants require
+that font to be installed.
 
 `make review` renders native text, glyph, and single-font windows into
 `.build/review` for visual inspection. It requires an active macOS desktop

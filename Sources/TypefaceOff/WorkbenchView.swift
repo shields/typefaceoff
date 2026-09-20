@@ -2,10 +2,10 @@ import SwiftUI
 import TypefaceCore
 
 struct WorkbenchView: View {
-  @ObservedObject var document: WorkbenchDocument
+  @ObservedObject var model: WorkbenchModel
   @StateObject private var ranking = RankingModel()
   @StateObject private var scrollPosition = SpecimenScrollPosition()
-  @Environment(\.undoManager) private var undoManager
+  @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
   @State private var showA = true
   @State private var showB = true
@@ -15,7 +15,7 @@ struct WorkbenchView: View {
   @State private var sharedSize = "22"
   @State private var glyphFocusRequest = UUID()
 
-  private var comparison: Comparison { document.comparison }
+  private var comparison: Comparison { model.comparison }
   private var rankingKey: RankingKey {
     .init(a: comparison.a, b: comparison.b, text: comparison.text)
   }
@@ -43,7 +43,7 @@ struct WorkbenchView: View {
 
   var body: some View {
     HStack(spacing: 0) {
-      InspectorPanel(document: document, side: .a, isVisible: showA)
+      InspectorPanel(model: model, side: .a, isVisible: showA)
       if showA { Divider() }
       VStack(spacing: 0) {
         controls
@@ -62,7 +62,7 @@ struct WorkbenchView: View {
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
             navigate: navigate,
-            showText: { document.updatePresentation { $0.mode = .text } })
+            showText: { model.updatePresentation { $0.mode = .text } })
         }
         if comparison.b != nil {
           Divider()
@@ -71,7 +71,7 @@ struct WorkbenchView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       if showB { Divider() }
-      InspectorPanel(document: document, side: .b, isVisible: showB)
+      InspectorPanel(model: model, side: .b, isVisible: showB)
     }
     .background(WorkbenchStyle.panel)
     .tint(WorkbenchStyle.accent)
@@ -95,7 +95,7 @@ struct WorkbenchView: View {
     .onChange(of: comparison.customText) {
       if comparison.sample == .custom { scrollPosition.reset() }
     }
-    .sheet(isPresented: $showMatch) { MatchSheet(document: document) }
+    .sheet(isPresented: $showMatch) { MatchSheet(model: model) }
     .sheet(isPresented: $showEditor) { editor }
   }
 
@@ -141,8 +141,8 @@ struct WorkbenchView: View {
         .onSubmit {
           if let value = SharedSizeFormat.parse(sharedSize, locale: locale) {
             edit("Set both sizes") {
-              $0.a.set(.size, to: value, catalog: document.catalog)
-              $0.b?.set(.size, to: value, catalog: document.catalog)
+              $0.a.set(.size, to: value, catalog: model.catalog)
+              $0.b?.set(.size, to: value, catalog: model.catalog)
               $0.calibrate()
             }
           }
@@ -263,15 +263,15 @@ struct WorkbenchView: View {
   }
 
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
-    document.edit(name, undoManager: undoManager, body)
+    model.edit(name, undoManager: undoManager, body)
   }
   private func presentation<Value>(_ key: WritableKeyPath<Comparison, Value>) -> Binding<
     Value
   > {
     Binding(
-      get: { document.comparison[keyPath: key] },
+      get: { model.comparison[keyPath: key] },
       set: { value in
-        document.updatePresentation { $0[keyPath: key] = value }
+        model.updatePresentation { $0[keyPath: key] = value }
         if comparison.mode == .glyph { glyphFocusRequest = UUID() }
       })
   }
@@ -282,7 +282,7 @@ struct WorkbenchView: View {
   }
   private func selectGlyph(_ glyph: String) {
     guard let first = glyph.first else { return }
-    document.updatePresentation {
+    model.updatePresentation {
       $0.selectedGlyph = String(first)
       $0.mode = .glyph
     }

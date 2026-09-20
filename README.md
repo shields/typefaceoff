@@ -19,7 +19,7 @@ make run
 `make build` creates `.build/xcode/Build/Products/Debug/TypefaceOff.app`, signed
 locally with an ad hoc identity. `make project` generates
 `TypefaceOff.xcodeproj` for development in Xcode. `project.yml` owns the
-project, document type, and sandbox entitlements; generated files are ignored.
+project, app metadata, and sandbox entitlements; generated files are ignored.
 
 The app uses installed fonts. It makes no network requests and has no
 third-party runtime dependencies. Install additional fonts with Font Book, then
@@ -56,12 +56,10 @@ reopen the app to refresh its catalog.
   perceptual similarity models.
 - Browsing glyphs, switching views, and toggling highlights preserve Undo/Redo.
   Undoing a font edit keeps the current inspection in view.
-- Launching the app opens a comparison window. Save and reopen `.typefaceoff`
-  documents with the standard File menu. **Untitled** means the comparison has
-  not been named; **Edited** means its settings have changed since the last
-  save. Documents contain settings and sample text, not font files. Missing
-  fonts and glyphs are labeled rather than silently compared using fallback
-  fonts.
+- Launching the app opens a fresh comparison window. Each window is independent;
+  settings and sample text stay in memory and are discarded when it closes.
+  Missing fonts and glyphs are labeled rather than silently compared using
+  fallback fonts.
 - Typography previews use examples that change with the selected font and
   feature. Some fonts’ ligatures apply to scripts other than Latin. Features
   without a verified example show **No preview available**.
@@ -77,11 +75,11 @@ make fmt
 ```
 
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
-measurements, calibrated edits, matching, ranking, and versioned document data.
-`Sources/TypefaceOff` contains the macOS UI and document integration. Tests use
-Swift Testing: SwiftPM runs the core tests, and Xcode runs the native tests
-inside the app. `make test-app` runs only the native suite. `make coverage` runs
-both with instrumentation and reports coverage for both the core and app through
+measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`
+contains the macOS UI and in-memory comparison state. Tests use Swift Testing:
+SwiftPM runs the core tests, and Xcode runs the native tests inside the app.
+`make test-app` runs only the native suite. `make coverage` runs both with
+instrumentation and reports coverage for both the core and app through
 `llvm-cov`, requiring 100% line coverage for every source file. Tests for
 Inter’s optional variable axes and character variants require that font to be
 installed.

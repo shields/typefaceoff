@@ -3,12 +3,12 @@ import TypefaceCore
 
 /// Retain disclosure and scroll state while the inspector is collapsed.
 struct InspectorPanel: View {
-  let document: WorkbenchDocument
+  let model: WorkbenchModel
   let side: Side
   let isVisible: Bool
 
   var body: some View {
-    FontInspector(document: document, side: side)
+    FontInspector(model: model, side: side)
       .frame(width: 246)
       .frame(width: isVisible ? 246 : 0)
       .clipped()

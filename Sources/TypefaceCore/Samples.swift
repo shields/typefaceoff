@@ -1,6 +1,6 @@
 import Foundation
 
-public enum Sample: String, Codable, CaseIterable, Sendable {
+public enum Sample: String, CaseIterable, Sendable {
   case reading, poetry, alphabet, numerals, custom
 
   public var title: String {

@@ -6,19 +6,7 @@ import TypefaceCore
 
 @testable import TypefaceOff
 
-@Suite @MainActor struct DocumentTests {
-  @Test func readingRequiresARegularFileWithValidComparisonData() throws {
-    let comparison = Comparison()
-    #expect(
-      try WorkbenchDocument.read(FileWrapper(regularFileWithContents: comparison.encoded()))
-        == comparison)
-    #expect(throws: CocoaError(.fileReadCorruptFile)) {
-      try WorkbenchDocument.read(FileWrapper(directoryWithFileWrappers: [:]))
-    }
-    #expect(throws: DecodingError.self) {
-      try WorkbenchDocument.read(FileWrapper(regularFileWithContents: Data("invalid".utf8)))
-    }
-  }
+@Suite @MainActor struct WorkbenchTests {
   @Test(arguments: ["en_US", "de_DE", "fr_FR"])
   func sharedSizeUsesTheDisplayLocale(identifier: String) throws {
     let locale = Locale(identifier: identifier)
@@ -102,69 +90,61 @@ import TypefaceCore
     #expect(abs(CTFontGetSize(customFont) - config.size) < 0.000001)
   }
   @Test func sliderGestureHasOneUndoAcrossManyUpdates() {
-    let document = WorkbenchDocument()
+    let model = WorkbenchModel()
     let undo = UndoManager()
     undo.groupsByEvent = false
-    let initial = document.comparison
-    document.beginContinuousEdit("Resize")
+    let initial = model.comparison
+    model.beginContinuousEdit("Resize")
     for size in [25.0, 30.0, 44.0] {
-      document.edit("Resize", undoManager: undo) {
-        $0.set(.size, to: size, side: .a, catalog: document.catalog)
+      model.edit("Resize", undoManager: undo) {
+        $0.set(.size, to: size, side: .a, catalog: model.catalog)
       }
     }
     #expect(!undo.canUndo)
     undo.beginUndoGrouping()
-    document.endContinuousEdit(undoManager: undo)
+    model.endContinuousEdit(undoManager: undo)
     undo.endUndoGrouping()
     undo.undo()
-    #expect(document.comparison == initial)
+    #expect(model.comparison == initial)
     #expect(!undo.canUndo)
     undo.redo()
-    #expect(document.comparison.a.size == 44)
-    #expect(document.comparison.b?.size == 44)
+    #expect(model.comparison.a.size == 44)
+    #expect(model.comparison.b?.size == 44)
   }
   @Test func linkedEditsPublishAndUndoAsOneChange() {
-    let document = WorkbenchDocument()
+    let model = WorkbenchModel()
     let undo = UndoManager()
     undo.groupsByEvent = false
     var published = 0
-    let observation = document.objectWillChange.sink { published += 1 }
-    let original = document.comparison
+    let observation = model.objectWillChange.sink { published += 1 }
+    let original = model.comparison
     undo.beginUndoGrouping()
-    document.edit("Resize", undoManager: undo) {
-      $0.set(.size, to: 44, side: .a, catalog: document.catalog)
+    model.edit("Resize", undoManager: undo) {
+      $0.set(.size, to: 44, side: .a, catalog: model.catalog)
     }
     undo.endUndoGrouping()
     #expect(published == 1)
-    #expect(document.comparison.a.size == 44)
-    #expect(document.comparison.b?.size == 44)
+    #expect(model.comparison.a.size == 44)
+    #expect(model.comparison.b?.size == 44)
     undo.undo()
-    #expect(document.comparison == original)
+    #expect(model.comparison == original)
     undo.redo()
-    #expect(document.comparison.a.size == 44)
-    #expect(document.comparison.b?.size == 44)
+    #expect(model.comparison.a.size == 44)
+    #expect(model.comparison.b?.size == 44)
     withExtendedLifetime(observation) {}
   }
 
-  @Test func snapshotsStayStableWhileEditing() throws {
-    let document = WorkbenchDocument()
-    let snapshot = try document.snapshot(contentType: .typefaceComparison)
-    document.edit("Edit sample", undoManager: nil) { $0.customText = "changed" }
-    #expect(snapshot.customText.isEmpty)
-    #expect(try TypefaceCore.Comparison.decode(snapshot.encoded()) == snapshot)
-  }
-
   @Test func browsingDoesNotConsumeUndoOrRedoAndKeepsTheCurrentInspection() {
-    let document = WorkbenchDocument()
+    let model = WorkbenchModel()
     let undo = UndoManager()
     undo.groupsByEvent = false
     undo.beginUndoGrouping()
-    document.edit("Resize", undoManager: undo) {
-      $0.set(.size, to: 44, side: .a, catalog: document.catalog)
+    model.edit("Resize", undoManager: undo) {
+      $0.set(.size, to: 44, side: .a, catalog: model.catalog)
     }
     undo.endUndoGrouping()
     for glyph in ["a", "g", "@"] {
-      document.updatePresentation {
+      model.updatePresentation {
         $0.mode = .glyph
         $0.selectedGlyph = glyph
         $0.shape = false
@@ -172,18 +152,18 @@ import TypefaceCore
       }
     }
     undo.undo()
-    #expect(document.comparison.a.size == 22)
-    #expect(document.comparison.b?.size == 22)
+    #expect(model.comparison.a.size == 22)
+    #expect(model.comparison.b?.size == 22)
     #expect(!undo.canUndo)
-    #expect(document.comparison.mode == .glyph)
-    #expect(document.comparison.selectedGlyph == "@")
-    #expect(!document.comparison.shape && document.comparison.spacing)
-    document.updatePresentation { $0.selectedGlyph = "g" }
+    #expect(model.comparison.mode == .glyph)
+    #expect(model.comparison.selectedGlyph == "@")
+    #expect(!model.comparison.shape && model.comparison.spacing)
+    model.updatePresentation { $0.selectedGlyph = "g" }
     #expect(undo.canRedo)
     undo.redo()
-    #expect(document.comparison.a.size == 44)
-    #expect(document.comparison.b?.size == 44)
-    #expect(document.comparison.selectedGlyph == "g")
+    #expect(model.comparison.a.size == 44)
+    #expect(model.comparison.b?.size == 44)
+    #expect(model.comparison.selectedGlyph == "g")
   }
 
   @Test func removingBWhileRankingClearsResults() async {

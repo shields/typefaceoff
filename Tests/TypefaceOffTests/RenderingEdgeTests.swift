@@ -124,7 +124,7 @@ import TypefaceCore
     comparison.mode = .glyph
     comparison.selectedGlyph = "ܐ"
     comparison.a.axes = [:]
-    let host = WorkbenchTestHost(WorkbenchView(document: WorkbenchDocument(comparison: comparison)))
+    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(comparison: comparison)))
     defer { host.window.close() }
     try await host.settle()
     #expect(try host.element("Match…").isAccessibilityEnabled?() == false)

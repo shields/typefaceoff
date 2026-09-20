@@ -67,15 +67,13 @@ import TypefaceCore
     }
     for (name, width, comparison) in cases {
       let height = width == 1440 ? 900.0 : 800.0
-      let document = WorkbenchDocument(comparison: comparison)
-      try comparison.encoded().write(
-        to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).typefaceoff"))
+      let model = WorkbenchModel(comparison: comparison)
       let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: width, height: height),
         styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
       window.isReleasedWhenClosed = false
       let host = NSHostingView(
-        rootView: WorkbenchView(document: document).preferredColorScheme(.dark))
+        rootView: WorkbenchView(model: model).preferredColorScheme(.dark))
       host.sizingOptions = []
       window.contentView = host
       window.setContentSize(NSSize(width: width, height: height))
@@ -95,7 +93,7 @@ import TypefaceCore
       backing: .buffered, defer: false)
     match.isReleasedWhenClosed = false
     let host = NSHostingView(
-      rootView: MatchSheet(document: WorkbenchDocument()).preferredColorScheme(.dark))
+      rootView: MatchSheet(model: WorkbenchModel()).preferredColorScheme(.dark))
     match.contentView = host
     match.orderFront(nil)
     try await Task.sleep(for: .milliseconds(200))

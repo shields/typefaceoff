@@ -6,10 +6,10 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct WorkbenchInteractionTests {
-  @Test func matchingPreviewKeepsTheDocumentUnchangedUntilApply() async throws {
-    let document = WorkbenchDocument()
-    let initial = document.comparison
-    let host = WorkbenchTestHost(MatchSheet(document: document))
+  @Test func matchingPreviewKeepsTheComparisonUnchangedUntilApply() async throws {
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("Weight")
@@ -18,55 +18,55 @@ import TypefaceCore
     try host.press("x-height")
     try host.press("Tracking")
     try await host.settle()
-    #expect(document.comparison == initial)
+    #expect(model.comparison == initial)
     try host.press("Apply")
     try await host.settle()
-    let candidate = try #require(document.comparison.b)
+    let candidate = try #require(model.comparison.b)
     let aHeight = try #require(FontRenderer.xHeight(config: initial.a, size: initial.a.size))
     let bHeight = try #require(FontRenderer.xHeight(config: candidate, size: candidate.size))
     #expect(abs(aHeight - bHeight) < 0.001)
-    #expect(document.comparison.a == initial.a)
-    #expect(document.comparison.link?.sizeRatio == candidate.size / initial.a.size)
+    #expect(model.comparison.a == initial.a)
+    #expect(model.comparison.link?.sizeRatio == candidate.size / initial.a.size)
   }
 
   @Test(arguments: ["Cancel", "Cancel matching"])
   func cancellingMatchingDiscardsOptions(button: String) async throws {
-    let document = WorkbenchDocument()
-    let initial = document.comparison
-    let host = WorkbenchTestHost(MatchSheet(document: document))
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("x-height")
     try await host.settle()
     try host.press(button)
-    #expect(document.comparison == initial)
+    #expect(model.comparison == initial)
   }
 
   @Test func matchingWithoutASecondFontIsDisabled() async throws {
-    let document = WorkbenchDocument(comparison: Comparison(b: nil))
-    let host = WorkbenchTestHost(MatchSheet(document: document))
+    let model = WorkbenchModel(comparison: Comparison(b: nil))
+    let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
     #expect(try host.element("Apply").isAccessibilityEnabled?() == false)
-    #expect(document.comparison.b == nil)
+    #expect(model.comparison.b == nil)
   }
 
   @Test func matchingVariableWeightsKeepsTheReferenceUnchanged() async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     var comparison = Comparison(a: .init(name), b: .init(name))
     comparison.a.axes[tagNumber("wght")] = 1.2
-    let document = WorkbenchDocument(comparison: comparison)
-    let host = WorkbenchTestHost(MatchSheet(document: document))
+    let model = WorkbenchModel(comparison: comparison)
+    let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("Apply")
-    #expect(document.comparison.a == comparison.a)
-    #expect(document.comparison.b?.weight == comparison.a.weight)
+    #expect(model.comparison.a == comparison.a)
+    #expect(model.comparison.b?.weight == comparison.a.weight)
   }
 
   @Test func inspectorAppearanceAndTypographyActionsRespectUndoAndIsolation() async throws {
-    let document = WorkbenchDocument()
-    let host = WorkbenchTestHost(FontInspector(document: document, side: .a), width: 246)
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
     // Borderless SwiftUI buttons bridge to NSButton inside the inspector's scroll view.
@@ -74,8 +74,8 @@ import TypefaceCore
     try #require(buttons.count == 5)
     buttons[1].performClick(nil)
     try await host.settle()
-    #expect(!document.comparison.appearanceLocked)
-    document.edit("Configure sample", undoManager: nil) {
+    #expect(!model.comparison.appearanceLocked)
+    model.edit("Configure sample", undoManager: nil) {
       $0.a.size = 48
       $0.a.tracking = 0.1
       $0.a.features["ot.kern"] = 0
@@ -83,27 +83,27 @@ import TypefaceCore
     try await host.settle()
     buttons[2].performClick(nil)
     try await host.settle()
-    #expect(document.comparison.a.size == 22)
+    #expect(model.comparison.a.size == 22)
     buttons[3].performClick(nil)
     try await host.settle()
-    #expect(document.comparison.a.tracking == 0)
+    #expect(model.comparison.a.tracking == 0)
     buttons[4].performClick(nil)
     try await host.settle()
-    #expect(document.comparison.a.features.isEmpty)
+    #expect(model.comparison.a.features.isEmpty)
     buttons[1].performClick(nil)
     try await host.settle()
-    #expect(document.comparison.appearanceLocked)
-    document.edit("Resize", undoManager: nil) { $0.a.size = 44 }
+    #expect(model.comparison.appearanceLocked)
+    model.edit("Resize", undoManager: nil) { $0.a.size = 44 }
     try await host.settle()
     buttons[0].performClick(nil)
     try await host.settle()
-    #expect(document.comparison.a.size == 22)
-    #expect(document.comparison.b?.size == 22)
+    #expect(model.comparison.a.size == 22)
+    #expect(model.comparison.b?.size == 22)
   }
 
   @Test func customTextCanBeCancelledAppliedAndUndone() async throws {
-    let document = WorkbenchDocument()
-    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("Edit text")
@@ -114,8 +114,8 @@ import TypefaceCore
     editor.didChangeText()
     try host.press("Cancel")
     try await host.settle()
-    #expect(document.comparison.sample == .reading)
-    #expect(document.comparison.customText.isEmpty)
+    #expect(model.comparison.sample == .reading)
+    #expect(model.comparison.customText.isEmpty)
     try host.press("Edit text")
     try await host.settle()
     let replacement = try #require(
@@ -124,33 +124,33 @@ import TypefaceCore
     replacement.didChangeText()
     try host.press("Apply")
     try await host.settle()
-    #expect(document.comparison.sample == .custom)
-    #expect(document.comparison.text == replacement.string)
+    #expect(model.comparison.sample == .custom)
+    #expect(model.comparison.text == replacement.string)
     #expect(host.window.sheets.isEmpty)
     try host.press("Undo")
     try await host.settle()
-    #expect(document.comparison.sample == .reading)
+    #expect(model.comparison.sample == .reading)
   }
 
   @Test func workbenchSwapAndHighlightControlsKeepIndependentState() async throws {
-    let document = WorkbenchDocument()
-    let initial = document.comparison
-    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("Swap fonts")
     try await host.settle()
-    #expect(document.comparison.a == initial.b)
-    #expect(document.comparison.b == initial.a)
+    #expect(model.comparison.a == initial.b)
+    #expect(model.comparison.b == initial.a)
     try host.press("Spacing")
     try await host.settle()
-    #expect(document.comparison.spacing && document.comparison.shape)
+    #expect(model.comparison.spacing && model.comparison.shape)
     try host.press("Shape")
     try await host.settle()
-    #expect(!document.comparison.shape && document.comparison.spacing)
+    #expect(!model.comparison.shape && model.comparison.spacing)
     try host.press("Spacing")
     try await host.settle()
-    #expect(!document.comparison.shape && !document.comparison.spacing)
+    #expect(!model.comparison.shape && !model.comparison.spacing)
     try host.press("Match…")
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
@@ -163,7 +163,7 @@ import TypefaceCore
   func readingSamplesRenderTheirCompleteText(sample: Sample) async throws {
     var comparison = Comparison(b: nil)
     comparison.sample = sample
-    let host = WorkbenchTestHost(WorkbenchView(document: WorkbenchDocument(comparison: comparison)))
+    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(comparison: comparison)))
     defer { host.window.close() }
     try await host.settle()
     let specimen = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
@@ -175,15 +175,15 @@ import TypefaceCore
   }
 
   @Test func familyPickerCanRemoveAndRestoreTheSecondFont() async throws {
-    let document = WorkbenchDocument()
-    let host = WorkbenchTestHost(FontInspector(document: document, side: .b), width: 246)
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .b), width: 246)
     defer { host.window.close() }
     try await host.settle()
     try host.press("Font B family")
     try await host.settle()
     try host.press("None")
     try await host.settle()
-    #expect(document.comparison.b == nil)
+    #expect(model.comparison.b == nil)
     try host.press("Font B family")
     try await host.settle()
     let search = try #require(
@@ -194,8 +194,8 @@ import TypefaceCore
     try await host.settle()
     try host.press("Skia")
     try await host.settle()
-    #expect(document.comparison.b?.face.family == "Skia")
-    #expect(document.comparison.b?.face.axes.isEmpty == false)
+    #expect(model.comparison.b?.face.family == "Skia")
+    #expect(model.comparison.b?.face.axes.isEmpty == false)
   }
 
   @Test func glyphButtonsAndCharacterEntrySelectTheRequestedGlyph() async throws {
@@ -204,37 +204,37 @@ import TypefaceCore
     comparison.sample = .custom
     comparison.customText = "abc"
     comparison.selectedGlyph = "a"
-    let document = WorkbenchDocument(comparison: comparison)
-    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    let model = WorkbenchModel(comparison: comparison)
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
     try host.press("Next character")
     try await host.settle()
-    #expect(document.comparison.selectedGlyph == "b")
+    #expect(model.comparison.selectedGlyph == "b")
     try host.press("Previous character")
     try await host.settle()
-    #expect(document.comparison.selectedGlyph == "a")
+    #expect(model.comparison.selectedGlyph == "a")
     let field = try #require(
       host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" })
     host.submit("@", to: field)
     try await host.settle()
-    #expect(document.comparison.selectedGlyph == "@")
+    #expect(model.comparison.selectedGlyph == "@")
     host.submit("", to: field)
     try await host.settle()
-    #expect(document.comparison.selectedGlyph == "@")
-    document.updatePresentation {
+    #expect(model.comparison.selectedGlyph == "@")
+    model.updatePresentation {
       $0.customText = ""
       $0.selectedGlyph = "🦄"
     }
     try await host.settle()
     try host.press("Next character")
-    #expect(document.comparison.selectedGlyph == "\"")
+    #expect(model.comparison.selectedGlyph == "\"")
   }
 
   @Test func sharedSizeSubmissionCalibratesBothFontsAndRejectsInvalidText() async throws {
-    let document = WorkbenchDocument()
+    let model = WorkbenchModel()
     let host = WorkbenchTestHost(
-      WorkbenchView(document: document).environment(\.locale, Locale(identifier: "de_DE")))
+      WorkbenchView(model: model).environment(\.locale, Locale(identifier: "de_DE")))
     defer { host.window.close() }
     try await host.settle()
     let field = try #require(
@@ -244,62 +244,62 @@ import TypefaceCore
       })
     host.submit("32,5", to: field)
     try await host.settle()
-    #expect(document.comparison.a.size == 32.5)
-    #expect(document.comparison.b?.size == 32.5)
-    #expect(document.comparison.link?.sizeRatio == 1)
+    #expect(model.comparison.a.size == 32.5)
+    #expect(model.comparison.b?.size == 32.5)
+    #expect(model.comparison.link?.sizeRatio == 1)
     host.submit("invalid", to: field)
     try await host.settle()
-    #expect(document.comparison.a.size == 32.5)
+    #expect(model.comparison.a.size == 32.5)
     #expect(field.stringValue == "32,5")
     host.view.rootView = AnyView(
-      WorkbenchView(document: document).environment(\.locale, Locale(identifier: "en_US"))
+      WorkbenchView(model: model).environment(\.locale, Locale(identifier: "en_US"))
         .environment(\.accessibilityEnabled, true))
     try await host.settle()
     #expect(field.stringValue == "32.5")
   }
 
   @Test func inspectorTypographyAndDisclosureControlsChangeOnlyTheirOwnSide() async throws {
-    let document = WorkbenchDocument(comparison: Comparison(a: .init("ArialMT")))
-    let originalB = document.comparison.b
-    let host = WorkbenchTestHost(FontInspector(document: document, side: .a), width: 246)
+    let model = WorkbenchModel(comparison: Comparison(a: .init("ArialMT")))
+    let originalB = model.comparison.b
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
     try host.press("Kerning")
     try await host.settle()
-    #expect(document.comparison.a.features["ot.kern"] == 0)
+    #expect(model.comparison.a.features["ot.kern"] == 0)
     try host.press("Kerning")
     try await host.settle()
-    #expect(document.comparison.a.features["ot.kern"] != 0)
+    #expect(model.comparison.a.features["ot.kern"] != 0)
     try host.press("Common")
     try await host.settle()
     try host.press("Common")
     try await host.settle()
     try host.press("Automatic shaping")
     try await host.settle()
-    #expect(document.comparison.b == originalB)
+    #expect(model.comparison.b == originalB)
   }
 
   @Test func inspectorSlidersAdjustAndResetVariableAxes() async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
-    let document = WorkbenchDocument(comparison: Comparison(a: .init(name), b: .init(name)))
-    let host = WorkbenchTestHost(FontInspector(document: document, side: .a), width: 246)
+    let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
     let size = try host.element("Font A Size")
     #expect(size.accessibilityPerformIncrement?() == true)
     try await host.settle()
-    #expect(document.comparison.a.size > 22)
-    #expect(document.comparison.b?.size == document.comparison.a.size)
-    let axis = try #require(document.comparison.a.face.axes.first { $0.tag == "wdth" })
-    let initial = document.comparison.a.axes[axis.id]
+    #expect(model.comparison.a.size > 22)
+    #expect(model.comparison.b?.size == model.comparison.a.size)
+    let axis = try #require(model.comparison.a.face.axes.first { $0.tag == "wdth" })
+    let initial = model.comparison.a.axes[axis.id]
     let width = try host.element("Font A \(axis.name)")
     #expect(width.accessibilityPerformIncrement?() == true)
     try await host.settle()
-    #expect(document.comparison.a.axes[axis.id] != initial)
+    #expect(model.comparison.a.axes[axis.id] != initial)
   }
 
   @Test func workbenchToolbarCanHideAndRestoreBothInspectors() async throws {
-    let host = WorkbenchTestHost(WorkbenchView(document: WorkbenchDocument()))
+    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel()))
     defer { host.window.close() }
     try await host.settle()
     for side in ["A", "B"] {
@@ -313,33 +313,33 @@ import TypefaceCore
   }
 
   @Test func styleAndSamplePickersCommitTheChosenOption() async throws {
-    let document = WorkbenchDocument()
-    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    let original = document.comparison.a.postScriptName
+    let original = model.comparison.a.postScriptName
     try await host.choose("Style")
     try await host.settle()
-    #expect(document.comparison.a.postScriptName != original)
+    #expect(model.comparison.a.postScriptName != original)
     try await host.choose("Sample", item: Sample.poetry.title)
     try await host.settle()
-    #expect(document.comparison.sample == .poetry)
+    #expect(model.comparison.sample == .poetry)
     for sample in [Sample.alphabet, .numerals] {
       try await host.choose("Sample", item: sample.title)
       try await host.settle()
-      #expect(document.comparison.sample == sample)
+      #expect(model.comparison.sample == sample)
     }
     try await host.choose("Sample", item: Sample.custom.title)
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
     try host.press("Cancel")
     try await host.settle()
-    #expect(document.comparison.sample == .numerals)
+    #expect(model.comparison.sample == .numerals)
   }
 
   @Test func rankedCharacterButtonsSwitchToGlyphInspection() async throws {
-    let document = WorkbenchDocument()
-    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await Task.sleep(for: .seconds(1))
     try await host.settle()
@@ -349,7 +349,7 @@ import TypefaceCore
       })
     #expect(button.accessibilityPerformPress?() == true)
     try await host.settle()
-    #expect(document.comparison.mode == .glyph)
+    #expect(model.comparison.mode == .glyph)
   }
 }
 
@@ -404,7 +404,7 @@ import TypefaceCore
     }
     let control = try element(label)
     // SwiftUI toolbar proxies can return false after dispatching the action.
-    // Callers verify the resulting document or view state after settling.
+    // Callers verify the resulting model or view state after settling.
     _ = control.accessibilityPerformPress?()
   }
 

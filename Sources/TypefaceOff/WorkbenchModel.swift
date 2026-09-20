@@ -1,47 +1,15 @@
 import AppKit
 import Combine
-import SwiftUI
-import Synchronization
 import TypefaceCore
-import UniformTypeIdentifiers
 
 @MainActor
-// SwiftUI observes on the main actor; file callbacks use the locked snapshot.
-final class WorkbenchDocument: @preconcurrency ReferenceFileDocument {
-  nonisolated static var readableContentTypes: [UTType] { [.typefaceComparison] }
-  let objectWillChange = ObservableObjectPublisher()
-  private let state: Mutex<Comparison>
-  @MainActor var comparison: Comparison {
-    get { state.withLock { $0 } }
-    set {
-      objectWillChange.send()
-      state.withLock { $0 = newValue }
-    }
-  }
+final class WorkbenchModel: ObservableObject {
+  @Published var comparison: Comparison
   let catalog = FontCatalog()
   private var continuousEdit: (name: String, initial: Comparison)?
-  nonisolated init(comparison: Comparison = Comparison()) { state = Mutex(comparison) }
 
-  nonisolated required init(configuration: ReadConfiguration) throws {
-    state = Mutex(try Self.read(configuration.file))
-  }
+  init(comparison: Comparison = Comparison()) { self.comparison = comparison }
 
-  nonisolated static func read(_ file: FileWrapper) throws -> Comparison {
-    guard file.isRegularFile, let data = file.regularFileContents else {
-      throw CocoaError(.fileReadCorruptFile)
-    }
-    return try Comparison.decode(data)
-  }
-
-  nonisolated func snapshot(contentType: UTType) throws -> Comparison { state.withLock { $0 } }
-
-  nonisolated func fileWrapper(snapshot: Comparison, configuration: WriteConfiguration) throws
-    -> FileWrapper
-  {
-    FileWrapper(regularFileWithContents: try snapshot.encoded())
-  }
-
-  @MainActor
   func edit(_ name: String, undoManager: UndoManager?, _ body: (inout Comparison) -> Void) {
     let previous = comparison
     var next = previous
@@ -55,7 +23,7 @@ final class WorkbenchDocument: @preconcurrency ReferenceFileDocument {
     if continuousEdit == nil { continuousEdit = (name, comparison) }
   }
 
-  /// Browsing changes are saved with the document but do not consume Undo steps.
+  /// Browsing changes do not consume Undo steps.
   func updatePresentation(_ body: (inout Comparison) -> Void) {
     var next = comparison
     body(&next)

@@ -2,13 +2,13 @@ import SwiftUI
 import TypefaceCore
 
 struct MatchSheet: View {
-  @ObservedObject var document: WorkbenchDocument
+  @ObservedObject var model: WorkbenchModel
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.undoManager) private var undoManager
+  @Environment(\.workbenchUndoManager) private var undoManager
   @State private var options = MatchOptions()
 
   private var matching: MatchPreview? {
-    Matching.preview(document.comparison, options: options, catalog: document.catalog)
+    Matching.preview(model.comparison, options: options, catalog: model.catalog)
   }
 
   var body: some View {
@@ -20,9 +20,9 @@ struct MatchSheet: View {
         Button("Cancel matching", systemImage: "xmark.circle.fill") { dismiss() }
           .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
       }
-      if let matching = proposal, let b = document.comparison.b {
+      if let matching = proposal, let b = model.comparison.b {
         HStack {
-          Text(verbatim: document.comparison.a.face.family).fontWeight(.semibold)
+          Text(verbatim: model.comparison.a.face.family).fontWeight(.semibold)
           Spacer()
           Image(systemName: "arrow.right").foregroundStyle(.secondary)
           Spacer()
@@ -42,7 +42,7 @@ struct MatchSheet: View {
           after:
             "\(number(matching.tracking.tracking, digits: 3)) em")
         HStack(spacing: 16) {
-          preview(document.comparison.a, label: "Reference A")
+          preview(model.comparison.a, label: "Reference A")
           preview(matching.proposed, label: "Proposed B")
         }.padding(14).frame(height: 110).background(.white).clipShape(
           RoundedRectangle(cornerRadius: 6)
@@ -60,7 +60,7 @@ struct MatchSheet: View {
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("Apply") {
           if let matching {
-            document.edit("Match fonts", undoManager: undoManager) {
+            model.edit("Match fonts", undoManager: undoManager) {
               $0.b = matching.proposed
               $0.calibrate()
             }
@@ -90,7 +90,7 @@ struct MatchSheet: View {
 
   private func preview(_ config: FontConfiguration, label: String) -> some View {
     var scaled = config
-    scaled.size = 29 * config.size / document.comparison.a.size
+    scaled.size = 29 * config.size / model.comparison.a.size
     return VStack(alignment: .leading, spacing: 8) {
       Text(verbatim: "\(number(config.weight)) · \(number(config.size)) pt")
         .font(.caption).foregroundStyle(.secondary).accessibilityLabel(label)

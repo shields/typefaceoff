@@ -7,6 +7,7 @@ struct WorkbenchView: View {
   @StateObject private var scrollPosition = SpecimenScrollPosition()
   @Environment(\.undoManager) private var undoManager
   @Environment(\.locale) private var locale
+  @Environment(\.appearsActive) private var appearsActive
   @State private var showA = true
   @State private var showB = true
   @State private var showMatch = false
@@ -14,6 +15,7 @@ struct WorkbenchView: View {
   @State private var customText = ""
   @State private var sharedSize = "22"
   @State private var glyphFocusRequest = UUID()
+  @State private var glyphFocused = false
 
   private var comparison: Comparison { document.comparison }
   private var commands: WorkbenchActions {
@@ -69,7 +71,8 @@ struct WorkbenchView: View {
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
             navigate: navigate,
-            showText: { document.updatePresentation { $0.mode = .text } })
+            showText: { document.updatePresentation { $0.mode = .text } },
+            focusChanged: { glyphFocused = $0 })
         }
         if comparison.b != nil {
           Divider()
@@ -213,9 +216,15 @@ struct WorkbenchView: View {
                 .overlay(
                   RoundedRectangle(cornerRadius: 5).stroke(
                     comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
-                      ? Color.yellow.opacity(0.7) : Color.gray.opacity(0.5)))
+                      ? (appearsActive && glyphFocused
+                        ? WorkbenchStyle.accent : Color.white.opacity(0.4))
+                      : Color.gray.opacity(0.5)))
               }.buttonStyle(.plain).id(item.glyph)
                 .accessibilityLabel("Inspect \(unicodeDescription(item.glyph))")
+                .accessibilityAddTraits(
+                  comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
+                    ? .isSelected : []
+                )
                 .help(
                   "\(unicodeDescription(item.glyph)) · #\(index + 1) · "
                     + String(

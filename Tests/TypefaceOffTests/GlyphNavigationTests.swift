@@ -6,6 +6,48 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct GlyphNavigationTests {
+  @Test func focusFeedbackFollowsTheCanvasAndWindow() async throws {
+    var focused = false
+    var comparison = Comparison(b: nil)
+    comparison.mode = .glyph
+    let window = GlyphFocusTestWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let view = NSHostingView(
+      rootView:
+        GlyphComparisonView(
+          comparison: comparison, focusRequest: UUID(), select: { _ in }, navigate: { _ in },
+          showText: {}, focusChanged: { focused = $0 }))
+    window.contentView = view
+    window.orderFront(nil)
+    try await Task.sleep(for: .milliseconds(250))
+    let canvas = try #require(descendant(GlyphDrawingView.self, in: view))
+    canvas.requestFocus(UUID())
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(canvas.hasKeyboardFocus)
+    #expect(focused)
+    let bitmap = try #require(canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds))
+    canvas.cacheDisplay(in: canvas.bounds, to: bitmap)
+    let field = try #require(textFields(in: view).first { $0.isEditable })
+    window.makeFirstResponder(field)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(!canvas.hasKeyboardFocus)
+    #expect(!focused)
+    canvas.requestFocus(UUID())
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(focused)
+    window.setKey(false)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(!focused)
+    #expect(!canvas.hasKeyboardFocus)
+    window.setKey(true)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(focused)
+    #expect(canvas.hasKeyboardFocus)
+  }
+
   @Test(arguments: [true, false])
   func glyphNavigationKeepsTheCanvasFrameFixed(comparing: Bool) async throws {
     _ = NSApplication.shared
@@ -17,7 +59,8 @@ import TypefaceCore
       styleMask: [.titled, .resizable], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     defer { window.close() }
-    let host = NSHostingView(rootView: WorkbenchView(document: document))
+    let host = NSHostingView(
+      rootView: WorkbenchView(document: document).environment(\.appearsActive, true))
     window.contentView = host
     window.orderFront(nil)
     try await Task.sleep(for: .milliseconds(300))
@@ -108,4 +151,17 @@ import TypefaceCore
     return view.subviews.flatMap { textFields(in: $0) }
   }
 
+}
+
+/// Exercise key-window notifications even when the test runner cannot take foreground focus.
+@MainActor private final class GlyphFocusTestWindow: NSWindow {
+  private var key = true
+  override var isKeyWindow: Bool { key }
+
+  func setKey(_ value: Bool) {
+    key = value
+    NotificationCenter.default.post(
+      name: value ? NSWindow.didBecomeKeyNotification : NSWindow.didResignKeyNotification,
+      object: self)
+  }
 }

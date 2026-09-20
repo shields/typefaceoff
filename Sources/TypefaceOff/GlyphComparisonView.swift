@@ -9,6 +9,7 @@ struct GlyphComparisonView: View {
   let select: (String) -> Void
   let navigate: (Int) -> Void
   let showText: () -> Void
+  let focusChanged: (Bool) -> Void
   @State private var input = ""
 
   var body: some View {
@@ -27,7 +28,8 @@ struct GlyphComparisonView: View {
           .help(unicodeDescription(comparison.selectedGlyph))
       }.frame(height: 32).padding(16)
       GlyphCanvas(
-        comparison: comparison, focusRequest: focusRequest, navigate: navigate, showText: showText
+        comparison: comparison, focusRequest: focusRequest, navigate: navigate, showText: showText,
+        focusChanged: focusChanged
       )
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       HStack(alignment: .top, spacing: 0) {
@@ -72,10 +74,12 @@ struct GlyphCanvas: NSViewRepresentable {
   let focusRequest: UUID
   let navigate: (Int) -> Void
   let showText: () -> Void
+  let focusChanged: (Bool) -> Void
   func makeNSView(context: Context) -> GlyphDrawingView { GlyphDrawingView() }
   func updateNSView(_ view: GlyphDrawingView, context: Context) {
     view.navigate = navigate
     view.showText = showText
+    view.focusChanged = focusChanged
     view.update(comparison)
     view.requestFocus(focusRequest)
   }
@@ -84,6 +88,7 @@ struct GlyphCanvas: NSViewRepresentable {
 final class GlyphDrawingView: NSView {
   var navigate: (Int) -> Void = { _ in }
   var showText: () -> Void = {}
+  var focusChanged: (Bool) -> Void = { _ in }
   private var focusRequest: UUID?
   private var comparison = Comparison()
   private var envelope = GlyphMeasurementPlaceholder.defaultBounds
@@ -93,6 +98,22 @@ final class GlyphDrawingView: NSView {
 
   override var acceptsFirstResponder: Bool { true }
 
+  var hasKeyboardFocus: Bool {
+    window?.isKeyWindow == true && window?.firstResponder === self
+  }
+
+  override func becomeFirstResponder() -> Bool {
+    let accepted = super.becomeFirstResponder()
+    updateFocusAppearance()
+    return accepted
+  }
+
+  override func resignFirstResponder() -> Bool {
+    let accepted = super.resignFirstResponder()
+    updateFocusAppearance()
+    return accepted
+  }
+
   func requestFocus(_ request: UUID) {
     guard focusRequest != request else { return }
     focusRequest = request
@@ -101,7 +122,27 @@ final class GlyphDrawingView: NSView {
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
+    NotificationCenter.default.removeObserver(self)
+    if let window {
+      for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+        NotificationCenter.default.addObserver(
+          self, selector: #selector(updateFocusAppearance), name: name, object: window)
+      }
+    }
     if focusRequest != nil { window?.makeFirstResponder(self) }
+    updateFocusAppearance()
+  }
+
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  @objc private func updateFocusAppearance() {
+    // First-responder callbacks run before the window finishes changing responders.
+    // Defer the SwiftUI state update until both AppKit and view updates finish.
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      needsDisplay = true
+      focusChanged(hasKeyboardFocus)
+    }
   }
 
   override func mouseDown(with event: NSEvent) {
@@ -149,6 +190,12 @@ final class GlyphDrawingView: NSView {
     else { return }
     NSColor.white.setFill()
     bounds.fill()
+    if hasKeyboardFocus {
+      NSColor.keyboardFocusIndicatorColor.setStroke()
+      let ring = NSBezierPath(roundedRect: bounds.insetBy(dx: 3, dy: 3), xRadius: 4, yRadius: 4)
+      ring.lineWidth = 2
+      ring.stroke()
+    }
     let count = comparison.b == nil ? 1 : 3
     let width = bounds.width / Double(count)
     let baseline = max(38, (bounds.height - 48) * 0.25)

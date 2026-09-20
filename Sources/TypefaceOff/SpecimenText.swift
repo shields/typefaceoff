@@ -88,6 +88,7 @@ struct SpecimenText: NSViewRepresentable {
     let content = NSMutableAttributedString(string: "")
     var spans: [GlyphSpan] = []
     var support: [String: Bool] = [:]
+    var italicSupport: [String: Bool] = [:]
     var footerRange: NSRange?
     if !FontRenderer.isAvailable(config) {
       content.append(
@@ -96,11 +97,25 @@ struct SpecimenText: NSViewRepresentable {
             "Font unavailable: \(config.postScriptName)\nChoose an installed font in the inspector.",
           attributes: [.font: NSFont.systemFont(ofSize: 16), .foregroundColor: NSColor.darkGray]))
     } else {
+      let italicRanges = text == sample.text ? sample.italicRanges : []
+      var italicLocations = IndexSet()
+      for range in italicRanges {
+        italicLocations.insert(integersIn: range.location..<NSMaxRange(range))
+      }
+      let italicConfig = italicRanges.isEmpty ? nil : FontRenderer.italicConfiguration(config)
       for glyph in Set(text.map(String.init))
       where !glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         support[glyph] = FontRenderer.supports(glyph, config: config)
       }
-      let unavailable = support.values.filter { !$0 }.count
+      if let italicConfig {
+        let italicText = italicRanges.map { (text as NSString).substring(with: $0) }.joined()
+        for glyph in Set(italicText.map(String.init))
+        where !glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          italicSupport[glyph] = FontRenderer.supports(glyph, config: italicConfig)
+        }
+      }
+      let unavailable = Set(support.filter { !$0.value }.keys)
+        .union(italicSupport.filter { !$0.value }.keys).count
       if unavailable > 0 {
         let paragraph = NSMutableParagraphStyle()
         paragraph.paragraphSpacing = 16
@@ -112,7 +127,16 @@ struct SpecimenText: NSViewRepresentable {
               .foregroundColor: NSColor.systemOrange, .paragraphStyle: paragraph,
             ]))
       }
+      if !italicRanges.isEmpty && italicConfig == nil {
+        content.append(
+          NSAttributedString(
+            string: "Italic unavailable: \(config.face.family)\n",
+            attributes: [
+              .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemOrange,
+            ]))
+      }
       let sections = text.components(separatedBy: "\n\n")
+      var sourceOffset = 0
       for (index, section) in sections.enumerated() {
         let heading = sample != .custom && index == 0
         let footer = sample != .custom && index == sections.count - 1
@@ -127,6 +151,14 @@ struct SpecimenText: NSViewRepresentable {
         var attributes = FontRenderer.attributes(config, size: size)
         attributes[.foregroundColor] = NSColor(calibratedWhite: footer ? 0.35 : 0.16, alpha: 1)
         attributes[.paragraphStyle] = paragraph
+        var italicAttributes = attributes
+        if let italicConfig {
+          italicAttributes.merge(FontRenderer.attributes(italicConfig, size: size)) { _, new in new
+          }
+        } else {
+          italicAttributes[.foregroundColor] = NSColor.systemOrange
+          italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
+        }
         let start = content.length
         // Preserve line breaks within stanzas without adding paragraph spacing to each line.
         let sectionText =
@@ -134,10 +166,13 @@ struct SpecimenText: NSViewRepresentable {
           + (index < sections.count - 1 ? "\n" : "")
         for character in sectionText {
           let glyph = String(character)
+          let emphasized = italicLocations.contains(sourceOffset)
+          sourceOffset += glyph.utf16.count
           let whitespace = glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
           // Every non-whitespace character was checked before constructing the specimen.
-          let supported = whitespace || support[glyph] == true
-          var styled = attributes
+          let glyphSupport = emphasized && italicConfig != nil ? italicSupport : support
+          let supported = whitespace || glyphSupport[glyph] == true
+          var styled = emphasized ? italicAttributes : attributes
           if !supported {
             styled[.font] = NSFont.monospacedSystemFont(
               ofSize: max(11, size * 0.55), weight: .medium)
@@ -157,6 +192,8 @@ struct SpecimenText: NSViewRepresentable {
           }
           content.append(NSAttributedString(string: displayed, attributes: styled))
         }
+        // The display uses one paragraph separator for each pair of source newlines.
+        sourceOffset += 1
         if footer { footerRange = NSRange(location: start, length: content.length - start) }
       }
     }
@@ -217,12 +254,24 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var footerRange: NSRange?
   var footerGap = 0.0
 
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    refreshToolTips()
+  }
+
   func refreshToolTips() {
     removeAllToolTips()
-    guard let layoutManager, let textContainer else { return }
-    for span in spans {
+    guard let layoutManager, let textContainer, let textStorage else { return }
+    // A full chapter has thousands of glyphs. Track only the visible characters;
+    // AppKit refreshes tracking areas when scrolling changes the visible rectangle.
+    let visibleGlyphs = layoutManager.glyphRange(
+      forBoundingRect: visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y),
+      in: textContainer)
+    let visibleCharacters = layoutManager.characterRange(
+      forGlyphRange: visibleGlyphs, actualGlyphRange: nil)
+    for span in spans where NSIntersectionRange(span.range, visibleCharacters).length > 0 {
       // TextKit can tile while a text replacement is still updating the span list.
-      guard NSMaxRange(span.range) <= (textStorage?.length ?? 0) else { continue }
+      guard NSMaxRange(span.range) <= textStorage.length else { continue }
       let glyphs = layoutManager.glyphRange(
         forCharacterRange: span.range, actualCharacterRange: nil)
       layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, lineRange, _ in
@@ -230,6 +279,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
           forGlyphRange: NSIntersectionRange(glyphs, lineRange), in: textContainer
         )
         .offsetBy(dx: self.textContainerOrigin.x, dy: self.textContainerOrigin.y)
+        .intersection(self.visibleRect)
         if !rect.isEmpty { self.addToolTip(rect, owner: self, userData: nil) }
       }
     }

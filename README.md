@@ -110,7 +110,8 @@ isolated grapheme clusters, so they do not measure kerning pairs or word rhythm.
 
 ## Reading samples
 
-The reading samples are public-domain excerpts from Lewis Carroll’s
-[Alice’s Adventures in Wonderland](https://www.gutenberg.org/files/11/11-h/11-h.htm#chap01)
-and
-[Through the Looking-Glass](https://www.gutenberg.org/files/12/12-h/12-h.htm#chap01).
+The reading sample is the complete public-domain chapter IX, “Queen Alice,” from
+Lewis Carroll’s
+[Through the Looking-Glass](https://www.gutenberg.org/files/12/12-h/12-h.htm#link2HCH0009),
+with its italics and verse breaks preserved. Emphasis uses the selected family’s
+italic face; an unavailable italic style is labeled in the specimen.

@@ -72,6 +72,21 @@ public enum FontRenderer {
       as String == config.postScriptName
   }
 
+  /// Resolve emphasis within the selected family, retaining its numeric and typography settings.
+  public static func italicConfiguration(_ config: FontConfiguration) -> FontConfiguration? {
+    guard isAvailable(config) else { return nil }
+    if config.face.italic { return config }
+    guard
+      let italic = CTFontCreateCopyWithSymbolicTraits(
+        font(config), 0, nil, .traitItalic, .traitItalic),
+      CTFontGetSymbolicTraits(italic).contains(.traitItalic),
+      CTFontCopyFamilyName(italic) as String == config.face.family
+    else { return nil }
+    var result = config
+    result.replaceFace(FontFace.named(CTFontCopyPostScriptName(italic) as String))
+    return result
+  }
+
   public static func supports(_ text: String, config: FontConfiguration) -> Bool {
     guard isAvailable(config) else { return false }
     let configuredName = CTFontCopyPostScriptName(font(config, size: 22)) as String

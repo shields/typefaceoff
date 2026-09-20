@@ -38,7 +38,7 @@ import TypefaceCore
     cases.append(("missing-characters", 1280, missing))
     missing.b = .init("TypefaceOff-Does-Not-Exist")
     cases.append(("missing-font", 1280, missing))
-    for sample in [Sample.poetry, .alphabet, .numerals] {
+    for sample in [Sample.reading, .alphabet, .numerals] {
       var comparison = Comparison()
       comparison.sample = sample
       cases.append((sample.rawValue, 1440, comparison))

@@ -42,5 +42,10 @@ if ! jq -e '
     all(.summary.lines.covered == .summary.lines.count)
 ' "$report" >/dev/null; then
     echo "Coverage must include core and app sources, with 100% line coverage for every file." >&2
+    # Include function locations so compiler-generated gaps can be diagnosed in CI.
+    jq -r '
+        .data[].functions[] | select(.count == 0) |
+        "\(.filenames[0]):\(.regions[0][0]): \(.name)"
+    ' "$report" | xcrun swift-demangle >&2
     exit 1
 fi

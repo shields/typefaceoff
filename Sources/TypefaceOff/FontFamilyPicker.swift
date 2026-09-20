@@ -7,8 +7,19 @@ struct FontFamilyPicker: View {
   let allowsNone: Bool
   let choose: (String?) -> Void
   @Environment(\.dismiss) private var dismiss
-  @State private var query = ""
+  @State private var query: String
   @State private var selection: Choice?
+
+  init(
+    families: [String], currentFamily: String?, allowsNone: Bool,
+    choose: @escaping (String?) -> Void
+  ) {
+    self.families = families
+    self.currentFamily = currentFamily
+    self.allowsNone = allowsNone
+    self.choose = choose
+    _query = State(initialValue: "")
+  }
 
   private enum Choice: Hashable {
     case none

@@ -5,9 +5,16 @@ struct FontInspector: View {
   @ObservedObject var model: WorkbenchModel
   let side: Side
   @Environment(\.workbenchUndoManager) private var undoManager
-  @State private var choosingFamily = false
-  @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
+  @State private var choosingFamily: Bool
+  @State private var collapsedGroups: Set<FontFeature.Group>
   @StateObject private var previews = FeaturePreviewModel()
+
+  init(model: WorkbenchModel, side: Side) {
+    self.model = model
+    self.side = side
+    _choosingFamily = State(initialValue: false)
+    _collapsedGroups = State(initialValue: [.automatic])
+  }
 
   private var config: FontConfiguration? { model.comparison[side] }
   private var previewConfig: FontConfiguration? {

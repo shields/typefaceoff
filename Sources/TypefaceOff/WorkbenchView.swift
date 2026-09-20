@@ -8,14 +8,28 @@ struct WorkbenchView: View {
   @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
   @Environment(\.appearsActive) private var appearsActive
-  @State private var showA = true
-  @State private var showB = true
-  @State private var showMatch = false
-  @State private var showEditor = false
-  @State private var customText = ""
-  @State private var sharedSize = "22"
-  @State private var glyphFocusRequest = UUID()
-  @State private var glyphFocused = false
+  @State private var showA: Bool
+  @State private var showB: Bool
+  @State private var showMatch: Bool
+  @State private var showEditor: Bool
+  @State private var customText: String
+  @State private var sharedSize: String
+  @State private var glyphFocusRequest: UUID
+  @State private var glyphFocused: Bool
+
+  // Initialize state explicitly so Xcode 26's coverage does not include unused
+  // synthesized initializers for the property defaults.
+  init(model: WorkbenchModel) {
+    self.model = model
+    _showA = State(initialValue: true)
+    _showB = State(initialValue: true)
+    _showMatch = State(initialValue: false)
+    _showEditor = State(initialValue: false)
+    _customText = State(initialValue: "")
+    _sharedSize = State(initialValue: "22")
+    _glyphFocusRequest = State(initialValue: UUID())
+    _glyphFocused = State(initialValue: false)
+  }
 
   private var comparison: Comparison { model.comparison }
   private var commands: WorkbenchActions {

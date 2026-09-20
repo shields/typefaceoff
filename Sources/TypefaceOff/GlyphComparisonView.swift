@@ -10,7 +10,21 @@ struct GlyphComparisonView: View {
   let navigate: (Int) -> Void
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
-  @State private var input = ""
+  @State private var input: String
+
+  init(
+    comparison: Comparison, focusRequest: UUID, select: @escaping (String) -> Void,
+    navigate: @escaping (Int) -> Void, showText: @escaping () -> Void,
+    focusChanged: @escaping (Bool) -> Void
+  ) {
+    self.comparison = comparison
+    self.focusRequest = focusRequest
+    self.select = select
+    self.navigate = navigate
+    self.showText = showText
+    self.focusChanged = focusChanged
+    _input = State(initialValue: "")
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {

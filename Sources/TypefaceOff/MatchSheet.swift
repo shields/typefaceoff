@@ -5,7 +5,12 @@ struct MatchSheet: View {
   @ObservedObject var model: WorkbenchModel
   @Environment(\.dismiss) private var dismiss
   @Environment(\.workbenchUndoManager) private var undoManager
-  @State private var options = MatchOptions()
+  @State private var options: MatchOptions
+
+  init(model: WorkbenchModel) {
+    self.model = model
+    _options = State(initialValue: MatchOptions())
+  }
 
   private var matching: MatchPreview? {
     Matching.preview(model.comparison, options: options, catalog: model.catalog)

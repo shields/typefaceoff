@@ -85,6 +85,37 @@ import TypefaceCore
     #expect(specimen.contentView.bounds.size.width > 0)
   }
 
+  @Test func verticalGuidesRemainVisibleWithSpacingHighlightsOff() throws {
+    let canvas = GlyphDrawingView(frame: NSRect(x: 0, y: 0, width: 640, height: 400))
+    var comparison = Comparison()
+    comparison.shape = true
+    comparison.spacing = false
+    canvas.update(comparison)
+    let without = try bitmap(canvas)
+    comparison.spacing = true
+    canvas.update(comparison)
+    #expect(try bitmap(canvas) == without)
+  }
+
+  @Test func featurePreviewDrawsDifferentInkForLigatures() throws {
+    let view = FontPreviewDrawingView(frame: NSRect(x: 0, y: 0, width: 90, height: 30))
+    view.draw(.zero)
+    var config = FontConfiguration("HelveticaNeue")
+    config.features["aat.1.2"] = 3
+    view.content = FontPreviewText.content(config: config, text: "fi fl")
+    let before = try bitmap(view)
+    config.features["aat.1.2"] = 2
+    view.content = FontPreviewText.content(config: config, text: "fi fl")
+    #expect(try bitmap(view) != before)
+    #expect(view.accessibilityLabel() == "fi fl")
+  }
+
+  private func bitmap(_ view: NSView) throws -> Data {
+    let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: image)
+    return try #require(image.representation(using: .png, properties: [:]))
+  }
+
   @Test(arguments: ["NotoSansSyriac-Regular", "TypefaceOff-Does-Not-Exist", "Skia"])
   func uncommonFontStatesStayVisible(name: String) async throws {
     let configuredName =

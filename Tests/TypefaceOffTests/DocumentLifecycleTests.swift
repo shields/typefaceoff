@@ -5,6 +5,36 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct DocumentLifecycleTests {
+  @Test func launchingAnUntitledDocumentOpensAComparisonWindow() throws {
+    let delegate = WorkbenchAppDelegate()
+    let controller = NSDocumentController.shared
+    // The app's launch hook has already made its initial document before tests start.
+    for document in controller.documents { document.close() }
+    delegate.applicationDidFinishLaunching(
+      Notification(
+        name: NSApplication.didFinishLaunchingNotification,
+        userInfo: [NSApplication.launchIsDefaultUserInfoKey: false]))
+    #expect(controller.documents.isEmpty)
+    delegate.applicationDidFinishLaunching(
+      Notification(
+        name: NSApplication.didFinishLaunchingNotification,
+        userInfo: [NSApplication.launchIsDefaultUserInfoKey: true]))
+    let opened = controller.documents
+    defer { for document in opened { document.close() } }
+    #expect(opened.count == 1)
+    let document = try #require(opened.first)
+    #expect(document.fileURL == nil)
+    #expect(!document.isDocumentEdited)
+    #expect(document.windowControllers.contains { $0.window?.isVisible == true })
+    delegate.openComparisonIfNeeded()
+    #expect(controller.documents.count == 1)
+    #expect(delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: true))
+    document.close()
+    #expect(delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false))
+    #expect(controller.documents.count == 1)
+    for document in controller.documents { document.close() }
+  }
+
   @Test func documentsOpenSaveAndRejectInvalidFiles() async throws {
     #expect(WorkbenchDocument.readableContentTypes == [.typefaceComparison])
     let controller = NSDocumentController.shared

@@ -8,8 +8,16 @@ struct FontInspector: View {
   @State private var familySearch = ""
   @State private var choosingFamily = false
   @State private var collapsedGroups: Set<FontFeature.Group> = [.automatic]
+  @StateObject private var previews = FeaturePreviewModel()
 
   private var config: FontConfiguration? { document.comparison[side] }
+  private var previewConfig: FontConfiguration? {
+    config.map {
+      var config = $0
+      config.size = 21
+      return config
+    }
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -144,6 +152,7 @@ struct FontInspector: View {
         Spacer()
       }
     }
+    .task(id: previewConfig) { await previews.update(previewConfig) }
   }
 
   private var familyPicker: some View {
@@ -254,38 +263,33 @@ struct FontInspector: View {
           ForEach(feature.options, id: \.value) { Text(verbatim: $0.name).tag($0.value) }
         }.labelsHidden()
       }
-      if !feature.isAutomatic, let sample = feature.sample ?? featureSample(feature.id),
-        !sample.isEmpty
-      {
-        featurePreview(feature, config: config, sample: sample)
+      if !feature.isAutomatic {
+        featurePreview(feature)
       }
     }
   }
 
-  private func featurePreview(_ feature: FontFeature, config: FontConfiguration, sample: String)
+  @ViewBuilder
+  private func featurePreview(_ feature: FontFeature)
     -> some View
   {
-    var before = config
-    var after = config
-    before.features[feature.id] = feature.options.first?.value
-    let selected = config.features[feature.id] ?? feature.defaultValue
-    after.features[feature.id] =
-      selected == feature.options.first?.value ? feature.options.last?.value : selected
-    return HStack(spacing: 8) {
-      FontPreviewText(config: before, text: sample)
-      Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
-      FontPreviewText(config: after, text: sample)
-    }.frame(height: 30).accessibilityLabel("Before and after: \(sample)")
-  }
-
-  private func featureSample(_ id: String) -> String? {
-    let samples = [
-      "ot.liga": "fi fl", "aat.1.2": "fi fl", "ot.dlig": "st", "ot.frac": "1/2", "ot.zero": "0",
-      "ot.tnum": "1820", "ot.pnum": "1820", "aat.6": "1820", "aat.17": "!?", "ot.case": "(A)",
-      "ot.calt": "r ->", "ot.cpsp": "ABC", "ot.aalt": "!?", "ot.salt": "ag",
-      "ot.ss01": "ag", "ot.ss02": "Il", "ot.ss03": "012", "ot.ss04": "ag",
-    ]
-    return samples[id] ?? (id.hasPrefix("ot.cv") || id.hasPrefix("ot.ss") ? "ag" : nil)
+    Group {
+      if let result = previews.result, result.config == previewConfig {
+        if let preview = result.previews[feature.id] {
+          HStack(spacing: 8) {
+            FontPreviewText(config: preview.before, text: preview.text)
+            Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
+            FontPreviewText(config: preview.after, text: preview.text)
+          }.accessibilityLabel("Before and after: \(preview.text)")
+        } else {
+          Text("No preview available").font(.caption).foregroundStyle(.secondary)
+            .help(
+              "The example text does not change with this feature in the current font settings.")
+        }
+      } else {
+        Color.clear.accessibilityHidden(true)
+      }
+    }.frame(height: 30)
   }
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
     document.edit(name, undoManager: undoManager, body)

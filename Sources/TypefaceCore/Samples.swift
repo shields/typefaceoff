@@ -57,6 +57,9 @@ public enum Sample: String, Codable, CaseIterable, Sendable {
       G R Q M W K J
       Il1  O0  rn m  cl d  vv w
 
+      ff fi fl ffi ffl
+      office  affinity  shuffle  waffle
+
       Hamburgefontsiv
       The quick brown fox jumps over the lazy dog.
       """

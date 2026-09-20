@@ -8,6 +8,7 @@ struct GlyphComparisonView: View {
   let focusRequest: UUID
   let select: (String) -> Void
   let navigate: (Int) -> Void
+  let showText: () -> Void
   @State private var input = ""
 
   var body: some View {
@@ -25,8 +26,10 @@ struct GlyphComparisonView: View {
           .foregroundStyle(.secondary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))
       }.frame(height: 32).padding(16)
-      GlyphCanvas(comparison: comparison, focusRequest: focusRequest, navigate: navigate)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      GlyphCanvas(
+        comparison: comparison, focusRequest: focusRequest, navigate: navigate, showText: showText
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
       HStack(alignment: .top, spacing: 0) {
         metrics(comparison.a)
         if let b = comparison.b {
@@ -68,9 +71,11 @@ struct GlyphCanvas: NSViewRepresentable {
   let comparison: Comparison
   let focusRequest: UUID
   let navigate: (Int) -> Void
+  let showText: () -> Void
   func makeNSView(context: Context) -> GlyphDrawingView { GlyphDrawingView() }
   func updateNSView(_ view: GlyphDrawingView, context: Context) {
     view.navigate = navigate
+    view.showText = showText
     view.update(comparison)
     view.requestFocus(focusRequest)
   }
@@ -78,6 +83,7 @@ struct GlyphCanvas: NSViewRepresentable {
 
 final class GlyphDrawingView: NSView {
   var navigate: (Int) -> Void = { _ in }
+  var showText: () -> Void = {}
   private var focusRequest: UUID?
   private var comparison = Comparison()
   private var envelope = GlyphMeasurementPlaceholder.defaultBounds
@@ -99,7 +105,12 @@ final class GlyphDrawingView: NSView {
   }
 
   override func mouseDown(with event: NSEvent) {
-    window?.makeFirstResponder(self)
+    showText()
+  }
+
+  override func accessibilityPerformPress() -> Bool {
+    showText()
+    return true
   }
 
   override func keyDown(with event: NSEvent) {
@@ -121,12 +132,15 @@ final class GlyphDrawingView: NSView {
       envelopeKey = key
     }
     setAccessibilityElement(true)
+    setAccessibilityRole(.button)
     setAccessibilityLabel(
       value.b == nil
         ? "\(unicodeDescription(value.selectedGlyph)). Font A."
         : "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
     )
-    setAccessibilityHelp("Use the Left Arrow and Right Arrow keys to inspect ranked characters.")
+    setAccessibilityHelp(
+      "Click to return to text. Use the Left Arrow and Right Arrow keys to inspect ranked characters."
+    )
     needsDisplay = true
   }
 
@@ -202,13 +216,11 @@ final class GlyphDrawingView: NSView {
             "x-height unavailable", x: start, y: bounds.height - 55, width: width, size: 9,
             centered: true)
         }
-        if comparison.spacing {
-          for offset in [0, advances[index]] {
-            stroke(
-              context, from: CGPoint(x: start + originX + offset, y: 10),
-              to: CGPoint(x: start + originX + offset, y: bounds.height - 48),
-              color: color.withAlphaComponent(0.5).cgColor, dashed: true)
-          }
+        for offset in [0, advances[index]] {
+          stroke(
+            context, from: CGPoint(x: start + originX + offset, y: 10),
+            to: CGPoint(x: start + originX + offset, y: bounds.height - 48),
+            color: color.withAlphaComponent(0.5).cgColor, dashed: true)
         }
         if supported[index] {
           if overlay {

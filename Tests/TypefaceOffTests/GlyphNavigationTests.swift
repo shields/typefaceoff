@@ -71,6 +71,33 @@ import TypefaceCore
     #expect(document.comparison.selectedGlyph != current)
   }
 
+  @Test(arguments: [false, true])
+  func clickingTheGlyphCanvasReturnsToTheText(accessibility: Bool) async throws {
+    let document = WorkbenchDocument()
+    let host = WorkbenchTestHost(WorkbenchView(document: document))
+    defer { host.window.close() }
+    try await host.settle()
+    let specimen = try #require(descendant(SpecimenNSTextView.self, in: host.view))
+    specimen.select("g")
+    try await host.settle()
+    let canvas = try #require(descendant(GlyphDrawingView.self, in: host.view))
+    #expect(document.comparison.mode == .glyph)
+    if accessibility {
+      #expect(canvas.accessibilityPerformPress())
+    } else {
+      let event = try #require(
+        NSEvent.mouseEvent(
+          with: .leftMouseDown, location: canvas.convert(.zero, to: nil), modifierFlags: [],
+          timestamp: 0, windowNumber: host.window.windowNumber, context: nil, eventNumber: 0,
+          clickCount: 1, pressure: 1))
+      canvas.mouseDown(with: event)
+    }
+    try await host.settle()
+    #expect(document.comparison.mode == .text)
+    #expect(document.comparison.selectedGlyph == "g")
+    #expect(descendant(SpecimenNSTextView.self, in: host.view) != nil)
+  }
+
   private func descendant<T: NSView>(_ type: T.Type, in view: NSView) -> T? {
     if let result = view as? T { return result }
     return view.subviews.lazy.compactMap { descendant(type, in: $0) }.first

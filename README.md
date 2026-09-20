@@ -39,12 +39,13 @@ reopen the app to refresh its catalog.
   sizes.
 - Click a character in the text or difference strip to inspect it. Arrow keys in
   the glyph view navigate the ranked characters. Type a grapheme in the
-  character field and press Return to inspect any Unicode character.
+  character field and press Return to inspect any Unicode character. Click the
+  glyph canvas to return to the text.
 - The overlay shows A-only ink in red, B-only ink in blue, and shared ink in
-  black. Baseline and x-height guides remain visible. Shape aligns left ink
-  edges; Spacing alone aligns advance origins. Glyph scale and baseline stay
-  fixed while navigating a sample. Advance and side bearings show native font
-  units and em, independent of specimen size and added tracking.
+  black. Baseline, x-height, and vertical advance guides remain visible. Shape
+  aligns left ink edges; Spacing alone aligns advance origins. Glyph scale and
+  baseline stay fixed while navigating a sample. Advance and side bearings show
+  native font units and em, independent of specimen size and added tracking.
 - **Shape** and **Spacing** independently control highlighting and ranking.
   Scores use actual configured font shapes and metrics, including axes and
   substitutions. Ranking runs away from the UI thread, and obsolete requests are
@@ -55,9 +56,15 @@ reopen the app to refresh its catalog.
   perceptual similarity models.
 - Browsing glyphs, switching views, and toggling highlights preserve Undo/Redo.
   Undoing a font edit keeps the current inspection in view.
-- Save and reopen `.typefaceoff` documents with the standard File menu.
-  Documents contain settings and sample text, not font files. Missing fonts and
-  glyphs are labeled rather than silently compared using fallback fonts.
+- Launching the app opens a comparison window. Save and reopen `.typefaceoff`
+  documents with the standard File menu. **Untitled** means the comparison has
+  not been named; **Edited** means its settings have changed since the last
+  save. Documents contain settings and sample text, not font files. Missing
+  fonts and glyphs are labeled rather than silently compared using fallback
+  fonts.
+- Typography previews use examples that change with the selected font and
+  feature. Some fonts’ ligatures apply to scripts other than Latin. Features
+  without a verified example show **No preview available**.
 
 ## Develop
 

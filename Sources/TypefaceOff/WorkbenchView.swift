@@ -61,7 +61,8 @@ struct WorkbenchView: View {
         } else {
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
-            navigate: navigate)
+            navigate: navigate,
+            showText: { document.updatePresentation { $0.mode = .text } })
         }
         if comparison.b != nil {
           Divider()
@@ -79,7 +80,8 @@ struct WorkbenchView: View {
         Button("Toggle font A inspector", systemImage: "sidebar.left") { showA.toggle() }
           .help("Show or hide the font A inspector")
       }
-      ToolbarItem(placement: .principal) { Text("Typeface/Off").font(.headline) }
+      let title = ToolbarItem(placement: .principal) { Text("Typeface/Off").font(.headline) }
+      if #available(macOS 26.0, *) { title.sharedBackgroundVisibility(.hidden) } else { title }
       ToolbarItem(placement: .primaryAction) {
         Button("Toggle font B inspector", systemImage: "sidebar.right") { showB.toggle() }
           .help("Show or hide the font B inspector")

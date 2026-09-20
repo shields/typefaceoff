@@ -42,7 +42,13 @@ reopen the app to refresh its catalog.
 - Click a character in the text or difference strip to inspect it. Arrow keys in
   the glyph view navigate the ranked characters. Type a grapheme in the
   character field and press Return to inspect any Unicode character. Click the
-  glyph canvas to return to the text.
+  glyph canvas at 100% to return to the text, or choose **Text** (⌘1).
+- In glyph view, use the mouse wheel, pinch gesture, or zoom slider to magnify
+  the canvas from 100% to 800% without changing font settings. Zoom follows the
+  pointer for wheel and pinch gestures. Drag or scroll with two fingers to pan
+  when zoomed; click the percentage to reset to 100%. Zoom and pan stay fixed
+  while navigating characters. Glyph outlines and their shared-ink intersection
+  render as cached vectors; bitmap fonts use raster rendering.
 - The overlay shows A-only ink in red, B-only ink in blue, and shared ink in
   black. Baseline, x-height, and vertical advance guides remain visible. Shape
   aligns left ink edges; Spacing alone aligns advance origins. Glyph scale and
@@ -94,8 +100,8 @@ file. Tests for Inter’s optional variable axes and character variants require
 that font to be installed.
 
 `make review` renders native text, glyph, and single-font windows into
-`.build/review` for visual inspection. It requires an active macOS desktop
-session.
+`.build/review` for visual inspection and records glyph redraw timings in
+`glyph-performance.json`. It requires an active macOS desktop session.
 
 Swift 6 language mode, strict concurrency, warnings as errors, `swift-format`,
 and the shared [right-answers](../right-answers/README.md) guidelines apply.

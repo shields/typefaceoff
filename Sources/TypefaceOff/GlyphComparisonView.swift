@@ -11,6 +11,7 @@ struct GlyphComparisonView: View {
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
   @State private var input = ""
+  @State private var zoom = 1.0
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -29,10 +30,12 @@ struct GlyphComparisonView: View {
         Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 11))
           .foregroundStyle(.secondary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))
+        Spacer(minLength: 8)
+        zoomControls
       }.frame(height: 32).padding(16)
       GlyphCanvas(
         comparison: comparison, focusRequest: focusRequest, navigate: navigate, showText: showText,
-        focusChanged: focusChanged
+        focusChanged: focusChanged, zoom: $zoom
       )
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       HStack(alignment: .top, spacing: 0) {
@@ -45,6 +48,29 @@ struct GlyphComparisonView: View {
     }
     .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
     .onChange(of: comparison.selectedGlyph, initial: true) { _, value in input = value }
+  }
+
+  private var zoomControls: some View {
+    HStack(spacing: 6) {
+      Button("Zoom out", systemImage: "minus.magnifyingglass") { zoom = max(1, zoom / 1.25) }
+        .labelStyle(.iconOnly).disabled(zoom <= 1)
+      Slider(
+        value: Binding(get: { log2(zoom) }, set: { zoom = pow(2, $0) }), in: 0...3
+      ).frame(width: 100)
+        .accessibilityLabel("Glyph zoom")
+        .accessibilityValue("\(Int((zoom * 100).rounded())) percent")
+        .help("Magnify the glyph view. Scroll the mouse wheel or pinch to zoom.")
+      Button("Zoom in", systemImage: "plus.magnifyingglass") { zoom = min(8, zoom * 1.25) }
+        .labelStyle(.iconOnly).disabled(zoom >= 8)
+      Button {
+        zoom = 1
+      } label: {
+        Text(verbatim: "\(Int((zoom * 100).rounded()))%")
+          .monospacedDigit().frame(width: 42)
+      }
+      .accessibilityLabel("Reset glyph zoom")
+      .help("Reset zoom to 100% and fit the glyph view")
+    }.controlSize(.small)
   }
 
   private func metrics(_ config: FontConfiguration) -> some View {
@@ -78,13 +104,17 @@ struct GlyphCanvas: NSViewRepresentable {
   let navigate: (Int) -> Void
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
-  func makeNSView(context: Context) -> GlyphDrawingView { GlyphDrawingView() }
-  func updateNSView(_ view: GlyphDrawingView, context: Context) {
+  @Binding var zoom: Double
+  func makeNSView(context: Context) -> GlyphScrollView { GlyphScrollView() }
+  func updateNSView(_ scroll: GlyphScrollView, context: Context) {
+    let view = scroll.canvas
     view.navigate = navigate
     view.showText = showText
     view.focusChanged = focusChanged
     view.update(comparison)
     view.requestFocus(focusRequest)
+    scroll.zoomChanged = { zoom = $0 }
+    scroll.setZoom(zoom)
   }
 }
 
@@ -96,6 +126,8 @@ final class GlyphDrawingView: NSView {
   private var comparison = Comparison()
   private var envelope = GlyphMeasurementPlaceholder.defaultBounds
   private var envelopeKey: EnvelopeKey?
+  private var overlayCache: (key: OverlayKey, outline: GlyphOverlayOutline?)?
+  private var dragLocation: NSPoint?
   private let red = NSColor(calibratedRed: 0.76, green: 0.32, blue: 0.31, alpha: 1)
   private let blue = NSColor(calibratedRed: 0.25, green: 0.48, blue: 0.68, alpha: 1)
 
@@ -149,7 +181,33 @@ final class GlyphDrawingView: NSView {
   }
 
   override func mouseDown(with event: NSEvent) {
-    showText()
+    if let scroll = enclosingScrollView, scroll.magnification > 1 {
+      window?.makeFirstResponder(self)
+      dragLocation = event.locationInWindow
+      NSCursor.closedHand.set()
+    } else {
+      showText()
+    }
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    guard let previous = dragLocation, let scroll = enclosingScrollView as? GlyphScrollView else {
+      return
+    }
+    let current = event.locationInWindow
+    scroll.pan(by: NSSize(width: previous.x - current.x, height: previous.y - current.y))
+    dragLocation = current
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    dragLocation = nil
+    window?.invalidateCursorRects(for: self)
+  }
+
+  override func resetCursorRects() {
+    if let scroll = enclosingScrollView, scroll.magnification > 1 {
+      addCursorRect(visibleRect, cursor: .openHand)
+    }
   }
 
   override func accessibilityPerformPress() -> Bool {
@@ -183,7 +241,8 @@ final class GlyphDrawingView: NSView {
         : "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
     )
     setAccessibilityHelp(
-      "Click to return to text. Use the Left Arrow and Right Arrow keys to inspect ranked characters."
+      "Scroll the mouse wheel or pinch to zoom. When zoomed, drag or use two fingers to pan. "
+        + "At 100%, click to return to text. Use Left Arrow and Right Arrow to inspect characters."
     )
     needsDisplay = true
   }
@@ -244,10 +303,22 @@ final class GlyphDrawingView: NSView {
         overlay
         ? max(metrics[0].bounds.width, metrics[1].bounds.width) : metrics[indexes[0]].bounds.width
       let maxAdvance = overlay ? max(advances[0], advances[1]) : advances[indexes[0]]
+      let origins = indexes.map { index in
+        CGPoint(
+          x: start
+            + (spacingOnly
+              ? (width - maxAdvance) / 2 : (width - maxInk) / 2 - metrics[index].bounds.minX),
+          y: baseline)
+      }
+      let outline =
+        overlay && supported.allSatisfy { $0 }
+        ? cachedOverlay(configs: configs, sizes: sizes, origins: origins) : nil
       var masks: [[UInt8]] = []
-      let pixelScale = window?.backingScaleFactor ?? 2
-      let bitmapWidth = max(1, Int(ceil(width * pixelScale)))
-      let bitmapHeight = max(1, Int(ceil(bounds.height * pixelScale)))
+      let rasterRect = CGRect(x: start, y: 0, width: width, height: bounds.height)
+        .intersection(visibleRect).intersection(dirtyRect)
+      let pixelScale = (window?.backingScaleFactor ?? 2) * (enclosingScrollView?.magnification ?? 1)
+      let bitmapWidth = max(1, Int(ceil(rasterRect.width * pixelScale)))
+      let bitmapHeight = max(1, Int(ceil(rasterRect.height * pixelScale)))
       for index in indexes {
         let metric = metrics[index]
         let originX =
@@ -273,13 +344,16 @@ final class GlyphDrawingView: NSView {
             color: color.withAlphaComponent(0.5).cgColor, dashed: true)
         }
         if supported[index] {
-          if overlay {
+          if overlay, outline == nil, !rasterRect.isEmpty {
+            // Bitmap fonts need masks; only rasterize the changed portion of the viewport.
             masks.append(
               FontRenderer.mask(
                 comparison.selectedGlyph, config: configs[index], size: sizes[index] * pixelScale,
                 width: bitmapWidth, height: bitmapHeight,
-                origin: CGPoint(x: originX * pixelScale, y: baseline * pixelScale)))
-          } else {
+                origin: CGPoint(
+                  x: (start + originX - rasterRect.minX) * pixelScale,
+                  y: (baseline - rasterRect.minY) * pixelScale)))
+          } else if !overlay {
             context.saveGState()
             context.clip(
               to: CGRect(x: start + 1, y: 0, width: width - 2, height: bounds.height - 45))
@@ -291,10 +365,15 @@ final class GlyphDrawingView: NSView {
           }
         }
       }
-      if overlay, masks.count == 2 {
+      if let outline, !rasterRect.isEmpty {
+        context.saveGState()
+        context.clip(to: rasterRect)
+        outline.draw(in: context, red: red.cgColor, blue: blue.cgColor)
+        context.restoreGState()
+      } else if overlay, masks.count == 2 {
         drawOverlay(
           masks[0], masks[1], width: bitmapWidth, height: bitmapHeight, context: context,
-          rect: CGRect(x: start, y: 0, width: width, height: bounds.height))
+          rect: rasterRect)
       } else if indexes.contains(where: { !supported[$0] }) {
         label(
           "Character unavailable", x: start + 8, y: baseline + 25, width: width - 16, size: 12,
@@ -303,24 +382,26 @@ final class GlyphDrawingView: NSView {
     }
   }
 
+  private func cachedOverlay(configs: [FontConfiguration], sizes: [Double], origins: [CGPoint])
+    -> GlyphOverlayOutline?
+  {
+    let key = OverlayKey(
+      configs: configs, glyph: comparison.selectedGlyph, sizes: sizes, origins: origins)
+    if overlayCache?.key != key {
+      overlayCache = (
+        key,
+        GlyphOverlayOutline(
+          a: FontRenderer.line(key.glyph, config: configs[0], size: sizes[0]),
+          b: FontRenderer.line(key.glyph, config: configs[1], size: sizes[1]), origins: origins)
+      )
+    }
+    return overlayCache?.outline
+  }
+
   private func drawOverlay(
     _ a: [UInt8], _ b: [UInt8], width: Int, height: Int, context: CGContext, rect: CGRect
   ) {
-    var pixels = [UInt8](repeating: 0, count: width * height * 4)
-    for index in a.indices {
-      let left = Double(a[index]) / 255
-      let right = Double(b[index]) / 255
-      let shared = min(left, right)
-      let alpha = max(left, right)
-      for (channel, values) in [(0, (0.76, 0.25)), (1, (0.32, 0.48)), (2, (0.31, 0.68))] {
-        pixels[index * 4 + channel] = UInt8(
-          min(
-            255,
-            max(0, ((left - shared) * values.0 + (right - shared) * values.1 + shared * 0.14) * 255)
-          ))
-      }
-      pixels[index * 4 + 3] = UInt8(alpha * 255)
-    }
+    let pixels = GlyphOverlay.pixels(a, b)
     guard let provider = CGDataProvider(data: Data(pixels) as CFData),
       let image = CGImage(
         width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
@@ -361,6 +442,12 @@ final class GlyphDrawingView: NSView {
     let a: FontConfiguration
     let b: FontConfiguration?
     let text: String
+  }
+  private struct OverlayKey: Equatable {
+    let configs: [FontConfiguration]
+    let glyph: String
+    let sizes: [Double]
+    let origins: [CGPoint]
   }
   private enum GlyphMeasurementPlaceholder {
     static let defaultBounds = CGRect(x: 0, y: -25, width: 100, height: 125)

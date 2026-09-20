@@ -8,6 +8,48 @@ import TypefaceCore
 @Suite @MainActor struct ReviewScreens {
   @Test(
     .enabled(if: !(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] ?? "").isEmpty))
+  func benchmarkGlyphGestures() throws {
+    let folder = try #require(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"])
+    try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+    let scroll = GlyphScrollView()
+    scroll.setFrameSize(NSSize(width: 1000, height: 600))
+    scroll.layoutSubtreeIfNeeded()
+    var comparison = Comparison()
+    comparison.selectedGlyph = "@"
+    scroll.canvas.update(comparison)
+    var timings: [String: Double] = [:]
+    for zoom in [1.0, 2.0, 4.0, 8.0] {
+      scroll.setZoom(zoom)
+      let start = ContinuousClock.now
+      for _ in 0..<8 {
+        scroll.pan(by: NSSize(width: 3, height: 2))
+        let rect = scroll.canvas.visibleRect
+        let bitmap = try #require(scroll.canvas.bitmapImageRepForCachingDisplay(in: rect))
+        scroll.canvas.cacheDisplay(in: rect, to: bitmap)
+      }
+      let duration = start.duration(to: .now).components
+      timings["\(Int(zoom * 100))% draw milliseconds"] =
+        (Double(duration.seconds) * 1000 + Double(duration.attoseconds) / 1e15) / 8
+    }
+    let maskStart = ContinuousClock.now
+    let mask = FontRenderer.mask(
+      "@", config: comparison.a, size: 600, width: 2000, height: 1200,
+      origin: CGPoint(x: 500, y: 200))
+    let maskDuration = maskStart.duration(to: .now).components
+    timings["Mask milliseconds"] =
+      Double(maskDuration.seconds) * 1000 + Double(maskDuration.attoseconds) / 1e15
+    let compositeStart = ContinuousClock.now
+    let pixels = GlyphOverlay.pixels(mask, mask)
+    let compositeDuration = compositeStart.duration(to: .now).components
+    timings["Composite milliseconds"] =
+      Double(compositeDuration.seconds) * 1000 + Double(compositeDuration.attoseconds) / 1e15
+    #expect(pixels.count == mask.count * 4)
+    try JSONSerialization.data(withJSONObject: timings, options: [.prettyPrinted, .sortedKeys])
+      .write(to: URL(fileURLWithPath: folder).appendingPathComponent("glyph-performance.json"))
+  }
+
+  @Test(
+    .enabled(if: !(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] ?? "").isEmpty))
   func renderWorkbench() async throws {
     let folder = try #require(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"])
     try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
@@ -24,6 +66,7 @@ import TypefaceCore
       ("text", 1440, Comparison()), ("glyph", 1280, glyph), ("single", 1280, single),
       ("spacing", 1280, spacing),
       ("text-1280", 1280, Comparison()), ("glyph-1440", 1440, glyph),
+      ("glyph-zoom", 1280, glyph), ("single-zoom", 1280, single),
       ("single-text", 1280, Comparison(b: nil)),
     ]
     var both = glyph
@@ -80,6 +123,11 @@ import TypefaceCore
       window.makeKeyAndOrderFront(nil)
       try await Task.sleep(for: .milliseconds(name == "variable" ? 2000 : 750))
       host.layoutSubtreeIfNeeded()
+      if name.hasSuffix("-zoom"), let scroll = glyphScroll(in: host) {
+        scroll.setZoom(2)
+        scroll.zoomChanged(2)
+        try await Task.sleep(for: .milliseconds(100))
+      }
       let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
       let data = try #require(bitmap.representation(using: .png, properties: [:]))
@@ -102,5 +150,10 @@ import TypefaceCore
     let data = try #require(bitmap.representation(using: .png, properties: [:]))
     try data.write(to: URL(fileURLWithPath: folder).appendingPathComponent("match.png"))
     match.close()
+  }
+
+  private func glyphScroll(in view: NSView) -> GlyphScrollView? {
+    if let scroll = view as? GlyphScrollView { return scroll }
+    return view.subviews.lazy.compactMap { glyphScroll(in: $0) }.first
   }
 }

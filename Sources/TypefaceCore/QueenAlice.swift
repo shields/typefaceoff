@@ -5,8 +5,6 @@ import Foundation
 enum QueenAlice {
   static let content = try! AttributedString(
     markdown: """
-      Chapter IX. Queen Alice
-
       “Well, this *is* grand!” said Alice. “I never expected I should be a Queen so soon—and I’ll tell you what it is, your majesty,” she went on in a severe tone (she was always rather fond of scolding herself), “it’ll never do for you to be lolling about on the grass like that! Queens have to be dignified, you know!”
 
       So she got up and walked about—rather stiffly just at first, as she was afraid that the crown might come off: but she comforted herself with the thought that there was nobody to see her, “and if I really am a Queen,” she said as she sat down again, “I shall be able to manage it quite well in time.”
@@ -319,8 +317,6 @@ enum QueenAlice {
       “And as for *you*,” she went on, turning fiercely upon the Red Queen, whom she considered as the cause of all the mischief—but the Queen was no longer at her side—she had suddenly dwindled down to the size of a little doll, and was now on the table, merrily running round and round after her own shawl, which was trailing behind her.
 
       At any other time, Alice would have felt surprised at this, but she was far too much excited to be surprised at anything *now*. “As for *you*,” she repeated, catching hold of the little creature in the very act of jumping over a bottle which had just lighted upon the table, “I’ll shake you into a kitten, that I will!”
-
-      Lewis Carroll · Through the Looking-Glass
       """,
     options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
 }

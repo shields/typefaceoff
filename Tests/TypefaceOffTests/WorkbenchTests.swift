@@ -64,30 +64,33 @@ import TypefaceCore
         == "Unavailable")
   }
 
-  @Test func specimenHierarchyPreservesConfiguredFontsAndCharacterTargets() throws {
+  @Test(arguments: Sample.allCases, [14.0, 37.0])
+  func specimensPreserveConfiguredTypographyAndNativeSpacing(sample: Sample, size: Double) {
     var config = FontConfiguration("HelveticaNeue-Italic")
+    config.size = size
     config.tracking = 0.02
     config.features["aat.1.2"] = 2
-    let content = SpecimenText.makeContent(
-      config: config, text: Sample.reading.text, sample: .reading)
-    let heading = content.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
-    let bodyIndex = (content.text.string as NSString).range(of: "Well, this").location
-    let body = content.text.attribute(.font, at: bodyIndex, effectiveRange: nil) as! CTFont
-    let footerRange = try #require(content.footerRange)
-    let footer =
-      content.text.attribute(.font, at: footerRange.location, effectiveRange: nil) as! CTFont
-    #expect(CTFontGetSize(heading) > CTFontGetSize(body))
-    #expect(CTFontGetSize(footer) < CTFontGetSize(body))
-    for font in [heading, body, footer] {
+    let text =
+      sample == .custom
+      ? "\nFirst line\nSecond line\n\n\nKeep *literal* punctuation.\r\nLast line\n" : sample.text
+    let content = SpecimenText.makeContent(config: config, text: text, sample: sample)
+    #expect(content.text.string == text)
+    content.text.enumerateAttributes(in: NSRange(location: 0, length: content.text.length)) {
+      attributes, _, _ in
+      let font = attributes[.font] as! CTFont
       #expect(CTFontCopyPostScriptName(font) as String == config.postScriptName)
+      #expect(abs(CTFontGetSize(font) - size) < 0.000001)
+      #expect(
+        attributes[NSAttributedString.Key(kCTTrackingAttributeName as String)] as? Double
+          == config.tracking * size)
+      #expect(attributes[.ligature] as? Int == 1)
+      let paragraph = attributes[.paragraphStyle] as? NSParagraphStyle ?? .default
+      #expect(paragraph == .default)
     }
-    for span in content.spans where span.supported {
+    for span in content.spans {
+      #expect(span.supported)
       #expect(content.text.attributedSubstring(from: span.range).string == span.glyph)
     }
-    let custom = SpecimenText.makeContent(config: config, text: Sample.reading.text)
-    #expect(custom.footerRange == nil)
-    let customFont = custom.text.attribute(.font, at: 0, effectiveRange: nil) as! CTFont
-    #expect(abs(CTFontGetSize(customFont) - config.size) < 0.000001)
   }
 
   @Test func chapterEmphasisSurvivesParagraphLayoutAndKeepsCharacterTargets() throws {
@@ -96,13 +99,12 @@ import TypefaceCore
     config.features["aat.1.2"] = 3
     let sample = Sample.reading
     let content = SpecimenText.makeContent(config: config, text: sample.text, sample: sample)
-    let expected = sample.text.components(separatedBy: "\n\n")
-      .map { $0.replacingOccurrences(of: "\n", with: "\u{2028}") }.joined(separator: "\n")
-    #expect(content.text.string == expected)
+    #expect(content.text.string == sample.text)
     var emphasizedWords: [String] = []
     content.text.enumerateAttribute(.font, in: NSRange(location: 0, length: content.text.length)) {
       value, range, _ in
       let font = value as! CTFont
+      #expect(abs(CTFontGetSize(font) - config.size) < 0.000001)
       if CTFontGetSymbolicTraits(font).contains(.traitItalic) {
         #expect(CTFontCopyPostScriptName(font) as String == "HelveticaNeue-Italic")
         emphasizedWords.append(content.text.attributedSubstring(from: range).string)

@@ -66,8 +66,6 @@ struct SpecimenText: NSViewRepresentable {
     context.coordinator.position.preserveDuringUpdate {
       view.textStorage?.setAttributedString(content.text)
       view.spans = content.spans
-      view.footerRange = content.footerRange
-      view.footerGap = config.size * 0.8 * 1.3
       // Temporary drawing attributes preserve the original shaping runs and ligatures.
       view.layoutManager?.removeTemporaryAttribute(
         .foregroundColor, forCharacterRange: NSRange(location: 0, length: content.text.length))
@@ -90,7 +88,6 @@ struct SpecimenText: NSViewRepresentable {
     var spans: [GlyphSpan] = []
     var support: [String: Bool] = [:]
     var italicSupport: [String: Bool] = [:]
-    var footerRange: NSRange?
     if !FontRenderer.isAvailable(config) {
       content.append(
         NSAttributedString(
@@ -136,69 +133,46 @@ struct SpecimenText: NSViewRepresentable {
               .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemOrange,
             ]))
       }
-      let sections = text.components(separatedBy: "\n\n")
+      var attributes = FontRenderer.attributes(config)
+      attributes[.foregroundColor] = NSColor(calibratedWhite: 0.16, alpha: 1)
+      var italicAttributes = attributes
+      if let italicConfig {
+        italicAttributes.merge(FontRenderer.attributes(italicConfig)) { _, new in new }
+      } else {
+        italicAttributes[.foregroundColor] = NSColor.systemOrange
+        italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
+      }
       var sourceOffset = 0
-      for (index, section) in sections.enumerated() {
-        let heading = sample != .custom && index == 0
-        let footer = sample != .custom && index == sections.count - 1
-        let alphabet = sample == .alphabet && !heading && !footer
-        let size = config.size * (heading ? 1.5 : footer ? 0.8 : alphabet ? 1.2 : 1)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.minimumLineHeight =
-          size * (heading ? 1.13 : footer ? 1.65 : alphabet ? 1.7 : 1.55)
-        paragraph.maximumLineHeight = paragraph.minimumLineHeight
-        paragraph.paragraphSpacing = heading ? size * 0.7 : size * 1.2
-        if footer { paragraph.paragraphSpacingBefore = size * 1.3 }
-        var attributes = FontRenderer.attributes(config, size: size)
-        attributes[.foregroundColor] = NSColor(calibratedWhite: footer ? 0.35 : 0.16, alpha: 1)
-        attributes[.paragraphStyle] = paragraph
-        var italicAttributes = attributes
-        if let italicConfig {
-          italicAttributes.merge(FontRenderer.attributes(italicConfig, size: size)) { _, new in new
-          }
-        } else {
-          italicAttributes[.foregroundColor] = NSColor.systemOrange
-          italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
+      for character in text {
+        let glyph = String(character)
+        let emphasized = italicLocations.contains(sourceOffset)
+        sourceOffset += glyph.utf16.count
+        let whitespace = glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // Every non-whitespace character was checked before constructing the specimen.
+        let glyphSupport = emphasized && italicConfig != nil ? italicSupport : support
+        let supported = whitespace || glyphSupport[glyph] == true
+        var styled = emphasized ? italicAttributes : attributes
+        if !supported {
+          styled[.font] = NSFont.monospacedSystemFont(
+            ofSize: max(11, config.size * 0.55), weight: .medium)
+          styled[.foregroundColor] = NSColor.systemOrange
+          styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
         }
-        let start = content.length
-        // Preserve line breaks within stanzas without adding paragraph spacing to each line.
-        let sectionText =
-          section.replacingOccurrences(of: "\n", with: "\u{2028}")
-          + (index < sections.count - 1 ? "\n" : "")
-        for character in sectionText {
-          let glyph = String(character)
-          let emphasized = italicLocations.contains(sourceOffset)
-          sourceOffset += glyph.utf16.count
-          let whitespace = glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-          // Every non-whitespace character was checked before constructing the specimen.
-          let glyphSupport = emphasized && italicConfig != nil ? italicSupport : support
-          let supported = whitespace || glyphSupport[glyph] == true
-          var styled = emphasized ? italicAttributes : attributes
-          if !supported {
-            styled[.font] = NSFont.monospacedSystemFont(
-              ofSize: max(11, size * 0.55), weight: .medium)
-            styled[.foregroundColor] = NSColor.systemOrange
-            styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
-          }
-          let displayed =
-            supported
-            ? glyph
-            : "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
-          if !whitespace {
-            spans.append(
-              .init(
-                range: NSRange(location: content.length, length: displayed.utf16.count),
-                glyph: glyph,
-                supported: supported))
-          }
-          content.append(NSAttributedString(string: displayed, attributes: styled))
+        let displayed =
+          supported
+          ? glyph
+          : "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
+        if !whitespace {
+          spans.append(
+            .init(
+              range: NSRange(location: content.length, length: displayed.utf16.count),
+              glyph: glyph,
+              supported: supported))
         }
-        // The display uses one paragraph separator for each pair of source newlines.
-        sourceOffset += 1
-        if footer { footerRange = NSRange(location: start, length: content.length - start) }
+        content.append(NSAttributedString(string: displayed, attributes: styled))
       }
     }
-    return SampleContent(text: content, spans: spans, footerRange: footerRange)
+    return SampleContent(text: content, spans: spans)
   }
 
   final class Coordinator {
@@ -210,7 +184,6 @@ struct SpecimenText: NSViewRepresentable {
   struct SampleContent {
     let text: NSAttributedString
     let spans: [GlyphSpan]
-    let footerRange: NSRange?
   }
   struct GlyphSpan {
     let range: NSRange
@@ -252,8 +225,6 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var select: (String) -> Void = { _ in }
   var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
-  var footerRange: NSRange?
-  var footerGap = 0.0
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
@@ -294,24 +265,6 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
     let name = unicodeDescription(span.glyph)
     if !span.supported { return "Unavailable: \(name)" }
     return highlightKinds[span.glyph].map { "\(name) · \($0)" } ?? name
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
-    guard let footerRange, footerRange.length > 0, let layoutManager, let textContainer else {
-      return
-    }
-    let glyphs = layoutManager.glyphRange(
-      forCharacterRange: NSRange(location: footerRange.location, length: 1),
-      actualCharacterRange: nil)
-    let rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
-    let y = textContainerOrigin.y + rect.minY - footerGap / 2
-    let rule = NSBezierPath()
-    rule.move(to: NSPoint(x: textContainerOrigin.x, y: y))
-    rule.line(to: NSPoint(x: bounds.width - textContainerOrigin.x, y: y))
-    rule.lineWidth = 1
-    NSColor(calibratedWhite: 0.88, alpha: 1).setStroke()
-    rule.stroke()
   }
 
   override func mouseDown(with event: NSEvent) {

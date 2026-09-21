@@ -137,8 +137,12 @@ isolated grapheme clusters, so they do not measure kerning pairs or word rhythm.
 
 ## Reading samples
 
-The reading sample is the complete public-domain chapter IX, “Queen Alice,” from
-Lewis Carroll’s
+Samples use each side’s configured font size and the font’s natural line
+spacing, with the original line breaks preserved and no added paragraph spacing.
+
+The reading sample contains the complete body of public-domain chapter IX,
+“Queen Alice,” from Lewis Carroll’s
 [Through the Looking-Glass](https://www.gutenberg.org/files/12/12-h/12-h.htm#link2HCH0009),
-with its italics and verse breaks preserved. Emphasis uses the selected family’s
-italic face; an unavailable italic style is labeled in the specimen.
+with its italics and verse breaks preserved. The chapter heading and attribution
+are omitted from the specimen. Emphasis uses the selected family’s italic face;
+an unavailable italic style is labeled in the specimen.

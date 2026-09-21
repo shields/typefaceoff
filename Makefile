@@ -7,6 +7,7 @@ FUZZ_DRIVER_APP = .build/fuzz-driver/UIFuzzDriver.app
 FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff.app
 FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
 FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
+FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
 
 .PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark
 
@@ -41,18 +42,18 @@ fuzz-build: project
 
 # Campaigns run until SIGINT or SIGTERM unless FUZZ_ARGS includes --duration.
 fuzz: fuzz-build
-	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" run --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" run --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 fuzz-replay: fuzz-build
 	test -n "$(CASE)"
-	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" replay --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" replay --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 fuzz-minimize: fuzz-build
 	test -n "$(CASE)"
-	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" minimize --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" minimize --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 fuzz-benchmark: fuzz-build
-	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),.build/ui-fuzz/corpus))" --artifacts "$(CURDIR)/.build/ui-fuzz" $(FUZZ_ARGS)
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift

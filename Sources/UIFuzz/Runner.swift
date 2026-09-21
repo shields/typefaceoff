@@ -72,8 +72,10 @@ final class SequenceRunner {
     var executed = input
     executed.actions = []
     var random = SplitMix64(seed: input.seed)
+    let initialSession = DesktopSession.current()
 
     do {
+      try initialSession.requireAvailable()
       try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
       try TraceIO.save(input, to: runDirectory.appending(path: "candidate.json"))
       let application = try launch(runDirectory: runDirectory)
@@ -98,6 +100,7 @@ final class SequenceRunner {
       }
 
       if !automationFailed && !application.isTerminated {
+        try driver.waitForWorkbench()
         workloadStartedAt = ProcessInfo.processInfo.systemUptime
       }
       for index in 0..<(input.actions.count + explorationActions) where !automationFailed {
@@ -123,13 +126,17 @@ final class SequenceRunner {
           try driver.perform(action)
         } catch {
           automationFailed = true
-          let available = driver.snapshot().prefix(100).joined(separator: ", ")
-          findings.append(
-            ExecutionFinding(
-              kind: .automation, signature: String(describing: error),
-              detail:
-                "Action \(executed.actions.count): \(error). Visible accessibility elements: \(available)"
-            ))
+          if let unavailable = error as? AvailabilityError {
+            findings.append(unavailable.finding)
+          } else {
+            let available = driver.snapshot().prefix(100).joined(separator: ", ")
+            findings.append(
+              ExecutionFinding(
+                kind: .automation, signature: String(describing: error),
+                detail:
+                  "Action \(executed.actions.count): \(error). Visible accessibility elements: \(available)"
+              ))
+          }
           break
         }
         actionTimes.append((ProcessInfo.processInfo.systemUptime - actionStart) * 1000)
@@ -207,10 +214,33 @@ final class SequenceRunner {
             detail: "The app exited before the driver requested termination."))
       }
     } catch {
+      if let unavailable = error as? AvailabilityError {
+        findings.append(unavailable.finding)
+      } else {
+        findings.append(
+          ExecutionFinding(
+            kind: .automation, signature: String(describing: error),
+            detail: String(describing: error)
+          ))
+      }
+    }
+
+    // Accessibility timeouts must not conceal an app that stopped pumping its main run loop.
+    if !watchdog, launchedApplication?.isTerminated == false,
+      let heartbeat = TelemetryState.read(telemetryURL).lastHeartbeat,
+      ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds
+    {
+      watchdog = true
       findings.append(
         ExecutionFinding(
-          kind: .automation, signature: String(describing: error), detail: String(describing: error)
-        ))
+          kind: .hang, signature: "main-thread-heartbeat",
+          detail: "The app stopped emitting heartbeats while the driver waited for its UI."))
+    }
+    let finalSession = DesktopSession.current()
+    if let reason = finalSession.unavailableReason,
+      !findings.contains(where: { $0.kind == .unavailable })
+    {
+      findings.append(AvailabilityError(signature: "desktop-session", detail: reason).finding)
     }
 
     if let application = launchedApplication {
@@ -252,7 +282,7 @@ final class SequenceRunner {
     }
 
     let telemetry = TelemetryState.read(telemetryURL)
-    if telemetry.events == 0
+    if telemetry.events == 0 && launchedApplication != nil
       && !findings.contains(where: { $0.kind == .automation && $0.signature == "startup-telemetry" }
       )
     {
@@ -266,6 +296,8 @@ final class SequenceRunner {
       findings.append(ExecutionFinding(kind: .correctness, signature: failure, detail: failure))
     }
     var metadata = machineMetadata()
+    for (key, value) in initialSession.metadata { metadata["initial-\(key)"] = value }
+    for (key, value) in finalSession.metadata { metadata["final-\(key)"] = value }
     metadata["run"] = runID
     metadata["telemetry-events"] = String(telemetry.events)
     metadata["maximum-heartbeat-gap-ms"] = String(telemetry.maximumHeartbeatGap * 1000)

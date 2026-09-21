@@ -168,8 +168,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     let specimen = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
-    #expect(specimen.string.contains(sample.text.components(separatedBy: "\n")[0]))
-    #expect(specimen.footerRange != nil)
+    #expect(specimen.string == sample.text)
     let bitmap = try #require(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
     host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
     #expect(bitmap.pixelsWide > 0 && bitmap.pixelsHigh > 0)

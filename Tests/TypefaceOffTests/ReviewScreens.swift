@@ -86,10 +86,10 @@ import TypefaceCore
       comparison.sample = sample
       cases.append((sample.rawValue, 1440, comparison))
     }
-    var attribution = Comparison()
-    attribution.a.size = 14
-    attribution.b?.size = 14
-    cases.append(("attribution", 1440, attribution))
+    var smallText = Comparison()
+    smallText.a.size = 14
+    smallText.b?.size = 14
+    cases.append(("small-text", 1440, smallText))
     var syriac = Comparison(a: .init("NotoSansSyriac-Regular"), b: nil)
     syriac.mode = .glyph
     syriac.selectedGlyph = "ܐ"

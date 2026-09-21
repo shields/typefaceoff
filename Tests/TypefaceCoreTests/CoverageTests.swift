@@ -26,9 +26,9 @@ import Testing
         Comparison(a: .init("TypefaceOff-Does-Not-Exist")), options: options, catalog: catalog)
         == nil)
   }
-  @Test func samplesKeepTheirTextAndAttribution() {
+  @Test func samplesKeepTheirNamesAndText() {
     let expected: [(Sample, String, String)] = [
-      (.reading, "Queen Alice", "Through the Looking-Glass"),
+      (.reading, "Queen Alice", "“I’ll shake you into a kitten, that I will!”"),
       (.alphabet, "Alphabet", "The quick brown fox jumps over the lazy dog."),
       (.numerals, "Numerals & punctuation", "0,000.00"),
       (.custom, "Custom text", ""),
@@ -48,12 +48,9 @@ import Testing
   @Test func queenAliceKeepsTheCompleteChapterAndSourceEmphasis() {
     let sample = Sample.reading
     #expect(Sample.allCases == [.reading, .alphabet, .numerals, .custom])
-    #expect(sample.text.hasPrefix("Chapter IX. Queen Alice\n\n“Well, this is grand!”"))
+    #expect(sample.text.hasPrefix("“Well, this is grand!”"))
     #expect(sample.text.contains("Un-dish-cover the fish, or dishcover the riddle?”"))
-    #expect(
-      sample.text.hasSuffix(
-        "“I’ll shake you into a kitten, that I will!”\n\nLewis Carroll · Through the Looking-Glass")
-    )
+    #expect(sample.text.hasSuffix("“I’ll shake you into a kitten, that I will!”"))
     #expect(
       sample.text.contains("Till the feast’s ready, we’ve time for a nap:\nWhen the feast’s over"))
     let emphasized = sample.italicRanges.map { (sample.text as NSString).substring(with: $0) }

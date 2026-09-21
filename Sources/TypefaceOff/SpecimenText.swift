@@ -56,27 +56,37 @@ struct SpecimenText: NSViewRepresentable {
     guard let view = scroll.documentView as? SpecimenNSTextView else { return }
     view.select = select
     view.highlightKinds = highlightKinds
-    let key = RenderKey(
-      config: config, text: text, sample: sample, highlights: highlights, side: side)
-    guard context.coordinator.key != key else {
+    let coordinator = context.coordinator
+    let key = RenderKey(config: config, text: text, sample: sample)
+    let contentChanged = coordinator.key != key
+    guard contentChanged || coordinator.highlights != highlights || coordinator.side != side else {
       return
     }
-    context.coordinator.key = key
-    let content = Self.makeContent(config: config, text: text, sample: sample)
-    context.coordinator.position.preserveDuringUpdate {
-      view.textStorage?.setAttributedString(content.text)
-      view.spans = content.spans
+    coordinator.key = key
+    coordinator.highlights = highlights
+    coordinator.side = side
+    coordinator.position.preserveDuringUpdate {
+      if contentChanged {
+        let content = Self.makeContent(config: config, text: text, sample: sample)
+        view.textStorage?.setAttributedString(content.text)
+        view.spans = content.spans
+      }
       // Temporary drawing attributes preserve the original shaping runs and ligatures.
+      // Ranking updates change only these attributes; rebuilding the specimen also reshapes
+      // every unavailable-character placeholder and can block the main thread for a second.
       view.layoutManager?.removeTemporaryAttribute(
-        .foregroundColor, forCharacterRange: NSRange(location: 0, length: content.text.length))
-      for span in content.spans where highlights.contains(span.glyph) && span.supported {
+        .foregroundColor,
+        forCharacterRange: NSRange(location: 0, length: view.string.utf16.count))
+      for span in view.spans where highlights.contains(span.glyph) && span.supported {
         view.layoutManager?.addTemporaryAttribute(
           .foregroundColor, value: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue,
           forCharacterRange: span.range)
       }
-      if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
-      view.refreshToolTips()
-      view.setAccessibilityValue(text)
+      if contentChanged {
+        if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
+        view.refreshToolTips()
+        view.setAccessibilityValue(text)
+      }
     }
     FuzzDiagnostics.shared.rendered("specimen")
   }
@@ -177,6 +187,8 @@ struct SpecimenText: NSViewRepresentable {
 
   final class Coordinator {
     var key: RenderKey?
+    var highlights: Set<String> = []
+    var side: Side?
     let position: SpecimenScrollPosition
     init(position: SpecimenScrollPosition) { self.position = position }
   }
@@ -195,8 +207,6 @@ struct SpecimenText: NSViewRepresentable {
     let config: FontConfiguration
     let text: String
     let sample: Sample
-    let highlights: Set<String>
-    let side: Side
   }
 }
 

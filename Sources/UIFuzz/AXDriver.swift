@@ -36,7 +36,29 @@ struct AXDriver {
       }
       Thread.sleep(forTimeInterval: 0.05)
     }
-    guard ready else { throw DriverError.applicationDidNotLaunch }
+    guard ready else {
+      throw AvailabilityError(
+        signature: "workbench", detail: DriverError.applicationDidNotLaunch.description)
+    }
+  }
+
+  func waitForWorkbench() throws {
+    let deadline = ProcessInfo.processInfo.systemUptime + 2
+    repeat {
+      try DesktopSession.current().requireAvailable()
+      if hasWorkbenchControls { return }
+      Thread.sleep(forTimeInterval: 0.05)
+    } while ProcessInfo.processInfo.systemUptime < deadline
+    throw AvailabilityError(
+      signature: "workbench",
+      detail: "The app's workbench controls are unavailable to Accessibility.")
+  }
+
+  var hasWorkbenchControls: Bool {
+    let windows = attribute(kAXWindowsAttribute, of: application) as? [AXUIElement] ?? []
+    return windows.contains { window in
+      firstDescendant(of: window) { names(of: $0).contains("Shared point size") } != nil
+    }
   }
 
   static func waitForPermissions() {
@@ -101,6 +123,7 @@ struct AXDriver {
   }
 
   func perform(_ action: FuzzAction) throws {
+    try DesktopSession.current().requireAvailable()
     switch action.kind {
     case .press:
       let element = try require(action)
@@ -176,7 +199,7 @@ struct AXDriver {
     guard let target else { throw DriverError.controlMissing("<missing target>") }
     let deadline = ProcessInfo.processInfo.systemUptime + timeout
     repeat {
-      if let result = descendants(of: application).first(where: { names(of: $0).contains(target) })
+      if let result = firstDescendant(of: application, matching: { names(of: $0).contains(target) })
       {
         return result
       }
@@ -245,7 +268,9 @@ struct AXDriver {
     // that synchronous accessibility write when delivering keys into menus or sheets.
     if attribute(kAXFrontmostAttribute, of: application) as? Bool != true {
       guard NSRunningApplication(processIdentifier: processIdentifier)?.activate() == true else {
-        throw DriverError.actionFailed("activate application", .failure)
+        throw AvailabilityError(
+          signature: "activation",
+          detail: "The diagnostic app could not activate in the current desktop session.")
       }
     }
     let source = CGEventSource(stateID: .combinedSessionState)
@@ -277,9 +302,24 @@ struct AXDriver {
       let identity = CFHash(element)
       guard visited.insert(identity).inserted else { continue }
       result.append(element)
-      pending.append(contentsOf: children(of: element))
+      pending.append(contentsOf: children(of: element).reversed())
     }
     return result
+  }
+
+  /// Stop as soon as a control is found; enumerating every system menu can itself stall AppKit.
+  private func firstDescendant(
+    of root: AXUIElement, matching predicate: (AXUIElement) -> Bool
+  ) -> AXUIElement? {
+    var pending = [root]
+    var visited = Set<CFHashCode>()
+    while let element = pending.popLast(), visited.count < 10_000 {
+      guard visited.insert(CFHash(element)).inserted else { continue }
+      if predicate(element) { return element }
+      // Window controls precede the menu bar in the application's accessibility children.
+      pending.append(contentsOf: children(of: element).reversed())
+    }
+    return nil
   }
 
   private func names(of element: AXUIElement) -> Set<String> {

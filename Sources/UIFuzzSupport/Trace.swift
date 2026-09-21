@@ -71,6 +71,7 @@ public struct ExecutionFinding: Codable, Equatable, Sendable {
     case correctness
     case slow
     case automation
+    case unavailable
   }
 
   public var kind: Kind
@@ -103,6 +104,17 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
 
   public var measuredMilliseconds: Double {
     max(0, (workloadDurationMilliseconds ?? durationMilliseconds) - pacingMilliseconds)
+  }
+
+  /// An unavailable desktop must not hide a crash, hang, or invariant failure.
+  public var needsAvailabilityRecovery: Bool {
+    findings.contains { $0.kind == .unavailable }
+      && findings.allSatisfy { $0.kind == .unavailable || $0.kind == .automation }
+  }
+
+  public var isBenchmarkSample: Bool {
+    findings.isEmpty && workloadDurationMilliseconds != nil
+      && actionMilliseconds.count == trace.actions.count
   }
 
   public init(

@@ -204,4 +204,50 @@ import Testing
     try JSONEncoder().encode(invalid).write(to: traceURL)
     #expect(throws: TraceIO.TraceError.unsupportedVersion(99)) { try TraceIO.load(traceURL) }
   }
+
+  @Test func availabilityBackoffCapsRetriesAndResetsAfterRecovery() {
+    var backoff = CampaignBackoff()
+    #expect(backoff.delaySeconds == 0)
+    #expect((0..<6).map { _ in backoff.failed() } == [5, 10, 20, 40, 60, 60])
+    for _ in 0..<1000 { backoff.failed() }
+    #expect(backoff.delaySeconds == 60)
+    backoff.recovered()
+    #expect(backoff.delaySeconds == 0)
+    #expect(backoff.failed() == 5)
+  }
+
+  @Test func unavailableDesktopCannotHideProductFailuresOrBecomeABenchmark() {
+    var report = ExecutionReport(
+      trace: FuzzTrace(seed: 1, actions: [FuzzAction(kind: .press, target: "Text")]),
+      startedAt: Date(), durationMilliseconds: 100, workloadDurationMilliseconds: 50,
+      actionMilliseconds: [10])
+    #expect(!report.needsAvailabilityRecovery)
+    #expect(report.isBenchmarkSample)
+    report.actionMilliseconds = []
+    #expect(!report.isBenchmarkSample)
+    report.findings = [
+      ExecutionFinding(kind: .unavailable, signature: "workbench", detail: "unavailable")
+    ]
+    #expect(report.needsAvailabilityRecovery)
+    #expect(!report.isBenchmarkSample)
+    report.findings.append(
+      ExecutionFinding(kind: .automation, signature: "coverage-export", detail: "missing"))
+    #expect(report.needsAvailabilityRecovery)
+    for kind: ExecutionFinding.Kind in [.crash, .hang, .correctness] {
+      var failed = report
+      failed.findings.append(ExecutionFinding(kind: kind, signature: "failure", detail: "failure"))
+      #expect(!failed.needsAvailabilityRecovery)
+      #expect(!failed.isBenchmarkSample)
+    }
+    report.findings = []
+    report.actionMilliseconds = [10]
+    report.workloadDurationMilliseconds = nil
+    #expect(!report.isBenchmarkSample)
+    report.workloadDurationMilliseconds = 50
+    report.findings = [
+      ExecutionFinding(kind: .automation, signature: "missing-control", detail: "missing")
+    ]
+    #expect(!report.needsAvailabilityRecovery)
+    #expect(!report.isBenchmarkSample)
+  }
 }

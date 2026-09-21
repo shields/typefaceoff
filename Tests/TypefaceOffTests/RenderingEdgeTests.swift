@@ -6,6 +6,63 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct RenderingEdgeTests {
+  @Test func changingHighlightsPreservesTextStorageSelectionAndMissingGlyphs() async throws {
+    let text = String(repeating: "fi a 🦄\n", count: 40)
+    var config = FontConfiguration("HelveticaNeue")
+    let host = WorkbenchTestHost(SpecimenText(config: config, text: text), width: 400, height: 250)
+    defer { host.window.close() }
+    try await host.settle()
+    let specimen = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    let storage = try #require(specimen.textStorage)
+    let layout = try #require(specimen.layoutManager)
+    let scroll = try #require(specimen.enclosingScrollView)
+    let original = NSAttributedString(attributedString: storage)
+    let edits = StorageEditCounter()
+    storage.delegate = edits
+    let a = try #require(specimen.spans.first { $0.glyph == "a" })
+    let missing = try #require(specimen.spans.first { $0.glyph == "🦄" })
+    #expect(!missing.supported)
+    specimen.setSelectedRange(a.range)
+    scroll.contentView.scroll(to: NSPoint(x: 0, y: 100))
+    scroll.reflectScrolledClipView(scroll.contentView)
+    let origin = scroll.contentView.bounds.origin
+
+    for side: Side in [.a, .b] {
+      host.setContent(
+        SpecimenText(
+          config: config, text: text, highlights: ["a", "🦄"],
+          highlightKinds: ["a": "Shape"], side: side))
+      try await host.settle()
+      #expect(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first === specimen)
+      #expect(edits.count == 0)
+      #expect(storage == original)
+      #expect(specimen.selectedRange() == a.range)
+      #expect(scroll.contentView.bounds.origin == origin)
+      #expect(
+        layout.temporaryAttribute(
+          .foregroundColor, atCharacterIndex: a.range.location, effectiveRange: nil) as? NSColor
+          == (side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
+      #expect(
+        layout.temporaryAttribute(
+          .foregroundColor, atCharacterIndex: missing.range.location, effectiveRange: nil) == nil)
+    }
+    host.setContent(SpecimenText(config: config, text: text))
+    try await host.settle()
+    #expect(edits.count == 0)
+    #expect(
+      layout.temporaryAttribute(
+        .foregroundColor, atCharacterIndex: a.range.location, effectiveRange: nil) == nil)
+
+    config.size = 44
+    host.setContent(SpecimenText(config: config, text: text + "x"))
+    try await host.settle()
+    #expect(edits.count > 0)
+    #expect(specimen.string.hasSuffix("x"))
+    #expect(
+      (storage.attribute(.font, at: a.range.location, effectiveRange: nil) as? NSFont)?.pointSize
+        == 44)
+  }
+
   @Test func clickingRenderedGlyphsSelectsTheirOriginalCharacters() async throws {
     var selected = ""
     let host = WorkbenchTestHost(
@@ -142,5 +199,16 @@ import TypefaceCore
         with: type, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0,
         windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1,
         pressure: 1))
+  }
+}
+
+@MainActor private final class StorageEditCounter: NSObject, @preconcurrency NSTextStorageDelegate {
+  var count = 0
+
+  func textStorage(
+    _ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
+    range editedRange: NSRange, changeInLength delta: Int
+  ) {
+    count += 1
   }
 }

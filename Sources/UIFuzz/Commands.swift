@@ -82,15 +82,38 @@ struct Run: ParsableCommand {
     var state = try loadState(artifactURL.appending(path: "campaign.json"))
     let runner = SequenceRunner(configuration: common.runnerConfiguration, mutator: mutator)
     var slowest = try loadSlowCandidates(artifactURL)
+    var backoff = CampaignBackoff()
+    var pendingTrace: FuzzTrace?
     outputLine(
       "seed \(campaignSeed); \(corpus.count) corpus entries; \(installedFonts.count) installed font families; running until interrupted"
     )
 
     while !stop.isStopped && deadline.map({ ProcessInfo.processInfo.systemUptime < $0 }) != false {
-      let trace = mutator.campaignTrace(
-        execution: state.executions, corpus: corpus, seed: random.next())
+      if let reason = DesktopSession.current().unavailableReason {
+        outputLine("waiting for desktop: \(reason) Retrying in \(Int(backoff.failed())) seconds.")
+        stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+        continue
+      }
+      let trace =
+        pendingTrace
+        ?? mutator.campaignTrace(
+          execution: state.executions, corpus: corpus, seed: random.next())
+      pendingTrace = trace
       let report = runner.execute(
         trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
+      if report.needsAvailabilityRecovery {
+        try preserveAvailability(report, artifacts: artifactURL)
+        outputLine(
+          "waiting for workbench: \(report.findings[0].detail) Retrying in \(Int(backoff.failed())) seconds."
+        )
+        stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+        continue
+      }
+      if backoff.delaySeconds > 0 {
+        outputLine("desktop and workbench available; resuming campaign")
+      }
+      backoff.recovered()
+      pendingTrace = nil
       let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
       let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
       if delta.isInteresting {
@@ -105,7 +128,7 @@ struct Run: ParsableCommand {
       let inputs = Dictionary(grouping: report.trace.actions, by: \.kind.rawValue)
         .sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.count)" }.joined(separator: ",")
       outputLine(
-        "#\(state.executions) mode=\(trace.origin) actions=\(report.trace.actions.count) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
+        "#\(state.executions) mode=\(trace.origin) actions=\(report.actionMilliseconds.count)/\(report.trace.actions.count) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
           + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
           + " inputs=\(inputs)"
           + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
@@ -146,7 +169,9 @@ struct Minimize: ParsableCommand {
       var candidate = original.trace
       candidate.actions = actions
       if target.kind == .slow, let baseline {
-        let values = (0..<3).map { _ in runner.execute(candidate).measuredMilliseconds }
+        let reports = (0..<3).map { _ in runner.execute(candidate) }
+        guard reports.allSatisfy(\.isBenchmarkSample) else { return false }
+        let values = reports.map(\.measuredMilliseconds)
         return (Statistics.median(values) ?? 0) >= baseline * 0.9
       }
       let report = runner.execute(candidate)
@@ -177,20 +202,38 @@ struct Benchmark: ParsableCommand {
     let runner = SequenceRunner(configuration: configuration)
     let traces = try loadCorpus(URL(fileURLWithPath: corpus))
     var results: [[String: Any]] = []
+    var failedSamples = 0
     for trace in traces {
       let reports = (0..<repetitions).map { _ in runner.execute(trace) }
-      let values = reports.map(\.measuredMilliseconds)
+      let successful = reports.filter(\.isBenchmarkSample)
+      let failed = reports.filter { !$0.isBenchmarkSample }
+      failedSamples += failed.count
+      let values = successful.map(\.measuredMilliseconds)
       let actionMedians = trace.actions.indices.map { index in
         Statistics.median(
-          reports.compactMap {
+          successful.compactMap {
             $0.actionMilliseconds.indices.contains(index) ? $0.actionMilliseconds[index] : nil
-          }) ?? 0
+          }
+        ).map { $0 as Any } ?? NSNull()
       }
       results.append([
         "seed": trace.seed, "actions": trace.actions.count,
-        "medianMeasuredMilliseconds": Statistics.median(values) ?? 0,
-        "minimumMilliseconds": values.min() ?? 0, "maximumMilliseconds": values.max() ?? 0,
+        "medianMeasuredMilliseconds": Statistics.median(values).map { $0 as Any } ?? NSNull(),
+        "minimumMilliseconds": values.min().map { $0 as Any } ?? NSNull(),
+        "maximumMilliseconds": values.max().map { $0 as Any } ?? NSNull(),
         "samplesMilliseconds": values, "actionMedianMilliseconds": actionMedians,
+        "successfulRepetitions": successful.count, "failedRepetitions": failed.count,
+        "failures": failed.map { report in
+          [
+            "run": report.metadata["run"] ?? "",
+            "findings": report.findings.map { finding in
+              [
+                "kind": finding.kind.rawValue, "signature": finding.signature,
+                "detail": finding.detail,
+              ]
+            },
+          ] as [String: Any]
+        },
         "configuredPacingMilliseconds": trace.actions.map(\.delayMilliseconds).reduce(0, +),
         "processModel": "fresh",
       ])
@@ -205,6 +248,11 @@ struct Benchmark: ParsableCommand {
     try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
       .write(to: output, options: .atomic)
     outputLine("benchmarked \(traces.count) traces: \(output.path)")
+    if failedSamples > 0 {
+      throw ValidationError(
+        "\(failedSamples) benchmark executions failed; their timings were excluded. See \(output.path)."
+      )
+    }
   }
 }
 
@@ -214,6 +262,13 @@ private final class StopController: @unchecked Sendable {
   private var sources: [DispatchSourceSignal] = []
 
   var isStopped: Bool { lock.withLock { stopped } }
+
+  func wait(seconds: TimeInterval, deadline: TimeInterval?) {
+    let until = min(ProcessInfo.processInfo.systemUptime + seconds, deadline ?? .infinity)
+    while !isStopped && ProcessInfo.processInfo.systemUptime < until {
+      Thread.sleep(forTimeInterval: min(0.1, max(0, until - ProcessInfo.processInfo.systemUptime)))
+    }
+  }
 
   func install() {
     for signalNumber in [SIGINT, SIGTERM] {
@@ -278,12 +333,32 @@ private func preserveFindings(_ report: ExecutionReport, identifier: String, art
   }
 }
 
+/// Keep the latest availability evidence, not thousands of duplicate reports and raw profiles.
+private func preserveAvailability(_ report: ExecutionReport, artifacts: URL) throws {
+  let output = artifacts.appending(path: "availability.json")
+  let decoder = JSONDecoder()
+  decoder.dateDecodingStrategy = .iso8601
+  let previous = (try? Data(contentsOf: output)).flatMap {
+    try? decoder.decode(ExecutionReport.self, from: $0)
+  }
+  try TraceIO.save(report, to: output)
+  if let previous, previous.needsAvailabilityRecovery,
+    let run = previous.metadata["run"], UUID(uuidString: run) != nil,
+    run != report.metadata["run"]
+  {
+    let directory = artifacts.appending(path: "runs/\(run)")
+    if FileManager.default.fileExists(atPath: directory.path) {
+      try FileManager.default.removeItem(at: directory)
+    }
+  }
+}
+
 private func preserveSlowCandidate(
   _ report: ExecutionReport, identifier: String, artifacts: URL, current: [(Double, URL)]
 ) throws -> [(Double, URL)] {
   var next = current
   guard report.workloadDurationMilliseconds != nil,
-    !report.findings.contains(where: { $0.kind == .automation || $0.kind == .crash })
+    report.isBenchmarkSample
   else { return next }
   guard next.count < 20 || report.measuredMilliseconds > (next.map(\.0).min() ?? 0) else {
     return next
@@ -316,7 +391,7 @@ private func loadSlowCandidates(_ artifacts: URL) throws -> [(Double, URL)] {
     guard let data = try? Data(contentsOf: url),
       let report = try? decoder.decode(ExecutionReport.self, from: data),
       report.workloadDurationMilliseconds != nil,
-      !report.findings.contains(where: { $0.kind == .automation || $0.kind == .crash })
+      report.findings.allSatisfy({ $0.kind == .slow })
     else {
       try FileManager.default.removeItem(at: url)
       continue
@@ -340,7 +415,8 @@ private func loadTraceOrReport(_ url: URL) throws -> (trace: FuzzTrace, report: 
 }
 
 private func printReport(_ report: ExecutionReport, output: URL) {
-  outputLine("actions: \(report.trace.actions.count)")
+  outputLine(
+    "actions completed/attempted: \(report.actionMilliseconds.count)/\(report.trace.actions.count)")
   outputLine("duration: \(Int(report.durationMilliseconds)) ms")
   outputLine("coverage regions: \(report.coverage.count)")
   for finding in report.findings { outputLine("\(finding.kind.rawValue): \(finding.detail)") }

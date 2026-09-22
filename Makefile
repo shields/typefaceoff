@@ -3,7 +3,7 @@ SWIFT_FLAGS = --disable-sandbox --cache-path .build/cache --config-path .build/c
 APP = .build/xcode/Build/Products/Debug/TypefaceOff.app
 XCODE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Debug -derivedDataPath .build/xcode -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
 
-.PHONY: build project run test test-app coverage lint fmt setup review
+.PHONY: build project run test test-app coverage lint fmt setup review benchmark
 
 project:
 	xcodegen generate --spec project.yml
@@ -27,6 +27,9 @@ coverage: test
 
 review: project
 	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(CURDIR)/.build/review" -only-testing:TypefaceOffTests/ReviewScreens test
+
+benchmark:
+	TYPEFACEOFF_BENCHMARK_DIR="$(CURDIR)/.build/similarity-benchmark" swift test $(SWIFT_FLAGS) -c release --filter SimilarityBenchmark
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift

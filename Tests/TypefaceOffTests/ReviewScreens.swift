@@ -137,19 +137,41 @@ import TypefaceCore
       window.close()
     }
     let match = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 530, height: 410), styleMask: [.titled],
+      contentRect: NSRect(x: 0, y: 0, width: 600, height: 660), styleMask: [.titled],
       backing: .buffered, defer: false)
     match.isReleasedWhenClosed = false
+    var matching = Comparison()
+    matching.sample = .custom
+    matching.customText = "Hamburg minimum AV To fi fl 1820"
+    let fit = FontFitModel()
     let host = NSHostingView(
-      rootView: MatchSheet(model: WorkbenchModel()).preferredColorScheme(.dark))
+      rootView: MatchSheet(model: WorkbenchModel(comparison: matching), fit: fit)
+        .preferredColorScheme(.dark))
     match.contentView = host
     match.orderFront(nil)
-    try await Task.sleep(for: .milliseconds(200))
+    try await Task.sleep(for: .seconds(5))
     let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
     host.cacheDisplay(in: host.bounds, to: bitmap)
     let data = try #require(bitmap.representation(using: .png, properties: [:]))
     try data.write(to: URL(fileURLWithPath: folder).appendingPathComponent("match.png"))
     match.close()
+    fit.stop()
+    let ranking = FamilySimilarityModel()
+    ranking.sort = .similarity
+    let picker = WorkbenchTestHost(
+      FontFamilyPicker(
+        families: catalog.families, currentFamily: "Arial",
+        allowsNone: true, ranking: ranking, reference: .init("HelveticaNeue"), catalog: catalog,
+        choose: { _ in }), width: 300, height: 400)
+    try await Task.sleep(for: .seconds(6))
+    let pickerBitmap = try #require(
+      picker.view.bitmapImageRepForCachingDisplay(in: picker.view.bounds))
+    picker.view.cacheDisplay(in: picker.view.bounds, to: pickerBitmap)
+    let pickerData = try #require(pickerBitmap.representation(using: .png, properties: [:]))
+    try pickerData.write(
+      to: URL(fileURLWithPath: folder).appendingPathComponent("similarity-picker.png"))
+    picker.window.close()
+
   }
 
   private func glyphScroll(in view: NSView) -> GlyphScrollView? {

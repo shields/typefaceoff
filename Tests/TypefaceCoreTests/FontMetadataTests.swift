@@ -144,3 +144,33 @@ import Testing
     words([1, 0, 0, 10, 0, 1]) + Data(tag.utf8) + words([8, 4, 0]) + parameters
   }
 }
+
+extension FontMetadataTests {
+  @Test func requiredLanguageFeaturesRemainAutomaticEvenForPrivateTags() throws {
+    func words(_ values: [UInt16]) -> Data {
+      Data(values.flatMap { [UInt8($0 >> 8), UInt8($0 & 255)] })
+    }
+    // Header, ScriptList, Script with default and named LangSys, then FeatureList.
+    let header = words([1, 0, 10, 42, 0])
+    let scripts = words([1]) + Data("latn".utf8) + words([8])
+    let script = words([10, 1]) + Data("ENG ".utf8) + words([16])
+    let languages = words([0, 0, 0, 0, 1, 0])
+    let features =
+      words([2]) + Data("priv".utf8) + words([14]) + Data("xxxx".utf8) + words([18])
+      + words([0, 0, 0, 0])
+    let table = header + scripts + script + languages + words([0]) + features
+    #expect(FontFace.requiredFeatureIndices(table) == [0, 1])
+    let parsed = FontFace.readFeatures(tables: ["GSUB": table], names: [:], aat: [])
+    let required = try #require(parsed.first { $0.id == "ot.priv" })
+    #expect(required.required && required.isAutomatic && required.options.isEmpty)
+    #expect(required.defaultValue == 1 && required.group == .automatic)
+    for length in 0..<table.count { _ = FontFace.requiredFeatureIndices(table.prefix(length)) }
+    var noDefault = table
+    noDefault.replaceSubrange(18..<20, with: words([0]))
+    noDefault.replaceSubrange(36..<38, with: words([0xFFFF]))
+    #expect(FontFace.requiredFeatureIndices(noDefault).isEmpty)
+    #expect(
+      FontFeature(id: "aat.1.0", name: "Required ligatures", options: [], defaultValue: 0)
+        .isAutomatic)
+  }
+}

@@ -87,10 +87,12 @@ public enum FontRenderer {
     return result
   }
 
-  public static func supports(_ text: String, config: FontConfiguration) -> Bool {
+  public static func supports(
+    _ text: String, config: FontConfiguration, size: Double = 22, tracking: Bool = false
+  ) -> Bool {
     guard isAvailable(config) else { return false }
-    let configuredName = CTFontCopyPostScriptName(font(config, size: 22)) as String
-    let shaped = line(text, config: config, size: 22)
+    let configuredName = CTFontCopyPostScriptName(font(config, size: size)) as String
+    let shaped = line(text, config: config, size: size, tracking: tracking)
     // Core Text guarantees that this array contains CTRun objects.
     let runs = CTLineGetGlyphRuns(shaped) as! [CTRun]
     return runs.allSatisfy { run in
@@ -112,11 +114,14 @@ public enum FontRenderer {
   )
     -> GlyphMeasurement
   {
-    let shaped = line(text, config: config, size: size, tracking: tracking)
-    let bounds = CTLineGetBoundsWithOptions(shaped, [.useGlyphPathBounds])
+    measure(line(text, config: config, size: size, tracking: tracking))
+  }
+
+  static func measure(_ line: CTLine) -> GlyphMeasurement {
+    let bounds = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
     return GlyphMeasurement(
       bounds: bounds.isNull ? .zero : bounds,
-      advance: CTLineGetTypographicBounds(shaped, nil, nil, nil))
+      advance: CTLineGetTypographicBounds(line, nil, nil, nil))
   }
 
   public static func nativeMetrics(_ text: String, config: FontConfiguration) -> GlyphMeasurement {

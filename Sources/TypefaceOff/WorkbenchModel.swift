@@ -6,6 +6,7 @@ import TypefaceCore
 final class WorkbenchModel: ObservableObject {
   @Published var comparison: Comparison
   let catalog = FontCatalog()
+  let familySimilarity = FamilySimilarityModel()
   private var continuousEdit: (name: String, initial: Comparison)?
 
   init(comparison: Comparison = Comparison()) { self.comparison = comparison }

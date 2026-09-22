@@ -21,7 +21,7 @@ public struct FontFeature: Identifiable, Hashable, Sendable {
   }
 
   static let automaticTags: Set<String> = [
-    "ccmp", "locl", "rlig", "mark", "mkmk", "init", "medi", "fina", "isol",
+    "ccmp", "locl", "rlig", "rclt", "mark", "mkmk", "init", "medi", "fina", "isol",
   ]
 
   public struct Option: Hashable, Sendable {
@@ -33,9 +33,11 @@ public struct FontFeature: Identifiable, Hashable, Sendable {
   public let options: [Option]
   public let defaultValue: Int
   public var sample: String? = nil
+  public var required = false
 
   public var isAutomatic: Bool {
-    id.hasPrefix("ot.") && Self.automaticTags.contains(String(id.dropFirst(3)))
+    required || id == "aat.1.0"
+      || (id.hasPrefix("ot.") && Self.automaticTags.contains(String(id.dropFirst(3))))
   }
 
   public var group: Group {
@@ -134,6 +136,7 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     -> [FontFeature]
   {
     var tags = Set<String>()
+    var requiredTags = Set<String>()
     var labels: [String: String] = [:]
     var alternatives: [String: [FontFeature.Option]] = [:]
     var samples: [String: String] = [:]
@@ -141,11 +144,13 @@ public struct FontFace: Identifiable, Hashable, Sendable {
       guard let data = tables[table],
         let offset = readUInt16(data, 6), let count = readUInt16(data, Int(offset))
       else { continue }
+      let required = requiredFeatureIndices(data)
       for index in 0..<Int(count) {
         let start = Int(offset) + 2 + index * 6
         guard start + 4 <= data.count else { break }
         let tag = String(decoding: data[start..<start + 4], as: UTF8.self)
         tags.insert(tag)
+        if required.contains(index) { requiredTags.insert(tag) }
         guard tag.hasPrefix("cv") || tag.hasPrefix("ss"),
           let relative = readUInt16(data, start + 4),
           let parameters = readUInt16(data, Int(offset) + Int(relative)), parameters != 0
@@ -180,13 +185,14 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     var result = tags.sorted().map { tag in
       FontFeature(
         id: "ot.\(tag)", name: labels[tag] ?? featureName(tag),
-        options: FontFeature.automaticTags.contains(tag)
+        options: requiredTags.contains(tag) || FontFeature.automaticTags.contains(tag)
           ? []
           : [.init(name: "Off", value: 0)]
             + (alternatives[tag] ?? [.init(name: "On", value: 1)]),
-        defaultValue: FontFeature.automaticTags.contains(tag)
+        defaultValue: requiredTags.contains(tag) || FontFeature.automaticTags.contains(tag)
           || ["kern", "liga", "clig", "calt"].contains(tag) ? 1 : 0,
-        sample: samples[tag]?.isEmpty == false ? samples[tag] : nil)
+        sample: samples[tag]?.isEmpty == false ? samples[tag] : nil,
+        required: requiredTags.contains(tag))
     }
     // AAT-only fonts (including Helvetica Neue) expose selectors through Core Text.
     if tags.isEmpty {
@@ -230,6 +236,35 @@ public struct FontFace: Identifiable, Hashable, Sendable {
           id: "ot.kern", name: "Kerning",
           options: [.init(name: "Off", value: 0), .init(name: "On", value: 1)], defaultValue: 1),
         at: 0)
+    }
+    return result
+  }
+
+  /// Protect any feature required by a GSUB/GPOS language system, including private tags.
+  static func requiredFeatureIndices(_ data: Data) -> Set<Int> {
+    guard let offset = readUInt16(data, 4), offset != 0,
+      let count = readUInt16(data, Int(offset))
+    else { return [] }
+    var result = Set<Int>()
+    for index in 0..<Int(count) {
+      guard let relative = readUInt16(data, Int(offset) + 6 + index * 6), relative != 0 else {
+        continue
+      }
+      let script = Int(offset) + Int(relative)
+      guard let defaultOffset = readUInt16(data, script),
+        let languages = readUInt16(data, script + 2)
+      else { continue }
+      var offsets = defaultOffset == 0 ? [] : [Int(defaultOffset)]
+      for language in 0..<Int(languages) {
+        if let value = readUInt16(data, script + 8 + language * 6), value != 0 {
+          offsets.append(Int(value))
+        }
+      }
+      for language in offsets {
+        if let required = readUInt16(data, script + language + 2), required != 0xFFFF {
+          result.insert(Int(required))
+        }
+      }
     }
     return result
   }

@@ -58,10 +58,20 @@ reopen the app to refresh its catalog.
   Scores use actual configured font shapes and metrics, including axes and
   substitutions. Ranking runs away from the UI thread, and obsolete requests are
   cancelled.
-- **Match…** previews changes to B’s numeric weight, measured x-height, and
-  average sample tracking. Cancel leaves the comparison untouched; Apply is one
-  undoable edit. Weight matching and geometric rankings are heuristics, not
-  perceptual similarity models.
+- In B’s font picker, switch **Name** to **Similarity** to rank installed
+  families against A’s family. Both use their preferred face, default axes and
+  typography, zero tracking, and A’s point size. Lower distance means closer.
+  Search filters the live results; pending and unsupported families remain
+  selectable. Choosing a family carries B’s settings forward as usual, so its
+  specimen can differ from the default settings used for ranking.
+- **Match…** searches B’s current face for closer axes, typography, and
+  tracking. Uncheck any setting to lock it; size changes are opt-in. A quick
+  search uses up to three seconds or 256 evaluations; **Refine** resumes for up
+  to 15 seconds or 2,048 additional evaluations. A started comparison can finish
+  after the time budget. **Stop** retains the best verified preview. Cancel
+  discards it, and Apply changes only B in one undoable edit, recalibrating
+  appearance links. Only improvements verified on the full fitting corpus can be
+  applied.
 - Browsing glyphs, switching views, and toggling highlights preserve Undo/Redo.
   Undoing a font edit keeps the current inspection in view.
 - Launching the app opens a fresh comparison window. Each window is independent;
@@ -103,6 +113,16 @@ that font to be installed.
 `.build/review` for visual inspection and records glyph redraw timings in
 `glyph-performance.json`. It requires an active macOS desktop session.
 
+`make benchmark` runs an opt-in release benchmark and writes
+`.build/similarity-benchmark/scores.json`, rendered specimens, and
+`review.html`. It compares the existing glyph IoU, signed distance fields,
+multiscale ink, SSIM, MS-SSIM, and the combined score at 14, 22, and 36 points.
+Open the HTML locally for blind triplet judgments with ties; download judgments
+and import multiple reviewers’ files to calculate individual and majority
+agreement. Nothing is uploaded. The JSON records configurations, component
+scores, corpus and score versions, OS, scale, runtime, and quick/refined fit
+results.
+
 Swift 6 language mode, strict concurrency, warnings as errors, `swift-format`,
 and the shared [right-answers](../right-answers/README.md) guidelines apply.
 Formatting also covers documentation and configuration. CI runs the same Make
@@ -110,9 +130,31 @@ targets; GitHub Actions are pinned to release commit SHAs.
 
 OpenType character variants expose the names, preview characters, and alternate
 options supplied by the font. Other features use binary settings or Core Text’s
-AAT selectors. Importing font files directly, multilingual specimen design, and
-contextual run-level difference analysis remain future work. Comparisons rank
-isolated grapheme clusters, so they do not measure kerning pairs or word rhythm.
+AAT selectors. Importing font files directly and multilingual specimen design
+remain future work. The existing glyph difference strip still ranks isolated
+grapheme clusters.
+
+Family ranking and fitting use an **experimental visual heuristic**, without a
+calibrated confidence percentage or a human-validated ranking claim. Four
+equally weighted components compare glyph distance fields, glyph ink at three
+blur scales, shaped text, and advance/bearing/vertical metrics. Rasterization
+preserves point size, display scale, baseline, and origin; blank padding
+contributes no similarity. A shared 128 MiB LRU cache reuses renderings,
+including inert feature settings, while retaining variation axes in the cache
+key. Family ranking defaults to one concurrent comparison per available CPU core
+and publishes results as they finish; cache access remains synchronized.
+`make benchmark` also records ranking times with one worker, four workers, and
+the available core count in `ranking-timings.json`, checking that all produce
+identical scores.
+
+The versioned ranking corpus covers printable ASCII, selected Latin accents, and
+feature/spacing diagnostics. Fitting adds all distinct current characters and up
+to 128 deterministically sampled words. It validates coverage of the complete
+current text before searching and never compares a fallback font. The search
+uses categorical combinations or a bounded beam, multiple continuous starting
+points, joint axis steps, and progressively smaller steps. It is budget-limited
+and cannot guarantee a global optimum. See the
+[research and evaluation rationale](docs/research/font-similarity.md).
 
 ## Reading samples
 

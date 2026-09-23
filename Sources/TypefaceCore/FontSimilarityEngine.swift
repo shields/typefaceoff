@@ -33,6 +33,7 @@ public actor FontSimilarityEngine {
   private var scores: [ScoreKey: Entry<SimilarityScore>] = [:]
   private var clock: UInt64 = 0
   private(set) var cachedBytes = 0
+  private(set) var renderCount = 0
   private let capacity: Int
   private let rankingConcurrency: Int
 
@@ -240,6 +241,7 @@ public actor FontSimilarityEngine {
   }
 
   private func store(_ result: SimilarityImage, for key: ImageKey) {
+    renderCount += 1
     let bytes =
       result.byteCount + key.text.utf8.count + 256
       + key.shaping.reduce(0) {

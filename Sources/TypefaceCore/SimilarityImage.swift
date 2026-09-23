@@ -29,12 +29,37 @@ struct SimilarityImage: Sendable {
     self.radius = radius
     self.measurement = measurement
     field = Self.signedField(pixels, width: width, height: height, radius: radius)
-    blurred = [0.75, 1.5].map { Self.blur(pixels, width: width, height: height, sigma: $0) }
+    blurred = Self.sigmas.map { Self.blur(pixels, width: width, height: height, sigma: $0) }
+  }
+
+  static let sigmas = [0.75, 1.5]
+
+  /// Coverage padded for `radius`, which the signed field must then share.
+  struct Raster: Sendable {
+    let x: Int
+    let y: Int
+    let width: Int
+    let height: Int
+    let pixels: [Float]
+    let radius: Float
+    let measurement: GlyphMeasurement
+  }
+
+  init(_ raster: Raster) {
+    self.init(
+      x: raster.x, y: raster.y, width: raster.width, height: raster.height, pixels: raster.pixels,
+      radius: raster.radius, measurement: raster.measurement)
   }
 
   static func render(
     _ text: String, config: FontConfiguration, scale: Double, tracking: Bool, radius: Float
   ) throws -> Self {
+    Self(try rasterize(text, config: config, scale: scale, tracking: tracking, radius: radius))
+  }
+
+  static func rasterize(
+    _ text: String, config: FontConfiguration, scale: Double, tracking: Bool, radius: Float
+  ) throws -> Raster {
     guard FontRenderer.supports(text, config: config, size: config.size, tracking: tracking) else {
       throw SimilarityError.unsupportedText(config.postScriptName, text)
     }
@@ -78,9 +103,9 @@ struct SimilarityImage: Sendable {
         pixels[row * width + column] = Float(rgba[source + column * 4 + 3]) / 255
       }
     }
-    return Self(
-      x: Int(left), y: Int(bottom), width: width, height: height, pixels: pixels,
-      radius: radius, measurement: measurement)
+    return Raster(
+      x: Int(left), y: Int(bottom), width: width, height: height, pixels: pixels, radius: radius,
+      measurement: measurement)
   }
 
   func value(_ values: [Float], x worldX: Int, y worldY: Int, outside: Float = 0) -> Float {

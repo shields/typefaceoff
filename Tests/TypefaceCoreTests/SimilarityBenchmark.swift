@@ -7,6 +7,12 @@ import UniformTypeIdentifiers
 
 @testable import TypefaceCore
 
+extension Trait where Self == ConditionTrait {
+  static var benchmark: Self {
+    .enabled(if: ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"] != nil)
+  }
+}
+
 /// Opt-in artifacts use only installed fonts and stay on the local machine.
 @Suite(.serialized) struct SimilarityBenchmark {
   struct RankingTiming: Encodable {
@@ -15,7 +21,7 @@ import UniformTypeIdentifiers
     let scores: [String: SimilarityScore]
   }
 
-  @Test(.enabled(if: ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"] != nil))
+  @Test(.benchmark)
   func compareSerialAndParallelFamilyRanking() async throws {
     let installed = FontCatalog()
     let names = [
@@ -44,10 +50,7 @@ import UniformTypeIdentifiers
       #expect(scores == timings[0].scores)
       #expect(scores.count == catalog.families.count)
     }
-    let folder = URL(
-      fileURLWithPath: try #require(
-        ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"]))
-    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let folder = try benchmarkFolder()
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     try encoder.encode(timings).write(to: folder.appendingPathComponent("ranking-timings.json"))
@@ -92,12 +95,9 @@ import UniformTypeIdentifiers
     let triplets: [Triplet]
   }
 
-  @Test(.enabled(if: ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"] != nil))
+  @Test(.benchmark)
   func compareAlgorithmsAndExportBlindReview() async throws {
-    let folder = URL(
-      fileURLWithPath: try #require(
-        ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"]))
-    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let folder = try benchmarkFolder()
     let catalog = FontCatalog()
     let families = [
       "Arial", "Helvetica Neue", "Times New Roman", "Georgia", "Courier New", "Verdana",
@@ -190,7 +190,15 @@ import UniformTypeIdentifiers
       to: folder.appendingPathComponent("review.html"), atomically: true, encoding: .utf8)
   }
 
-  private func seconds(since start: ContinuousClock.Instant) -> Double {
+  func benchmarkFolder() throws -> URL {
+    let folder = URL(
+      fileURLWithPath: try #require(
+        ProcessInfo.processInfo.environment["TYPEFACEOFF_BENCHMARK_DIR"]))
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    return folder
+  }
+
+  func seconds(since start: ContinuousClock.Instant) -> Double {
     let duration = start.duration(to: .now).components
     return Double(duration.seconds) + Double(duration.attoseconds) / 1e18
   }

@@ -40,8 +40,15 @@ public enum FontRenderer {
   public static func attributes(
     _ config: FontConfiguration, size: Double? = nil, tracking: Bool = true
   ) -> [NSAttributedString.Key: Any] {
+    attributes(
+      config, font: font(config, size: size), size: size ?? config.size, tracking: tracking)
+  }
+
+  static func attributes(
+    _ config: FontConfiguration, font: CTFont, size: Double, tracking: Bool
+  ) -> [NSAttributedString.Key: Any] {
     var result: [NSAttributedString.Key: Any] = [
-      NSAttributedString.Key(kCTFontAttributeName as String): font(config, size: size)
+      NSAttributedString.Key(kCTFontAttributeName as String): font
     ]
     if config.features["ot.kern"] == 0 {
       result[NSAttributedString.Key(kCTKernAttributeName as String)] = 0
@@ -53,7 +60,7 @@ public enum FontRenderer {
     }
     if tracking, config.tracking != 0 {
       result[NSAttributedString.Key(kCTTrackingAttributeName as String)] =
-        config.tracking * (size ?? config.size)
+        config.tracking * size
     }
     return result
   }
@@ -61,9 +68,16 @@ public enum FontRenderer {
   public static func line(
     _ text: String, config: FontConfiguration, size: Double, tracking: Bool = false
   ) -> CTLine {
+    line(text, config: config, font: font(config, size: size), size: size, tracking: tracking)
+  }
+
+  static func line(
+    _ text: String, config: FontConfiguration, font: CTFont, size: Double, tracking: Bool
+  ) -> CTLine {
     CTLineCreateWithAttributedString(
       NSAttributedString(
-        string: text, attributes: attributes(config, size: size, tracking: tracking)))
+        string: text,
+        attributes: attributes(config, font: font, size: size, tracking: tracking)))
   }
 
   public static func isAvailable(_ config: FontConfiguration) -> Bool {
@@ -91,10 +105,15 @@ public enum FontRenderer {
     _ text: String, config: FontConfiguration, size: Double = 22, tracking: Bool = false
   ) -> Bool {
     guard isAvailable(config) else { return false }
-    let configuredName = CTFontCopyPostScriptName(font(config, size: size)) as String
-    let shaped = line(text, config: config, size: size, tracking: tracking)
+    let font = font(config, size: size)
+    return supports(
+      line(text, config: config, font: font, size: size, tracking: tracking), font: font)
+  }
+
+  static func supports(_ line: CTLine, font: CTFont) -> Bool {
+    let configuredName = CTFontCopyPostScriptName(font) as String
     // Core Text guarantees that this array contains CTRun objects.
-    let runs = CTLineGetGlyphRuns(shaped) as! [CTRun]
+    let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     return runs.allSatisfy { run in
       let attrs = CTRunGetAttributes(run) as NSDictionary
       guard let actual = attrs[kCTFontAttributeName] else { return false }

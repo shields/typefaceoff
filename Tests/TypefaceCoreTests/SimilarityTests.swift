@@ -222,7 +222,6 @@ extension SimilarityTests {
     try await Task.sleep(for: .milliseconds(100))
     task.cancel()
     _ = await task.result
-    // Eviction chooses between multiple images and scores, preserving repeated results.
     let small = FontSimilarityEngine(cacheBytes: 150_000)
     let first = try await small.compare(a: a, b: a, corpus: corpus, scale: 1)
     for glyph in ["g", "j", "x", "W"] {

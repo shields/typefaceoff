@@ -1,7 +1,10 @@
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/ModuleCache
 SWIFT_FLAGS = --disable-sandbox --cache-path .build/cache --config-path .build/config --security-path .build/security
 APP = .build/xcode/Build/Products/Debug/TypefaceOff.app
-XCODE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Debug -derivedDataPath .build/xcode -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
+XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
+XCODE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme TypefaceOff -derivedDataPath .build/xcode
+PORTABLE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme PortableTests -derivedDataPath .build/portable
+PORTABLE_TESTS = .build/portable-tests.tar
 RAW_FUZZ_TOOL = .build/fuzz-tool/debug/ui-fuzz
 FUZZ_DRIVER_APP = .build/fuzz-driver/UIFuzzDriver.app
 FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff.app
@@ -10,7 +13,7 @@ FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
 FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
 
-.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark
+.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark
 
 project:
 	xcodegen generate --spec project.yml
@@ -27,7 +30,20 @@ test:
 	$(MAKE) test-app
 
 test-app: project
-	./scripts/test-app.sh $(XCODE_FLAGS)
+	rm -rf .build/xcode/Build/ProfileData
+	./scripts/test-app.sh $(XCODE_FLAGS) test
+
+# CI builds these once and runs them on macOS versions too old for this Xcode.
+build-for-testing: project
+	rm -rf .build/portable/Build/Products
+	xcodebuild $(PORTABLE_FLAGS) build-for-testing
+	tar -cf $(PORTABLE_TESTS) -C .build/portable/Build Products
+
+test-without-building:
+	rm -rf .build/portable-run
+	mkdir -p .build/portable-run
+	tar -xf $(PORTABLE_TESTS) -C .build/portable-run
+	./scripts/test-app.sh -quiet -destination 'platform=macOS' -parallel-testing-enabled NO -xctestrun .build/portable-run/Products/*.xctestrun test-without-building
 
 coverage: test
 	./scripts/coverage.sh $(SWIFT_FLAGS)

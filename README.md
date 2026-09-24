@@ -146,6 +146,12 @@ SwiftPM runs the core tests, and Xcode runs the native tests inside the app.
 fuzzing-support source file. Tests for Inter’s optional variable axes and
 character variants require that font to be installed.
 
+The app supports macOS 15, but Xcode 26.4 and later need macOS 26.2, so CI
+builds the tests once and runs them on macOS 15 without rebuilding.
+`make build-for-testing` packs the core and native test bundles into
+`.build/portable-tests.tar`, and `make test-without-building` unpacks and runs
+them with whatever Xcode is installed, saving results like `make test-app`.
+
 `make review` renders native text, glyph, and single-font windows into
 `.build/review` for visual inspection and records glyph redraw timings in
 `glyph-performance.json`. It requires an active macOS desktop session.

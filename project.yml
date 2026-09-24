@@ -80,3 +80,13 @@ schemes:
         TYPEFACEOFF_REVIEW_DIR: "$(TYPEFACEOFF_REVIEW_DIR)"
       targets:
         - TypefaceOffTests
+  PortableTests:
+    build:
+      targets:
+        TypefaceOff: all
+    test:
+      targets:
+        - TypefaceOffTests
+        # XcodeGen decodes a `package` key as a Swift package test target; a bare
+        # "<a>/<b>" string would instead name target <b> in another project <a>.
+        - package: TypefaceCore/TypefaceCoreTests

@@ -21,7 +21,7 @@ public struct FontFeature: Identifiable, Hashable, Sendable {
   }
 
   static let automaticTags: Set<String> = [
-    "ccmp", "locl", "rlig", "mark", "mkmk", "init", "medi", "fina", "isol",
+    "ccmp", "locl", "rlig", "rclt", "mark", "mkmk", "init", "medi", "fina", "isol",
   ]
 
   public struct Option: Hashable, Sendable {
@@ -33,9 +33,11 @@ public struct FontFeature: Identifiable, Hashable, Sendable {
   public let options: [Option]
   public let defaultValue: Int
   public var sample: String? = nil
+  public var required = false
 
   public var isAutomatic: Bool {
-    id.hasPrefix("ot.") && Self.automaticTags.contains(String(id.dropFirst(3)))
+    required || id == "aat.1.0"
+      || (id.hasPrefix("ot.") && Self.automaticTags.contains(String(id.dropFirst(3))))
   }
 
   public var group: Group {
@@ -75,6 +77,8 @@ public struct FontFace: Identifiable, Hashable, Sendable {
   public let family: String
   public let style: String
   public let weight: Double
+  /// Relative to normal width, which is 1.
+  public let width: Double
   public let italic: Bool
   public let axes: [FontAxis]
   public let coordinates: [UInt32: Double]
@@ -96,6 +100,7 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     coordinates = attributes.coordinates
     axes = attributes.axes
     weight = attributes.weight
+    width = attributes.width
     features = Self.readFeatures(
       tables: Dictionary(
         uniqueKeysWithValues: ["GSUB", "GPOS"].compactMap { tag in
@@ -108,7 +113,9 @@ public struct FontFace: Identifiable, Hashable, Sendable {
   /// Interpret optional Core Text metadata independently of installed fonts.
   static func readAttributes(
     styleName: String?, variation: [NSNumber: NSNumber]?, axes rawAxes: [[String: Any]]?, os2: Data?
-  ) -> (style: String, coordinates: [UInt32: Double], axes: [FontAxis], weight: Double) {
+  ) -> (
+    style: String, coordinates: [UInt32: Double], axes: [FontAxis], weight: Double, width: Double
+  ) {
     let coordinates = Dictionary(
       uniqueKeysWithValues: (variation ?? [:]).map {
         ($0.key.uint32Value, $0.value.doubleValue)
@@ -117,7 +124,8 @@ public struct FontFace: Identifiable, Hashable, Sendable {
       guard let identifier = axis[kCTFontVariationAxisIdentifierKey as String] as? NSNumber,
         let minimum = axis[kCTFontVariationAxisMinimumValueKey as String] as? Double,
         let maximum = axis[kCTFontVariationAxisMaximumValueKey as String] as? Double,
-        let value = axis[kCTFontVariationAxisDefaultValueKey as String] as? Double
+        let value = axis[kCTFontVariationAxisDefaultValueKey as String] as? Double,
+        minimum.isFinite, maximum.isFinite, minimum <= maximum
       else { return nil }
       return FontAxis(
         id: identifier.uint32Value,
@@ -127,13 +135,27 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     }.sorted { ($0.tag == "wght" ? 0 : 1, $0.name) < ($1.tag == "wght" ? 0 : 1, $1.name) }
     // OS/2 weights use the same 1–1000 scale as the OpenType wght axis.
     let weight = coordinates[tagNumber("wght")] ?? Double(os2.flatMap { readUInt16($0, 4) } ?? 400)
-    return (styleName ?? "Regular", coordinates, axes, weight)
+    // Width axes use either percentages or Apple's scale, where 1 is normal, so an instance's
+    // width is relative to its axis default. OS/2 width classes map to percentages.
+    let width: Double
+    if let axis = axes.first(where: { $0.tag == "wdth" }), let value = coordinates[axis.id],
+      axis.defaultValue > 0
+    {
+      width = value / axis.defaultValue
+    } else {
+      let percentages: [UInt16: Double] = [
+        1: 50, 2: 62.5, 3: 75, 4: 87.5, 5: 100, 6: 112.5, 7: 125, 8: 150, 9: 200,
+      ]
+      width = (os2.flatMap { readUInt16($0, 6) }.flatMap { percentages[$0] } ?? 100) / 100
+    }
+    return (styleName ?? "Regular", coordinates, axes, weight, width)
   }
 
   static func readFeatures(tables: [String: Data], names: [UInt16: String], aat: [[String: Any]])
     -> [FontFeature]
   {
     var tags = Set<String>()
+    var requiredTags = Set<String>()
     var labels: [String: String] = [:]
     var alternatives: [String: [FontFeature.Option]] = [:]
     var samples: [String: String] = [:]
@@ -141,11 +163,13 @@ public struct FontFace: Identifiable, Hashable, Sendable {
       guard let data = tables[table],
         let offset = readUInt16(data, 6), let count = readUInt16(data, Int(offset))
       else { continue }
+      let required = requiredFeatureIndices(data)
       for index in 0..<Int(count) {
         let start = Int(offset) + 2 + index * 6
         guard start + 4 <= data.count else { break }
         let tag = String(decoding: data[start..<start + 4], as: UTF8.self)
         tags.insert(tag)
+        if required.contains(index) { requiredTags.insert(tag) }
         guard tag.hasPrefix("cv") || tag.hasPrefix("ss"),
           let relative = readUInt16(data, start + 4),
           let parameters = readUInt16(data, Int(offset) + Int(relative)), parameters != 0
@@ -180,13 +204,14 @@ public struct FontFace: Identifiable, Hashable, Sendable {
     var result = tags.sorted().map { tag in
       FontFeature(
         id: "ot.\(tag)", name: labels[tag] ?? featureName(tag),
-        options: FontFeature.automaticTags.contains(tag)
+        options: requiredTags.contains(tag) || FontFeature.automaticTags.contains(tag)
           ? []
           : [.init(name: "Off", value: 0)]
             + (alternatives[tag] ?? [.init(name: "On", value: 1)]),
-        defaultValue: FontFeature.automaticTags.contains(tag)
+        defaultValue: requiredTags.contains(tag) || FontFeature.automaticTags.contains(tag)
           || ["kern", "liga", "clig", "calt"].contains(tag) ? 1 : 0,
-        sample: samples[tag]?.isEmpty == false ? samples[tag] : nil)
+        sample: samples[tag]?.isEmpty == false ? samples[tag] : nil,
+        required: requiredTags.contains(tag))
     }
     // AAT-only fonts (including Helvetica Neue) expose selectors through Core Text.
     if tags.isEmpty {
@@ -230,6 +255,35 @@ public struct FontFace: Identifiable, Hashable, Sendable {
           id: "ot.kern", name: "Kerning",
           options: [.init(name: "Off", value: 0), .init(name: "On", value: 1)], defaultValue: 1),
         at: 0)
+    }
+    return result
+  }
+
+  /// Protect any feature required by a GSUB/GPOS language system, including private tags.
+  static func requiredFeatureIndices(_ data: Data) -> Set<Int> {
+    guard let offset = readUInt16(data, 4), offset != 0,
+      let count = readUInt16(data, Int(offset))
+    else { return [] }
+    var result = Set<Int>()
+    for index in 0..<Int(count) {
+      guard let relative = readUInt16(data, Int(offset) + 6 + index * 6), relative != 0 else {
+        continue
+      }
+      let script = Int(offset) + Int(relative)
+      guard let defaultOffset = readUInt16(data, script),
+        let languages = readUInt16(data, script + 2)
+      else { continue }
+      var offsets = defaultOffset == 0 ? [] : [Int(defaultOffset)]
+      for language in 0..<Int(languages) {
+        if let value = readUInt16(data, script + 8 + language * 6), value != 0 {
+          offsets.append(Int(value))
+        }
+      }
+      for language in offsets {
+        if let required = readUInt16(data, script + language + 2), required != 0xFFFF {
+          result.insert(Int(required))
+        }
+      }
     }
     return result
   }
@@ -300,13 +354,13 @@ public struct FontCatalog: Sendable {
     let all = faces(in: family)
     let matching = all.filter { $0.italic == italic }
     let options = matching.isEmpty ? all : matching
-    return options.first {
-      !$0.axes.isEmpty && $0.style.localizedCaseInsensitiveContains("regular")
+    func rank(_ face: FontFace) -> (Int, Double, Int, Double) {
+      (
+        face.axes.isEmpty ? 1 : 0, abs(face.width - 1),
+        face.style.localizedCaseInsensitiveContains("regular") ? 0 : 1, abs(face.weight - 400)
+      )
     }
-      ?? options.first { !$0.axes.isEmpty }
-      ?? options.min {
-        abs($0.weight - 400) < abs($1.weight - 400)
-      }
+    return options.min { rank($0) < rank($1) }
   }
 }
 

@@ -67,7 +67,6 @@ public struct TraceMutator: Sendable {
       [FuzzAction(kind: .shortcut, keyCode: 1, modifiers: command | option)],
       [
         FuzzAction(kind: .press, target: "Match…", delayMilliseconds: 400),
-        FuzzAction(kind: .press, target: "x-height"),
         FuzzAction(kind: .press, target: "Tracking"),
         FuzzAction(kind: .press, target: "Cancel"),
       ],
@@ -149,7 +148,7 @@ public struct TraceMutator: Sendable {
     switch random.next() % 13 {
     case 0:
       let targets = [
-        "Swap fonts", "Match…", "Apply", "Cancel", "Weight", "x-height", "Tracking",
+        "Swap fonts", "Match…", "Apply", "Cancel", "Weight", "Tracking",
         "Previous character", "Next character", "Zoom in", "Zoom out", "Reset glyph zoom",
         "Toggle font A inspector", "Toggle font B inspector", "Unlock appearance",
         "Lock appearance", "Edit text",

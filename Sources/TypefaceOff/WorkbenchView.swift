@@ -130,7 +130,9 @@ struct WorkbenchView: View {
     .onChange(of: comparison.customText) {
       if comparison.sample == .custom { scrollPosition.reset() }
     }
-    .sheet(isPresented: $showMatch) { MatchSheet(model: model) }
+    .sheet(isPresented: $showMatch) {
+      MatchSheet(model: model, fit: FontFitModel(catalog: model.catalog))
+    }
     .sheet(isPresented: $showEditor) { editor }
   }
 
@@ -146,7 +148,7 @@ struct WorkbenchView: View {
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")
         Button("Match…", systemImage: "slider.horizontal.3", action: openMatch)
           .disabled(!commands.canMatch)
-          .help("Preview matching weight, x-height, and tracking for two installed fonts")
+          .help("Preview closer axes, typography, and tracking for font B")
       }
       HStack(spacing: 12) {
         Picker(

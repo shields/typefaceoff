@@ -171,7 +171,8 @@ struct FontInspector: View {
   private var familyPicker: some View {
     FontFamilyPicker(
       families: model.catalog.families, currentFamily: config?.face.family,
-      allowsNone: side == .b, choose: choose)
+      allowsNone: side == .b, ranking: model.familySimilarity,
+      reference: side == .b ? model.comparison.a : nil, catalog: model.catalog, choose: choose)
   }
 
   private func numericControl(

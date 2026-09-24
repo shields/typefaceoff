@@ -9,6 +9,7 @@ final class WorkbenchModel: ObservableObject {
   }
   let catalog = FontCatalog()
   private let fuzzWindow: UUID
+  let familySimilarity = FamilySimilarityModel()
   private var continuousEdit: (name: String, initial: Comparison)?
 
   init(comparison: Comparison = Comparison()) {

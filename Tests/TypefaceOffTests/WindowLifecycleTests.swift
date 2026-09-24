@@ -59,26 +59,33 @@ import Testing
         $0.keyEquivalent == "n" && $0.keyEquivalentModifierMask == .command
       })
     menu.performActionForItem(at: index)
-    try await Task.sleep(for: .milliseconds(250))
-    let window = try #require(
-      NSApp.windows.first {
+    let deadline = ContinuousClock.now + .seconds(10)
+    while true {
+      if let window = NSApp.windows.first(where: {
         $0.isVisible && $0.title == "Helvetica Neue vs. Arial"
           && !existing.contains(ObjectIdentifier($0))
-      })
-    window.contentView?.layoutSubtreeIfNeeded()
-    return window
+      }) {
+        window.contentView?.layoutSubtreeIfNeeded()
+        if findSizeField(in: window) != nil { return window }
+      }
+      try #require(ContinuousClock.now < deadline, "No new comparison window appeared")
+      try await Task.sleep(for: .milliseconds(50))
+    }
   }
 
   private func sizeField(in window: NSWindow) throws -> NSTextField {
-    let root = try #require(window.contentView)
+    try #require(findSizeField(in: window))
+  }
+
+  private func findSizeField(in window: NSWindow) -> NSTextField? {
+    guard let root = window.contentView else { return nil }
     func descendants(_ view: NSView) -> [NSView] {
       [view] + view.subviews.flatMap(descendants)
     }
-    return try #require(
-      descendants(root).compactMap { $0 as? NSTextField }.first {
-        $0.placeholderString == "Size" && $0.convert($0.bounds, to: root).minX > 246
-          && $0.convert($0.bounds, to: root).maxX < root.bounds.width - 246
-      })
+    return descendants(root).compactMap { $0 as? NSTextField }.first {
+      $0.placeholderString == "Size" && $0.convert($0.bounds, to: root).minX > 246
+        && $0.convert($0.bounds, to: root).maxX < root.bounds.width - 246
+    }
   }
 
   private func editCommand(modifiers: NSEvent.ModifierFlags, window: NSWindow) throws {

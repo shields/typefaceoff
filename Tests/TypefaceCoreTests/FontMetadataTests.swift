@@ -8,7 +8,7 @@ import Testing
   @Test func absentOrMalformedFontAttributesUseDocumentedDefaults() {
     let empty = FontFace.readAttributes(styleName: nil, variation: nil, axes: nil, os2: nil)
     #expect(empty.style == "Regular")
-    #expect(empty.weight == 400)
+    #expect(empty.weight == 400 && empty.width == 1)
     #expect(empty.axes.isEmpty && empty.coordinates.isEmpty)
     let width: [String: Any] = [
       kCTFontVariationAxisIdentifierKey as String: NSNumber(value: tagNumber("wdth")),
@@ -16,14 +16,25 @@ import Testing
       kCTFontVariationAxisMaximumValueKey as String: 2.0,
       kCTFontVariationAxisDefaultValueKey as String: 1.0,
     ]
+    var inverted = width
+    inverted[kCTFontVariationAxisMinimumValueKey as String] = 3.0
     let parsed = FontFace.readAttributes(
-      styleName: "Italic", variation: nil, axes: [[:], width], os2: words([0, 0, 650]))
-    #expect(parsed.style == "Italic" && parsed.weight == 650)
+      styleName: "Italic", variation: nil, axes: [[:], inverted, width], os2: words([0, 0, 650]))
+    #expect(parsed.style == "Italic" && parsed.weight == 650 && parsed.width == 1)
     #expect(parsed.axes.map(\.name) == ["wdth"])
     #expect(parsed.axes.first?.minimum == 0.5 && parsed.axes.first?.maximum == 2)
     let truncated = FontFace.readAttributes(
       styleName: nil, variation: nil, axes: nil, os2: Data([0]))
-    #expect(truncated.weight == 400)
+    #expect(truncated.weight == 400 && truncated.width == 1)
+    for (widthClass, width) in [(3, 0.75), (9, 2.0), (0, 1.0), (10, 1.0)] {
+      let os2 = words([0, 0, 400, UInt16(widthClass)])
+      #expect(
+        FontFace.readAttributes(styleName: nil, variation: nil, axes: nil, os2: os2).width == width)
+    }
+    let condensed = FontFace.readAttributes(
+      styleName: nil, variation: [NSNumber(value: tagNumber("wdth")): 0.8], axes: [width],
+      os2: words([0, 0, 400, 9]))
+    #expect(condensed.width == 0.8)
   }
 
   @Test func catalogHandlesEmptyAndIncompleteFontCollections() {
@@ -142,5 +153,35 @@ import Testing
 
   private func featureTable(_ tag: String, parameters: Data) -> Data {
     words([1, 0, 0, 10, 0, 1]) + Data(tag.utf8) + words([8, 4, 0]) + parameters
+  }
+}
+
+extension FontMetadataTests {
+  @Test func requiredLanguageFeaturesRemainAutomaticEvenForPrivateTags() throws {
+    func words(_ values: [UInt16]) -> Data {
+      Data(values.flatMap { [UInt8($0 >> 8), UInt8($0 & 255)] })
+    }
+    // Header, ScriptList, Script with default and named LangSys, then FeatureList.
+    let header = words([1, 0, 10, 42, 0])
+    let scripts = words([1]) + Data("latn".utf8) + words([8])
+    let script = words([10, 1]) + Data("ENG ".utf8) + words([16])
+    let languages = words([0, 0, 0, 0, 1, 0])
+    let features =
+      words([2]) + Data("priv".utf8) + words([14]) + Data("xxxx".utf8) + words([18])
+      + words([0, 0, 0, 0])
+    let table = header + scripts + script + languages + words([0]) + features
+    #expect(FontFace.requiredFeatureIndices(table) == [0, 1])
+    let parsed = FontFace.readFeatures(tables: ["GSUB": table], names: [:], aat: [])
+    let required = try #require(parsed.first { $0.id == "ot.priv" })
+    #expect(required.required && required.isAutomatic && required.options.isEmpty)
+    #expect(required.defaultValue == 1 && required.group == .automatic)
+    for length in 0..<table.count { _ = FontFace.requiredFeatureIndices(table.prefix(length)) }
+    var noDefault = table
+    noDefault.replaceSubrange(18..<20, with: words([0]))
+    noDefault.replaceSubrange(36..<38, with: words([0xFFFF]))
+    #expect(FontFace.requiredFeatureIndices(noDefault).isEmpty)
+    #expect(
+      FontFeature(id: "aat.1.0", name: "Required ligatures", options: [], defaultValue: 0)
+        .isAutomatic)
   }
 }

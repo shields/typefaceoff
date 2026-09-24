@@ -10,7 +10,7 @@ FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
 FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
 
-.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies
+.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark
 
 project:
 	xcodegen generate --spec project.yml
@@ -61,6 +61,9 @@ fuzz-minimize: fuzz-build
 
 fuzz-benchmark: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
+
+benchmark:
+	TYPEFACEOFF_BENCHMARK_DIR="$(CURDIR)/.build/similarity-benchmark" swift test $(SWIFT_FLAGS) -c release --filter SimilarityBenchmark
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift scripts

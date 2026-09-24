@@ -9,24 +9,22 @@ import TypefaceCore
   @Test func matchingPreviewKeepsTheComparisonUnchangedUntilApply() async throws {
     let model = WorkbenchModel()
     let initial = model.comparison
-    let host = WorkbenchTestHost(MatchSheet(model: model))
+    let fit = FontFitModel(load: SimilarityModelTests.fitResult)
+    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Weight")
-    try await host.settle()
-    #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
-    try await host.press("x-height")
-    try await host.press("Tracking")
+    try await host.press("Size")
     try await host.settle()
     #expect(model.comparison == initial)
+    #expect(try await host.element("Apply").isAccessibilityEnabled?() == true)
     try await host.press("Apply")
     try await host.settle()
     let candidate = try #require(model.comparison.b)
-    let aHeight = try #require(FontRenderer.xHeight(config: initial.a, size: initial.a.size))
-    let bHeight = try #require(FontRenderer.xHeight(config: candidate, size: candidate.size))
-    #expect(abs(aHeight - bHeight) < 0.001)
+    #expect(candidate.size == (initial.b?.size ?? 0) + 2)
     #expect(model.comparison.a == initial.a)
     #expect(model.comparison.link?.sizeRatio == candidate.size / initial.a.size)
+    host.window.undoManager?.undo()
+    #expect(model.comparison == initial)
   }
 
   @Test(arguments: ["Cancel", "Cancel matching"])
@@ -36,7 +34,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("x-height")
+    try await host.press("Size")
     try await host.settle()
     try await host.press(button)
     #expect(model.comparison == initial)
@@ -56,12 +54,14 @@ import TypefaceCore
     var comparison = Comparison(a: .init(name), b: .init(name))
     comparison.a.axes[tagNumber("wght")] = 1.2
     let model = WorkbenchModel(comparison: comparison)
-    let host = WorkbenchTestHost(MatchSheet(model: model))
+    let host = WorkbenchTestHost(
+      MatchSheet(model: model, fit: FontFitModel(load: SimilarityModelTests.fitResult)))
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Apply")
     #expect(model.comparison.a == comparison.a)
-    #expect(model.comparison.b?.weight == comparison.a.weight)
+    #expect(model.comparison.b?.postScriptName == comparison.b?.postScriptName)
+    #expect(model.comparison.b?.weight != comparison.b?.weight)
   }
 
   @Test func inspectorAppearanceAndTypographyActionsRespectUndoAndIsolation() async throws {

@@ -8,6 +8,10 @@ public enum AppearanceProperty: Hashable, Sendable {
 }
 
 public struct FontConfiguration: Hashable, Sendable {
+  static let featurePartners = [
+    "ot.tnum": "ot.pnum", "ot.pnum": "ot.tnum", "ot.lnum": "ot.onum", "ot.onum": "ot.lnum",
+    "ot.sups": "ot.subs", "ot.subs": "ot.sups",
+  ]
   public var postScriptName: String
   public var size: Double = 22
   public var tracking: Double = 0
@@ -53,6 +57,41 @@ public struct FontConfiguration: Hashable, Sendable {
         axes[id] = value.clamped(to: axis.minimum...axis.maximum)
       }
     }
+  }
+}
+
+extension FontConfiguration: Codable {
+  private enum CodingKeys: String, CodingKey {
+    case postScriptName, size, tracking, axes, features
+  }
+
+  // Dictionary's synthesized Codable support only uses a keyed container for
+  // String or Int keys; encoding `axes` (a UInt32 dictionary) directly would
+  // fall back to an unordered flat array, so JSON output would not be
+  // reproducible between runs even with sortedKeys. Round-tripping through
+  // each axis's four-character tag keeps encoding deterministic.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    postScriptName = try container.decode(String.self, forKey: .postScriptName)
+    size = try container.decode(Double.self, forKey: .size)
+    tracking = try container.decode(Double.self, forKey: .tracking)
+    let taggedAxes = try container.decode([String: Double].self, forKey: .axes)
+    guard taggedAxes.keys.allSatisfy({ $0.utf8.count == 4 }) else {
+      throw DecodingError.dataCorruptedError(
+        forKey: .axes, in: container, debugDescription: "Axis tags must be four bytes")
+    }
+    axes = Dictionary(uniqueKeysWithValues: taggedAxes.map { (tagNumber($0.key), $0.value) })
+    features = try container.decode([String: Int].self, forKey: .features)
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(postScriptName, forKey: .postScriptName)
+    try container.encode(size, forKey: .size)
+    try container.encode(tracking, forKey: .tracking)
+    let taggedAxes = Dictionary(uniqueKeysWithValues: axes.map { (fontTag($0.key), $0.value) })
+    try container.encode(taggedAxes, forKey: .axes)
+    try container.encode(features, forKey: .features)
   }
 }
 
@@ -177,14 +216,16 @@ public struct Comparison: Equatable, Sendable {
     for target in appearanceLocked && b != nil ? [Side.a, .b] : [side] {
       guard let previous = self[target] else { continue }
       var next = previous
+      var axes: [FontAxis] = []
       if FontRenderer.isAvailable(previous),
         let regular = catalog.preferredFace(in: previous.face.family)
       {
         next = FontConfiguration(regular.id)
-        next.axes = Dictionary(uniqueKeysWithValues: regular.axes.map { ($0.id, $0.defaultValue) })
         next.features = previous.features
+        axes = regular.axes
       }
       next.size = 22
+      next.matchOpticalSize(axes)
       next.tracking = 0
       self[target] = next
     }
@@ -194,11 +235,9 @@ public struct Comparison: Equatable, Sendable {
   public mutating func setFeature(_ feature: FontFeature, value: Int, side: Side) {
     guard !feature.isAutomatic else { return }
     self[side]?.features[feature.id] = value
-    let partners = [
-      "ot.tnum": "ot.pnum", "ot.pnum": "ot.tnum", "ot.lnum": "ot.onum", "ot.onum": "ot.lnum",
-      "ot.sups": "ot.subs", "ot.subs": "ot.sups",
-    ]
-    if value != 0, let partner = partners[feature.id] { self[side]?.features[partner] = 0 }
+    if value != 0, let partner = FontConfiguration.featurePartners[feature.id] {
+      self[side]?.features[partner] = 0
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import CoreText
 import Foundation
 import Testing
 
@@ -31,12 +32,22 @@ import Testing
     #expect(state.link == AppearanceLink(a: state.a, b: state.b!))
   }
 
-  @Test func appearanceResetUsesActualAxisDefaultsAndPreservesMissingFonts() throws {
+  @Test func appearanceResetUsesThePreferredInstanceAndPreservesMissingFonts() throws {
     let skia = try #require(catalog.preferredFace(in: "Skia"))
     var state = Comparison(a: .init(skia.id), b: nil)
     for axis in skia.axes { state.a.axes[axis.id] = axis.maximum }
     state.resetAppearance(side: .a, catalog: catalog)
-    for axis in skia.axes { #expect(state.a.axes[axis.id] == axis.defaultValue) }
+    #expect(state.a.axes == FontConfiguration(skia.id).axes)
+    let instances = FontCatalog(
+      descriptors: ["Skia-Regular_Light", "Skia-Regular_Bold", "Skia-Regular_Black-Condensed"].map {
+        CTFontDescriptorCreateWithNameAndSize($0 as CFString, 22)
+      })
+    let preferred = try #require(instances.preferredFace(in: "Skia"))
+    state.resetAppearance(side: .a, catalog: instances)
+    #expect(state.a.postScriptName == preferred.id)
+    #expect(state.a.axes == FontConfiguration(preferred.id).axes)
+    #expect(
+      state.a.axes != Dictionary(uniqueKeysWithValues: skia.axes.map { ($0.id, $0.defaultValue) }))
     state.a = .init("TypefaceOff-Does-Not-Exist")
     state.a.size = 44
     state.a.tracking = 0.02
@@ -197,6 +208,26 @@ import Testing
     let missing = FontConfiguration("TypefaceOff-Does-Not-Exist")
     for comparison in [Comparison(a: missing), Comparison(b: missing), Comparison(b: nil)] {
       #expect(Matching.proposal(comparison, options: MatchOptions(), catalog: catalog) == nil)
+    }
+  }
+
+  @Test func configurationEncodesAxesByTagAndRejectsMalformedTags() throws {
+    var config = FontConfiguration("TypefaceOff-Does-Not-Exist")
+    config.size = 24
+    config.tracking = 0.02
+    config.axes = [tagNumber("wght"): 700, tagNumber("wdth"): 80, tagNumber("opsz"): 12]
+    config.features = ["ot.smcp": 1]
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    let encoded = try encoder.encode(config)
+    #expect(
+      String(decoding: encoded, as: UTF8.self).contains(#""axes":{"opsz":12,"wdth":80,"wght":700}"#)
+    )
+    #expect(try JSONDecoder().decode(FontConfiguration.self, from: encoded) == config)
+    let malformed = Data(
+      #"{"postScriptName":"X","size":22,"tracking":0,"axes":{"wgh":700},"features":{}}"#.utf8)
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(FontConfiguration.self, from: malformed)
     }
   }
 }

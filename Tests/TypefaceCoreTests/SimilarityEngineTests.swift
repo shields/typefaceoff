@@ -97,6 +97,18 @@ extension SimilarityTests {
     }
   }
 
+  @Test func onlyTheMetricTermDependsOnWhichSideIsTheReference() async throws {
+    let engine = FontSimilarityEngine()
+    let a = FontConfiguration("HelveticaNeue")
+    var b = FontConfiguration("ArialMT")
+    b.size = 30
+    let forward = try await engine.compare(a: a, b: b, corpus: corpus)
+    let reverse = try await engine.compare(a: b, b: a, corpus: corpus)
+    #expect(forward.geometry == reverse.geometry && forward.appearance == reverse.appearance)
+    #expect(forward.shapedText == reverse.shapedText)
+    #expect(forward.metrics > reverse.metrics)
+  }
+
   @Test func differenceMatchesTheScalarDefinition() throws {
     var seed: UInt64 = 0x5eed
     func random(_ range: ClosedRange<Int>) -> Int {

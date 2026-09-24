@@ -105,7 +105,7 @@ public actor FontSimilarityEngine {
         throw SimilarityError.unsupportedText(config.postScriptName, corpus.requiredText)
       }
     }
-    // Averaging both sizes keeps the radius, and therefore the score, symmetric
+    // Averaging both sizes keeps the radius, and therefore every image term, symmetric
     // even when A and B differ in point size.
     let radius = Float(max(2, min(32, (a.size + b.size) / 2 * scale / 8)))
     let samples =
@@ -132,6 +132,8 @@ public actor FontSimilarityEngine {
       let difference = try left.difference(from: right)
       let l = left.measurement
       let r = right.measurement
+      // Relative to A's size, which stays fixed while Match varies B's. Normalizing by the
+      // mean size would shrink this term as B grows and bias Match toward larger sizes.
       let metric =
         [
           abs(l.advance - r.advance), abs(l.leftBearing - r.leftBearing),

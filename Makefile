@@ -37,6 +37,11 @@ test-app: project
 build-for-testing: project
 	rm -rf .build/portable/Build/Products
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing
+	# Test processes search the products directory first, so an older Xcode
+	# runs these bundles with the Swift Testing runtime they were built against.
+	# Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR when it's set.
+	ditto "$$(xcode-select -p)/../SharedFrameworks/Testing.framework" .build/portable/Build/Products/Debug/Testing.framework
+	ditto "$$(xcode-select -p)/../SharedFrameworks/lib_TestingInterop.dylib" .build/portable/Build/Products/Debug/lib_TestingInterop.dylib
 	tar -cf $(PORTABLE_TESTS) -C .build/portable/Build Products
 
 test-without-building:

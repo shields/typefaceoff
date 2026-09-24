@@ -40,11 +40,7 @@ extension SimilarityBenchmark {
     var tracked = helvetica
     tracked.tracking = 0.05
     tracked.features = ["ot.kern": 0]
-    let skia = try #require(catalog.defaultConfiguration(in: "Skia", size: 22))
-    var varied = skia
-    varied.axes[tagNumber("wght")] = 1.2
-    varied.axes[tagNumber("wdth")] = 1.05
-    varied.tracking = 0.025
+    let (varied, skia) = try skiaVariation(catalog)
     let reading = SimilarityCorpus.fitting(
       reference: helvetica, candidate: arial, text: Sample.reading.text)
     let cases: [(String, FontConfiguration, FontConfiguration, SimilarityCorpus, Double)] = [
@@ -249,11 +245,7 @@ extension SimilarityBenchmark {
   @Test(.benchmark)
   func profileFit() async throws {
     let catalog = FontCatalog()
-    let skia = try #require(catalog.defaultConfiguration(in: "Skia", size: 22))
-    var target = skia
-    target.axes[tagNumber("wght")] = 1.2
-    target.axes[tagNumber("wdth")] = 1.05
-    target.tracking = 0.025
+    let (target, skia) = try skiaVariation(catalog)
     var profiles: [FitProfile] = []
     for (name, a, b) in [
       ("Helvetica Neue to Arial", FontConfiguration("HelveticaNeue"), FontConfiguration("ArialMT")),
@@ -284,12 +276,5 @@ extension SimilarityBenchmark {
       }
     }
     try write(profiles, to: "fit-profile.json")
-  }
-
-  private func write(_ value: some Encodable, to name: String) throws {
-    let folder = try benchmarkFolder()
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    try encoder.encode(value).write(to: folder.appendingPathComponent(name))
   }
 }

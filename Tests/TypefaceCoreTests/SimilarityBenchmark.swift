@@ -50,10 +50,7 @@ extension Trait where Self == ConditionTrait {
       #expect(scores == timings[0].scores)
       #expect(scores.count == catalog.families.count)
     }
-    let folder = try benchmarkFolder()
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    try encoder.encode(timings).write(to: folder.appendingPathComponent("ranking-timings.json"))
+    try write(timings, to: "ranking-timings.json")
   }
 
   struct Row: Codable {
@@ -154,11 +151,7 @@ extension Trait where Self == ConditionTrait {
         }
       }
     }
-    let variable = try #require(catalog.defaultConfiguration(in: "Skia", size: 22))
-    var target = variable
-    target.axes[tagNumber("wght")] = 1.2
-    target.axes[tagNumber("wdth")] = 1.05
-    target.tracking = 0.025
+    let (target, variable) = try skiaVariation(catalog)
     for (a, b) in [
       (target, variable), (FontConfiguration("HelveticaNeue"), FontConfiguration("ArialMT")),
     ] {
@@ -181,13 +174,30 @@ extension Trait where Self == ConditionTrait {
       }
     }
     let report = Report(rows: rows, fits: fits, triplets: triplets)
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    let data = try encoder.encode(report)
+    let data = try json(report)
     try data.write(to: folder.appendingPathComponent("scores.json"))
     let json = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "<", with: "\\u003c")
     try html(json: json).write(
       to: folder.appendingPathComponent("review.html"), atomically: true, encoding: .utf8)
+  }
+
+  func json(_ value: some Encodable) throws -> Data {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    return try encoder.encode(value)
+  }
+
+  func write(_ value: some Encodable, to name: String) throws {
+    try json(value).write(to: benchmarkFolder().appendingPathComponent(name))
+  }
+
+  func skiaVariation(_ catalog: FontCatalog) throws -> (FontConfiguration, FontConfiguration) {
+    let defaults = try #require(catalog.defaultConfiguration(in: "Skia", size: 22))
+    var variation = defaults
+    variation.axes[tagNumber("wght")] = 1.2
+    variation.axes[tagNumber("wdth")] = 1.05
+    variation.tracking = 0.025
+    return (variation, defaults)
   }
 
   func benchmarkFolder() throws -> URL {

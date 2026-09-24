@@ -49,7 +49,7 @@ public actor FontSimilarityEngine {
   ) {
     let capacity = max(0, cacheBytes)
     // A separate score budget keeps catalog-sized image churn from evicting finished scores.
-    let scoreCapacity = min(8 * 1024 * 1024, capacity / 16)
+    let scoreCapacity = capacity / 16
     images = .init(capacity: capacity - scoreCapacity)
     scores = .init(capacity: scoreCapacity)
     self.rankingConcurrency = max(
@@ -142,7 +142,7 @@ public actor FontSimilarityEngine {
         ].map { min(1, $0 / a.size) }.reduce(0, +) / 5
       return Terms(
         geometry: difference.geometry, appearance: difference.appearance, metric: metric)
-    }.compactMap { $0 }
+    }.map { $0! }
     var geometry = 0.0
     var appearance = 0.0
     var shaped = 0.0
@@ -304,8 +304,6 @@ public actor FontSimilarityEngine {
     _ sample: Sample, config: FontConfiguration, font: SharedFont, scale: Double, radius: Float
   ) async throws -> Result<SimilarityImage, any Error> {
     try Task.checkCancellation()
-    var config = config
-    if !sample.tracking { config.tracking = 0 }
     let line = FontRenderer.line(
       sample.text, config: config, font: font.font, size: config.size, tracking: sample.tracking)
     // Features may be inert for this sample. Axes remain in the key because they can

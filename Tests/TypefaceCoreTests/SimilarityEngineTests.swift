@@ -160,7 +160,6 @@ extension SimilarityTests {
     }
   }
 
-  /// The per-pixel definition, summing the union of both rasters in row-major order.
   static func scalarDifference(_ left: SimilarityImage, _ right: SimilarityImage) -> (
     geometry: Double, appearance: Double
   ) {

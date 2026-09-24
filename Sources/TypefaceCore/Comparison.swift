@@ -84,6 +84,7 @@ public struct Comparison: Equatable, Sendable {
   public var selectedGlyph = "a"
   public var shape = true
   public var spacing = false
+  public var frequency = true
 
   public init(
     a: FontConfiguration = .init("HelveticaNeue"), b: FontConfiguration? = .init("ArialMT")

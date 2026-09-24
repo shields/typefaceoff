@@ -8,8 +8,9 @@ FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff
 FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
 FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
+FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
 
-.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark
+.PHONY: build project run test test-app coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies
 
 project:
 	xcodegen generate --spec project.yml
@@ -30,6 +31,12 @@ test-app: project
 
 coverage: test
 	./scripts/coverage.sh $(SWIFT_FLAGS)
+
+# Needs network access on first run; downloads are cached in .build.
+frequencies:
+	mkdir -p .build/character-frequencies
+	swiftc -swift-version 6 -O scripts/character-frequencies.swift -o $(FREQUENCIES_BIN)
+	$(FREQUENCIES_BIN)
 
 review: project
 	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(CURDIR)/.build/review" -only-testing:TypefaceOffTests/ReviewScreens test
@@ -56,14 +63,14 @@ fuzz-benchmark: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 lint:
-	swift format lint --strict --recursive Sources Tests Package.swift
+	swift format lint --strict --recursive Sources Tests Package.swift scripts
 	bunx --no-install prettier --check .
 	shellcheck scripts/*.sh
 	shfmt -i 4 -d scripts
 	zizmor --persona pedantic .github/workflows
 
 fmt:
-	swift format format --in-place --recursive Sources Tests Package.swift
+	swift format format --in-place --recursive Sources Tests Package.swift scripts
 	bunx --no-install prettier --write .
 	shfmt -i 4 -w scripts
 

@@ -5,11 +5,18 @@ public struct GlyphDifference: Identifiable, Hashable, Sendable {
   public let glyph: String
   public let shape: Double
   public let spacing: Double
+  public let frequency: Double?
+  public var weight: Double { CharacterFrequency.weight(forFrequency: frequency) }
 
   public init(glyph: String, shape: Double, spacing: Double) {
     self.glyph = glyph
     self.shape = shape
     self.spacing = spacing
+    frequency = CharacterFrequency.frequency(of: glyph)
+  }
+
+  public func weighted(_ value: Double, frequency: Bool) -> Double {
+    frequency ? value * weight : value
   }
 }
 
@@ -57,13 +64,15 @@ public enum Differences {
     .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.sorted()
   }
 
-  public static func ranked(_ scores: [GlyphDifference], shape: Bool, spacing: Bool)
+  public static func ranked(
+    _ scores: [GlyphDifference], shape: Bool, spacing: Bool, frequency: Bool
+  )
     -> [GlyphDifference]
   {
     if shape != spacing {
       return scores.sorted {
-        let left = shape ? $0.shape : $0.spacing
-        let right = shape ? $1.shape : $1.spacing
+        let left = $0.weighted(shape ? $0.shape : $0.spacing, frequency: frequency)
+        let right = $1.weighted(shape ? $1.shape : $1.spacing, frequency: frequency)
         return left == right ? $0.glyph < $1.glyph : left > right
       }
     }
@@ -71,8 +80,10 @@ public enum Differences {
     let spacingRanks = percentiles(scores, key: \.spacing)
     // Both maps contain every input glyph, including ties and duplicate glyphs.
     return scores.sorted {
-      let left = shapeRanks[$0.glyph]! + spacingRanks[$0.glyph]!
-      let right = shapeRanks[$1.glyph]! + spacingRanks[$1.glyph]!
+      let left = $0.weighted(
+        shapeRanks[$0.glyph]! + spacingRanks[$0.glyph]!, frequency: frequency)
+      let right = $1.weighted(
+        shapeRanks[$1.glyph]! + spacingRanks[$1.glyph]!, frequency: frequency)
       return left == right ? $0.glyph < $1.glyph : left > right
     }
   }
@@ -97,13 +108,13 @@ public enum Differences {
   }
 
   public static func highlights(
-    _ scores: [GlyphDifference], text: String, shape: Bool, spacing: Bool
+    _ scores: [GlyphDifference], text: String, shape: Bool, spacing: Bool, frequency: Bool
   ) -> Set<String> {
     let present = Set(text.map(String.init))
     var selected = Set<String>()
     for isShape in [true, false] where isShape ? shape : spacing {
       selected.formUnion(
-        ranked(scores, shape: isShape, spacing: !isShape)
+        ranked(scores, shape: isShape, spacing: !isShape, frequency: frequency)
           .filter { present.contains($0.glyph) && (isShape ? $0.shape : $0.spacing) > 1e-9 }
           .prefix(8).map(\.glyph))
     }

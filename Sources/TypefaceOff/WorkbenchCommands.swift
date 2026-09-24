@@ -8,6 +8,7 @@ import TypefaceCore
   let mode: Binding<ComparisonMode>
   let shape: Binding<Bool>
   let spacing: Binding<Bool>
+  let frequency: Binding<Bool>
   let canMatch: Bool
   let canSwap: Bool
   let match: () -> Void
@@ -17,13 +18,15 @@ import TypefaceCore
   init(
     model: WorkbenchModel, undoManager: UndoManager?, showA: Binding<Bool>,
     showB: Binding<Bool>, mode: Binding<ComparisonMode>, shape: Binding<Bool>,
-    spacing: Binding<Bool>, match: @escaping () -> Void, editText: @escaping () -> Void
+    spacing: Binding<Bool>, frequency: Binding<Bool>, match: @escaping () -> Void,
+    editText: @escaping () -> Void
   ) {
     self.showA = showA
     self.showB = showB
     self.mode = mode
     self.shape = shape
     self.spacing = spacing
+    self.frequency = frequency
     canMatch =
       FontRenderer.isAvailable(model.comparison.a)
       && model.comparison.b.map { FontRenderer.isAvailable($0) } == true
@@ -82,6 +85,8 @@ struct WorkbenchMenuItems: View {
           .keyboardShortcut("1", modifiers: [.command, .shift])
         Toggle("Highlight spacing differences", isOn: actions?.spacing ?? .constant(false))
           .keyboardShortcut("2", modifiers: [.command, .shift])
+        Toggle("Weight by character frequency", isOn: actions?.frequency ?? .constant(false))
+          .keyboardShortcut("f", modifiers: [.command, .shift])
       case .comparison:
         Button("Match fonts…") { actions?.match() }
           .keyboardShortcut("m", modifiers: [.command, .shift])

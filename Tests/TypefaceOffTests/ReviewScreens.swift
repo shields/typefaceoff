@@ -75,6 +75,12 @@ import TypefaceCore
     var neither = glyph
     neither.shape = false
     cases.append(("no-highlights", 1280, neither))
+    var frequencyOn = glyph
+    frequencyOn.spacing = true
+    cases.append(("frequency-on", 1280, frequencyOn))
+    var frequencyOff = frequencyOn
+    frequencyOff.frequency = false
+    cases.append(("frequency-off", 1280, frequencyOff))
     var missing = Comparison()
     missing.sample = .custom
     missing.customText = "Missing characters stay identifiable: 🦄 🦄 👩‍🚀."

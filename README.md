@@ -58,6 +58,13 @@ reopen the app to refresh its catalog.
   Scores use actual configured font shapes and metrics, including axes and
   substitutions. Ranking runs away from the UI thread, and obsolete requests are
   cancelled.
+- **Frequency**, on by default, weights ranking and highlighting by how often
+  each character appears in text worldwide, so a difference in a common letter
+  outranks a larger one in a rare symbol. Each difference bar shows the weighted
+  value over a faint track at the measured value, and a character’s tooltip
+  gives its frequency and weight. Turn Frequency off to rank symbols, code, or
+  scripts outside the 40 most-spoken languages by measured difference alone. See
+  [Character frequencies](#character-frequencies).
 - **Match…** previews changes to B’s numeric weight, measured x-height, and
   average sample tracking. Cancel leaves the comparison untouched; Apply is one
   undoable edit. Weight matching and geometric rankings are heuristics, not
@@ -73,10 +80,10 @@ reopen the app to refresh its catalog.
   without a verified example show **No preview available**.
 
 The **View** menu switches between Text (⌘1) and Glyph (⌘2), toggles the font
-inspectors (⌥⌘1 and ⌥⌘2), and toggles Shape and Spacing highlights (⇧⌘1 and
-⇧⌘2). The **Comparison** menu offers Match (⇧⌘M), Swap Fonts (⌥⌘S), and Edit
-Sample Text (⇧⌘E). Commands apply to the active comparison window and are
-unavailable while its editing or matching sheet is open.
+inspectors (⌥⌘1 and ⌥⌘2), and toggles Shape and Spacing highlights (⇧⌘1 and ⇧⌘2)
+and frequency weighting (⇧⌘F). The **Comparison** menu offers Match (⇧⌘M), Swap
+Fonts (⌥⌘S), and Edit Sample Text (⇧⌘E). Commands apply to the active comparison
+window and are unavailable while its editing or matching sheet is open.
 
 ## Develop
 
@@ -154,3 +161,25 @@ The reading sample contains the complete body of public-domain chapter IX,
 with its italics and verse breaks preserved. The chapter heading and attribution
 are omitted from the specimen. Emphasis uses the selected family’s italic face;
 an unavailable italic style is labeled in the specimen.
+
+## Character frequencies
+
+Frequency weighting uses a table of how often each character appears in text,
+bundled as `Sources/TypefaceCore/Resources/character-frequencies.tsv`. It mixes
+[FineFreq](https://huggingface.co/datasets/lgi2p/finefreq)’s per-language
+character counts from web text, each normalized separately, in proportion to the
+total speakers of the 40 most-spoken languages in Ethnologue (36 of which
+FineFreq covers). Characters that FineFreq’s Unicode normalization folded away,
+such as …, ½, and fullwidth CJK punctuation, are estimated from the
+non-normalized [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de).
+
+A character that appears at least once per thousand characters counts fully.
+Rarer characters are discounted by the square root of how much rarer they are,
+down to one-tenth, and characters missing from the table get that minimum. The
+tooltip shows frequencies below 0.001% as “below 0.001%”.
+[docs/character-frequency.md](docs/character-frequency.md) records how the
+languages and the formula were chosen, and [NOTICE](NOTICE) credits the data.
+
+`make frequencies` downloads the pinned FineFreq and Leipzig data (about 800 MB,
+cached in `.build/character-frequencies`) and regenerates the table
+reproducibly.

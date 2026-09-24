@@ -14,6 +14,11 @@ import Testing
     .init(geometry: value, appearance: value, shapedText: value, metrics: value)
   }
 
+  // A deadline that can expire first makes the result depend on machine speed.
+  static func evaluations(_ count: Int) -> FontFitBudget {
+    .init(seconds: 60, evaluations: count)
+  }
+
   @Test func constrainedSearchKeepsFaceSizeLocksAndAutomaticShaping() throws {
     var b = FontConfiguration(try #require(FontCatalog().preferredFace(in: "Skia")).id)
     b.tracking = 0.08
@@ -127,7 +132,7 @@ import Testing
     var quick: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 30))
+      budget: Self.evaluations(30))
     {
       #expect(result.score.total <= result.originalScore.total)
       quick = result
@@ -137,7 +142,7 @@ import Testing
     var refined: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 1000), refine: true)
+      budget: Self.evaluations(1000), refine: true)
     {
       refined = result
     }
@@ -160,7 +165,7 @@ import Testing
     }
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 2, evaluations: 100))
+      budget: Self.evaluations(100))
     {
       #expect(!result.improved && result.proposed == b)
       #expect(result.evaluations <= 100)
@@ -178,7 +183,7 @@ import Testing
     var last: FontFitResult?
     for try await result in await engine.fit(
       a: a, b: b, options: options, corpus: corpus, catalog: catalog, scale: 1,
-      budget: .init(seconds: 5, evaluations: 30))
+      budget: Self.evaluations(30))
     {
       #expect(result.score.total <= result.originalScore.total)
       last = result
@@ -243,7 +248,7 @@ extension FontFitTests {
     var final: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 400))
+      budget: Self.evaluations(400))
     {
       final = result
     }
@@ -285,13 +290,13 @@ extension FontFitTests {
     var first: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 2, evaluations: 3))
+      budget: Self.evaluations(3))
     { first = result }
     #expect(first?.evaluations == 3)
     var final: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 2, evaluations: 100), refine: true)
+      budget: Self.evaluations(100), refine: true)
     { final = result }
     #expect(final?.improved == true && final?.proposed.tracking == 0)
     let empty = SimilarityCorpus(glyphs: ["a"], runs: ["a"])
@@ -300,7 +305,7 @@ extension FontFitTests {
     options.size = true
     for try await result in await constant.fit(
       a: b, b: b, options: options, corpus: empty, catalog: catalog,
-      budget: .init(seconds: 2, evaluations: 50))
+      budget: Self.evaluations(50))
     { #expect(!result.improved) }
     let weight = FontFitDomain.Dimension(property: .weight, range: 0.5...2)
     let variable = FontConfiguration(try #require(catalog.preferredFace(in: "Skia")).id)
@@ -323,7 +328,7 @@ extension FontFitTests {
     var final: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 1000))
+      budget: Self.evaluations(1000))
     { final = result }
     #expect(final?.finished == true && final?.improved == false)
     #expect((final?.evaluations ?? 1000) < 100)
@@ -394,7 +399,7 @@ extension FontFitTests {
     var final: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 512))
+      budget: Self.evaluations(512))
     { final = result }
     #expect(final?.score.total == 0.1 && final?.improved == true)
   }
@@ -421,7 +426,7 @@ extension FontFitTests {
     let engine = FontFitEngine()
     for try await result in await engine.fit(
       a: a, b: b, options: options, corpus: samples, catalog: catalog,
-      scale: 1, budget: .init(seconds: 2, evaluations: 30))
+      scale: 1, budget: Self.evaluations(30))
     {
       #expect(result.score.total <= result.originalScore.total)
       if result.finished {
@@ -449,7 +454,7 @@ extension FontFitTests {
     var final: FontFitResult?
     for try await result in await engine.fit(
       a: b, b: b, options: options, corpus: corpus, catalog: catalog,
-      budget: .init(seconds: 5, evaluations: 100))
+      budget: Self.evaluations(100))
     { final = result }
     #expect((final?.score.total ?? 1) < 0.103)
     #expect((final?.evaluations ?? 101) <= 100)

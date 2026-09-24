@@ -316,9 +316,12 @@ extension Trait where Self == ConditionTrait {
     return (0..<nextWidth * max(1, height / 2)).map { index in
       let x = index % nextWidth * 2
       let y = index / nextWidth * 2
-      return (0..<2).flatMap { dy in
-        (0..<2).map { dx in values[min(height - 1, y + dy) * width + min(width - 1, x + dx)] }
-      }.reduce(0, +) / 4
+      let row0 = min(height - 1, y) * width
+      let row1 = min(height - 1, y + 1) * width
+      let col0 = min(width - 1, x)
+      let col1 = min(width - 1, x + 1)
+      return (values[row0 + col0] + values[row0 + col1] + values[row1 + col0] + values[row1 + col1])
+        / 4
     }
   }
 

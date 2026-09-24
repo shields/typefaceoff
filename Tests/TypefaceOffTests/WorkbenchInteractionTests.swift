@@ -494,6 +494,29 @@ import TypefaceCore
     }
   }
 
+  func incrementSlider(_ label: String, between leading: String, and trailing: String)
+    async throws
+  {
+    let sliders = subviews.compactMap { $0 as? NSSlider }
+    guard !sliders.isEmpty else {
+      _ = try await element(label).accessibilityPerformIncrement?()
+      return
+    }
+    // Older SwiftUI omits the native sliders' AX names. The labeled controls on
+    // either side of the slider identify it.
+    let before = try #require(try await element(leading).accessibilityFrame?())
+    let after = try #require(try await element(trailing).accessibilityFrame?())
+    let matches = sliders.filter { slider in
+      guard let owner = slider.window else { return false }
+      let frame = owner.convertToScreen(slider.convert(slider.bounds, to: nil))
+      return frame.minX >= before.maxX && frame.maxX <= after.minX
+        && frame.minY < before.maxY && frame.maxY > before.minY
+        && frame.minY < after.maxY && frame.maxY > after.minY
+    }
+    try #require(matches.count == 1, "Expected one slider between \(leading) and \(trailing)")
+    _ = matches[0].accessibilityPerformIncrement()
+  }
+
   func choose(_ label: String, nativeTitles: [String], item: String? = nil) async throws {
     let pickers = subviews.compactMap { $0 as? NSPopUpButton }.filter {
       Set(nativeTitles).isSubset(of: Set($0.itemTitles))

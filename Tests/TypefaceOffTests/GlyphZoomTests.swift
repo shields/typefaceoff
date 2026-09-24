@@ -38,7 +38,9 @@ import TypefaceCore
     let wheel = try scrollEvent(precise: false, x: 0, y: 3)
     #expect(!wheel.hasPreciseScrollingDeltas)
     scroll.canvas.scrollWheel(with: wheel)
-    #expect(scroll.magnification > 1)
+    #expect(
+      scroll.magnification > 1,
+      "wheel delta \(wheel.scrollingDeltaY), inverted \(wheel.isDirectionInvertedFromDevice)")
     #expect(reportedZoom == Double(scroll.magnification))
     scroll.scrollWheel(with: try scrollEvent(precise: false, x: 0, y: -3))
     #expect(scroll.magnification == 1)

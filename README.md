@@ -59,11 +59,12 @@ reopen the app to refresh its catalog.
   substitutions. Ranking runs away from the UI thread, and obsolete requests are
   cancelled.
 - In B’s font picker, switch **Name** to **Similarity** to rank installed
-  families against A’s family. Both use their preferred face, default axes and
-  typography, zero tracking, and A’s point size. Lower distance means closer.
-  Search filters the live results; pending and unsupported families remain
-  selectable. Choosing a family carries B’s settings forward as usual, so its
-  specimen can differ from the default settings used for ranking.
+  families against A’s family. Both use the family’s regular face (normal width,
+  weight nearest 400) with that instance’s axis settings, an optical size that
+  follows A’s point size, default typography, and zero tracking. Lower distance
+  means closer. Search filters the live results; pending and unsupported
+  families remain selectable. Choosing a family carries B’s settings forward as
+  usual, so its specimen can differ from the default settings used for ranking.
 - **Match…** searches B’s current face for closer axes, typography, and
   tracking. Uncheck any setting to lock it; size changes are opt-in. A quick
   search uses up to three seconds or 256 evaluations; **Refine** resumes for up

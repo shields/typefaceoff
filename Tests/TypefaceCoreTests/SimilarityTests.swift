@@ -159,10 +159,29 @@ import Testing
     let catalog = FontCatalog()
     let defaults = try #require(catalog.defaultConfiguration(in: "Skia", size: 31))
     #expect(defaults.size == 31 && defaults.tracking == 0 && defaults.features.isEmpty)
-    #expect(
-      defaults.axes
-        == Dictionary(uniqueKeysWithValues: defaults.face.axes.map { ($0.id, $0.defaultValue) }))
+    #expect(defaults.axes == FontConfiguration(defaults.postScriptName).axes)
     #expect(catalog.defaultConfiguration(in: "NoSuchFamily", size: 22) == nil)
+    let instances = FontCatalog(
+      descriptors: ["Skia-Regular_Light", "Skia-Regular_Bold", "Skia-Regular_Black-Condensed"].map {
+        CTFontDescriptorCreateWithNameAndSize($0 as CFString, 22)
+      })
+    let instance = try #require(instances.defaultConfiguration(in: "Skia", size: 22))
+    #expect(instance.postScriptName != "Skia-Regular_Black-Condensed")
+    #expect(instance.axes == FontConfiguration(instance.postScriptName).axes)
+    #expect(
+      instance.axes
+        != Dictionary(uniqueKeysWithValues: instance.face.axes.map { ($0.id, $0.defaultValue) }))
+    #expect(catalog.preferredFace(in: "Futura")?.id == "Futura-Medium")
+    let opticalSize = FontAxis(
+      id: tagNumber("opsz"), name: "Optical size", minimum: 8, maximum: 144, defaultValue: 14)
+    let weight = FontAxis(
+      id: tagNumber("wght"), name: "Weight", minimum: 100, maximum: 900, defaultValue: 400)
+    var sized = FontConfiguration("HelveticaNeue")
+    for (size, expected) in [(11.0, 11.0), (200, 144), (4, 8)] {
+      sized.size = size
+      sized.matchOpticalSize([opticalSize, weight])
+      #expect(sized.axes == [opticalSize.id: expected])
+    }
   }
 
   @Test func familyRankingUsesDefaultsAndReportsUnsupportedFamilies() async throws {

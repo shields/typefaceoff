@@ -8,7 +8,7 @@ import Testing
   @Test func absentOrMalformedFontAttributesUseDocumentedDefaults() {
     let empty = FontFace.readAttributes(styleName: nil, variation: nil, axes: nil, os2: nil)
     #expect(empty.style == "Regular")
-    #expect(empty.weight == 400)
+    #expect(empty.weight == 400 && empty.width == 1)
     #expect(empty.axes.isEmpty && empty.coordinates.isEmpty)
     let width: [String: Any] = [
       kCTFontVariationAxisIdentifierKey as String: NSNumber(value: tagNumber("wdth")),
@@ -16,14 +16,25 @@ import Testing
       kCTFontVariationAxisMaximumValueKey as String: 2.0,
       kCTFontVariationAxisDefaultValueKey as String: 1.0,
     ]
+    var inverted = width
+    inverted[kCTFontVariationAxisMinimumValueKey as String] = 3.0
     let parsed = FontFace.readAttributes(
-      styleName: "Italic", variation: nil, axes: [[:], width], os2: words([0, 0, 650]))
-    #expect(parsed.style == "Italic" && parsed.weight == 650)
+      styleName: "Italic", variation: nil, axes: [[:], inverted, width], os2: words([0, 0, 650]))
+    #expect(parsed.style == "Italic" && parsed.weight == 650 && parsed.width == 1)
     #expect(parsed.axes.map(\.name) == ["wdth"])
     #expect(parsed.axes.first?.minimum == 0.5 && parsed.axes.first?.maximum == 2)
     let truncated = FontFace.readAttributes(
       styleName: nil, variation: nil, axes: nil, os2: Data([0]))
-    #expect(truncated.weight == 400)
+    #expect(truncated.weight == 400 && truncated.width == 1)
+    for (widthClass, width) in [(3, 0.75), (9, 2.0), (0, 1.0), (10, 1.0)] {
+      let os2 = words([0, 0, 400, UInt16(widthClass)])
+      #expect(
+        FontFace.readAttributes(styleName: nil, variation: nil, axes: nil, os2: os2).width == width)
+    }
+    let condensed = FontFace.readAttributes(
+      styleName: nil, variation: [NSNumber(value: tagNumber("wdth")): 0.8], axes: [width],
+      os2: words([0, 0, 400, 9]))
+    #expect(condensed.width == 0.8)
   }
 
   @Test func catalogHandlesEmptyAndIncompleteFontCollections() {

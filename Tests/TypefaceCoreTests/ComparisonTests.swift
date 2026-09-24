@@ -1,3 +1,4 @@
+import CoreText
 import Foundation
 import Testing
 
@@ -31,12 +32,22 @@ import Testing
     #expect(state.link == AppearanceLink(a: state.a, b: state.b!))
   }
 
-  @Test func appearanceResetUsesActualAxisDefaultsAndPreservesMissingFonts() throws {
+  @Test func appearanceResetUsesThePreferredInstanceAndPreservesMissingFonts() throws {
     let skia = try #require(catalog.preferredFace(in: "Skia"))
     var state = Comparison(a: .init(skia.id), b: nil)
     for axis in skia.axes { state.a.axes[axis.id] = axis.maximum }
     state.resetAppearance(side: .a, catalog: catalog)
-    for axis in skia.axes { #expect(state.a.axes[axis.id] == axis.defaultValue) }
+    #expect(state.a.axes == FontConfiguration(skia.id).axes)
+    let instances = FontCatalog(
+      descriptors: ["Skia-Regular_Light", "Skia-Regular_Bold", "Skia-Regular_Black-Condensed"].map {
+        CTFontDescriptorCreateWithNameAndSize($0 as CFString, 22)
+      })
+    let preferred = try #require(instances.preferredFace(in: "Skia"))
+    state.resetAppearance(side: .a, catalog: instances)
+    #expect(state.a.postScriptName == preferred.id)
+    #expect(state.a.axes == FontConfiguration(preferred.id).axes)
+    #expect(
+      state.a.axes != Dictionary(uniqueKeysWithValues: skia.axes.map { ($0.id, $0.defaultValue) }))
     state.a = .init("TypefaceOff-Does-Not-Exist")
     state.a.size = 44
     state.a.tracking = 0.02

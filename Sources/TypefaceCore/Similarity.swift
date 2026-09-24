@@ -107,7 +107,17 @@ extension FontCatalog {
     else { return nil }
     var config = FontConfiguration(face.id)
     config.size = size
-    config.axes = Dictionary(uniqueKeysWithValues: face.axes.map { ($0.id, $0.defaultValue) })
+    config.matchOpticalSize(face.axes)
     return config
+  }
+}
+
+extension FontConfiguration {
+  /// Face coordinates come from a 22-point font, so their optical size is 22; Core Text's
+  /// automatic optical size follows the actual point size.
+  mutating func matchOpticalSize(_ axes: [FontAxis]) {
+    if let axis = axes.first(where: { $0.tag == "opsz" }) {
+      self.axes[axis.id] = size.clamped(to: axis.minimum...axis.maximum)
+    }
   }
 }

@@ -215,14 +215,16 @@ public struct Comparison: Equatable, Sendable {
     for target in appearanceLocked && b != nil ? [Side.a, .b] : [side] {
       guard let previous = self[target] else { continue }
       var next = previous
+      var axes: [FontAxis] = []
       if FontRenderer.isAvailable(previous),
         let regular = catalog.preferredFace(in: previous.face.family)
       {
         next = FontConfiguration(regular.id)
-        next.axes = Dictionary(uniqueKeysWithValues: regular.axes.map { ($0.id, $0.defaultValue) })
         next.features = previous.features
+        axes = regular.axes
       }
       next.size = 22
+      next.matchOpticalSize(axes)
       next.tracking = 0
       self[target] = next
     }

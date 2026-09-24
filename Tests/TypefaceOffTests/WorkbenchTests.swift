@@ -201,6 +201,7 @@ import TypefaceCore
         $0.selectedGlyph = glyph
         $0.shape = false
         $0.spacing = true
+        $0.frequency = false
       }
     }
     undo.undo()
@@ -210,6 +211,7 @@ import TypefaceCore
     #expect(model.comparison.mode == .glyph)
     #expect(model.comparison.selectedGlyph == "@")
     #expect(!model.comparison.shape && model.comparison.spacing)
+    #expect(!model.comparison.frequency)
     model.updatePresentation { $0.selectedGlyph = "g" }
     #expect(undo.canRedo)
     undo.redo()

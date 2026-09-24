@@ -12,7 +12,9 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.8.2")
   ],
   targets: [
-    .target(name: "TypefaceCore", swiftSettings: [.treatAllWarnings(as: .error)]),
+    .target(
+      name: "TypefaceCore", resources: [.copy("Resources/character-frequencies.tsv")],
+      swiftSettings: [.treatAllWarnings(as: .error)]),
     .target(name: "UIFuzzSupport", swiftSettings: [.treatAllWarnings(as: .error)]),
     .executableTarget(
       name: "UIFuzz",

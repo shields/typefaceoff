@@ -154,10 +154,14 @@ import Testing
   @Test func highlightsAreLimitedToNonzeroCharactersInTheSample() {
     let scores = (0..<12).map { GlyphDifference(glyph: String($0), shape: Double($0), spacing: 0) }
     #expect(
-      Differences.highlights(scores, text: "0123456789", shape: true, spacing: false)
+      Differences.highlights(
+        scores, text: "0123456789", shape: true, spacing: false, frequency: false)
         == Set((2...9).map(String.init)))
-    #expect(Differences.highlights(scores, text: "0123456789", shape: false, spacing: true).isEmpty)
-    #expect(Differences.ranked([], shape: true, spacing: true).isEmpty)
+    #expect(
+      Differences.highlights(
+        scores, text: "0123456789", shape: false, spacing: true, frequency: false
+      ).isEmpty)
+    #expect(Differences.ranked([], shape: true, spacing: true, frequency: false).isEmpty)
     #expect(scores[3].id == "3")
   }
 

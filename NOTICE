@@ -1,0 +1,58 @@
+Typeface/Off's character-frequency weighting (see docs/character-frequency.md)
+is derived from three third-party datasets, described below. None of the
+datasets themselves is redistributed; only the derived per-character shares
+are bundled, as Sources/TypefaceCore/Resources/character-frequencies.tsv,
+generated from them by `make frequencies`.
+
+---
+
+The per-language character counts are FineFreq, a table of per-code-point
+frequency counts computed over the FineWeb and FineWeb2 web corpora
+(themselves built from Common Crawl).
+
+    FineFreq — https://huggingface.co/datasets/lgi2p/finefreq
+    © Binbin Xu, licensed under Creative Commons Attribution 4.0 International
+    (CC BY 4.0) — https://creativecommons.org/licenses/by/4.0/
+
+    Binbin Xu. FineFreq: A Multilingual Character Frequency Dataset from
+    Web-Scale Text. arXiv:2512.09701 (2025).
+
+Typeface/Off normalizes each of FineFreq's per-language tables, corrects them
+for the characters NFKC normalization folded away (see below), mixes them by
+each language's Ethnologue speaker count (see below), and keeps only
+characters with a share of at least 0.001%. The dataset itself is not
+redistributed; only that derived mixture is bundled.
+
+---
+
+The characters that FineFreq's NFKC normalization folds away (for example …,
+½, ™, and ，) are instead estimated from the Leipzig Corpora Collection,
+whose non-normalized text preserves them.
+
+    Leipzig Corpora Collection — https://wortschatz.uni-leipzig.de
+    © Universität Leipzig, licensed under Creative Commons Attribution 4.0
+    International (CC BY 4.0) — https://creativecommons.org/licenses/by/4.0/
+
+    D. Goldhahn, T. Eckart & U. Quasthoff. Building Large Monolingual
+    Dictionaries at the Leipzig Corpora Collection: From 100 to 200 Languages.
+    Proceedings of the 8th International Conference on Language Resources and
+    Evaluation (LREC 2012).
+
+Only per-character shares derived from these corpora, calibrated onto
+FineFreq's scale and then un-folded back onto the characters NFKC removed,
+are bundled; the corpora themselves are not redistributed.
+
+---
+
+Each language's contribution to the mix is weighted by its total speakers
+(L1 + L2), from Ethnologue.
+
+    Ethnologue: Languages of the World, 29th edition (2026), SIL Global —
+    https://www.ethnologue.com
+
+    As reproduced in Wikipedia, "List of languages by total number of
+    speakers" —
+    https://en.wikipedia.org/wiki/List_of_languages_by_total_number_of_speakers
+
+Only the speaker counts used as mixing weights are reflected in the
+generated table; no Ethnologue or Wikipedia text is redistributed.

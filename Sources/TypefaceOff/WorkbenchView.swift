@@ -44,17 +44,20 @@ struct WorkbenchView: View {
       model: model, undoManager: undoManager,
       showA: $showA, showB: $showB, mode: presentation(\.mode),
       shape: presentation(\.shape), spacing: presentation(\.spacing),
-      match: openMatch, editText: openEditor)
+      frequency: presentation(\.frequency), match: openMatch, editText: openEditor)
   }
   private var rankingKey: RankingKey {
     .init(a: comparison.a, b: comparison.b, text: comparison.text)
   }
   private var ranked: [GlyphDifference] {
-    Differences.ranked(ranking.scores, shape: comparison.shape, spacing: comparison.spacing)
+    Differences.ranked(
+      ranking.scores, shape: comparison.shape, spacing: comparison.spacing,
+      frequency: comparison.frequency)
   }
   private var highlights: Set<String> {
     Differences.highlights(
-      ranking.scores, text: comparison.text, shape: comparison.shape, spacing: comparison.spacing)
+      ranking.scores, text: comparison.text, shape: comparison.shape, spacing: comparison.spacing,
+      frequency: comparison.frequency)
   }
   private var highlightKinds: [String: String] {
     var result: [String: String] = [:]
@@ -63,7 +66,8 @@ struct WorkbenchView: View {
     ]
     where enabled {
       for glyph in Differences.highlights(
-        ranking.scores, text: comparison.text, shape: shape, spacing: !shape)
+        ranking.scores, text: comparison.text, shape: shape, spacing: !shape,
+        frequency: comparison.frequency)
       {
         result[glyph] = result[glyph].map { "\($0) + \(title)" } ?? title
       }
@@ -208,6 +212,9 @@ struct WorkbenchView: View {
         Toggle("Shape", isOn: presentation(\.shape)).toggleStyle(.checkbox)
         Toggle("Spacing", isOn: presentation(\.spacing)).toggleStyle(
           .checkbox)
+        Toggle("Frequency", isOn: presentation(\.frequency)).toggleStyle(.checkbox)
+          .help(
+            "Weight differences by how often each character appears in text worldwide")
       }
       ScrollViewReader { proxy in
         ScrollView(.horizontal) {
@@ -216,49 +223,14 @@ struct WorkbenchView: View {
               Button {
                 selectGlyph(item.glyph)
               } label: {
-                VStack(spacing: 5) {
-                  if let b = comparison.b {
-                    GlyphDifferencePreview(
-                      glyph: item.glyph, a: comparison.a, b: b,
-                      spacingOnly: comparison.spacing && !comparison.shape
-                    )
-                    .frame(width: 46, height: 38)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                  }
-                  if comparison.shape || !comparison.spacing {
-                    differenceBar(
-                      item.shape, maximum: maximumShape,
-                      color: Color(red: 0.78, green: 0.68, blue: 0.49))
-                  }
-                  if comparison.spacing || !comparison.shape {
-                    differenceBar(
-                      item.spacing, maximum: maximumSpacing, color: .blue)
-                  }
-                }
-                .frame(width: 54, height: 65)
-                .background(
-                  comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
-                    ? Color.white.opacity(0.18) : Color.white.opacity(0.06)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 5))
-                .overlay(
-                  RoundedRectangle(cornerRadius: 5).stroke(
-                    comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
-                      ? (appearsActive && glyphFocused
-                        ? WorkbenchStyle.accent : Color.white.opacity(0.4))
-                      : Color.gray.opacity(0.5)))
+                stripItem(item, maximumShape: maximumShape, maximumSpacing: maximumSpacing)
               }.buttonStyle(.plain).id(item.glyph)
                 .accessibilityLabel("Inspect \(unicodeDescription(item.glyph))")
                 .accessibilityAddTraits(
                   comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
                     ? .isSelected : []
                 )
-                .help(
-                  unicodeDescription(item.glyph).replacingOccurrences(of: " · ", with: "\n") + "\n"
-                    + String(
-                      format: "Shape %.1f%%\nSpacing %.3f em", item.shape * 100, item.spacing))
+                .help(stripHelp(item))
             }
           }.padding(1)
         }.scrollIndicators(.hidden).frame(height: 84)
@@ -304,11 +276,70 @@ struct WorkbenchView: View {
     commands.swap()
   }
 
-  private func differenceBar(_ value: Double, maximum: Double, color: Color) -> some View {
-    Capsule().fill(.white.opacity(0.12)).frame(width: 32, height: 2)
+  private func stripItem(_ item: GlyphDifference, maximumShape: Double, maximumSpacing: Double)
+    -> some View
+  {
+    let isSelected = comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
+    return VStack(spacing: 5) {
+      if let b = comparison.b {
+        GlyphDifferencePreview(
+          glyph: item.glyph, a: comparison.a, b: b,
+          spacingOnly: comparison.spacing && !comparison.shape
+        )
+        .frame(width: 46, height: 38)
+        .clipShape(RoundedRectangle(cornerRadius: 2))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+      }
+      if comparison.shape || !comparison.spacing {
+        differenceBar(
+          item, \.shape, maximum: maximumShape, color: Color(red: 0.78, green: 0.68, blue: 0.49))
+      }
+      if comparison.spacing || !comparison.shape {
+        differenceBar(item, \.spacing, maximum: maximumSpacing, color: .blue)
+      }
+    }
+    .frame(width: 54, height: 65)
+    .background(isSelected ? Color.white.opacity(0.18) : Color.white.opacity(0.06))
+    .clipShape(RoundedRectangle(cornerRadius: 5))
+    .overlay(
+      RoundedRectangle(cornerRadius: 5).stroke(
+        isSelected
+          ? (appearsActive && glyphFocused ? WorkbenchStyle.accent : Color.white.opacity(0.4))
+          : Color.gray.opacity(0.5)))
+  }
+
+  private func stripHelp(_ item: GlyphDifference) -> String {
+    unicodeDescription(item.glyph).replacingOccurrences(of: " · ", with: "\n") + "\n"
+      + String(format: "Shape %.1f%%\nSpacing %.3f em\n", item.shape * 100, item.spacing)
+      + frequencyTooltip(item)
+  }
+
+  private func differenceBar(
+    _ item: GlyphDifference, _ metric: KeyPath<GlyphDifference, Double>, maximum: Double,
+    color: Color
+  ) -> some View {
+    func width(_ length: Double) -> Double { maximum > 0 ? 32 * length / maximum : 0 }
+    let value = item[keyPath: metric]
+    return Capsule().fill(.white.opacity(0.12)).frame(width: 32, height: 2)
       .overlay(alignment: .leading) {
-        Capsule().fill(color).frame(width: maximum > 0 ? 32 * value / maximum : 0, height: 2)
+        if comparison.frequency {
+          Capsule().fill(color.opacity(0.35)).frame(width: width(value), height: 2)
+        }
+      }
+      .overlay(alignment: .leading) {
+        Capsule().fill(color)
+          .frame(width: width(item.weighted(value, frequency: comparison.frequency)), height: 2)
       }.accessibilityHidden(true)
+  }
+
+  private func frequencyTooltip(_ item: GlyphDifference) -> String {
+    func percent(_ share: Double) -> String { String(format: "%.2g%%", share * 100) }
+    let line =
+      item.frequency.map { "Frequency \(percent($0))" }
+      ?? "Frequency below \(percent(CharacterFrequency.floor))"
+    guard comparison.frequency else { return line }
+    return line + String(format: " · weight %.2f", item.weight)
   }
 
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {

@@ -34,8 +34,10 @@ import TypefaceCore
     #expect(first.undo.canRedo)
     try await host.press("Highlight shape differences")
     try await host.press("Highlight spacing differences")
+    try await host.press("Weight by character frequency")
     #expect(first.model.comparison.shape != initial.shape)
     #expect(first.model.comparison.spacing != initial.spacing)
+    #expect(first.model.comparison.frequency != initial.frequency)
     try await host.press("Font A inspector")
     try await host.press("Font B inspector")
     #expect(!first.showA && !first.showB)
@@ -66,8 +68,8 @@ import TypefaceCore
     try await host.settle()
     for title in [
       "Font A inspector", "Font B inspector", "Text view", "Glyph view",
-      "Highlight shape differences", "Highlight spacing differences", "Match fonts…",
-      "Swap fonts", "Edit sample text…",
+      "Highlight shape differences", "Highlight spacing differences",
+      "Weight by character frequency", "Match fonts…", "Swap fonts", "Edit sample text…",
     ] {
       #expect(try await host.element(title).isAccessibilityEnabled?() == false)
     }
@@ -107,7 +109,8 @@ private struct CommandTestView: View {
       showA: Binding(get: { self.showA }, set: { self.showA = $0 }),
       showB: Binding(get: { self.showB }, set: { self.showB = $0 }),
       mode: presentation(\.mode), shape: presentation(\.shape), spacing: presentation(\.spacing),
-      match: { self.matchRequested = true }, editText: { self.editRequested = true })
+      frequency: presentation(\.frequency), match: { self.matchRequested = true },
+      editText: { self.editRequested = true })
   }
 
   private func presentation<Value>(_ key: WritableKeyPath<Comparison, Value>) -> Binding<Value> {

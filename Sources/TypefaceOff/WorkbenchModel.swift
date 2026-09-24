@@ -58,6 +58,7 @@ final class WorkbenchModel: ObservableObject {
           restored.selectedGlyph = current.selectedGlyph
           restored.shape = current.shape
           restored.spacing = current.spacing
+          restored.frequency = current.frequency
           current = restored
         }
       }

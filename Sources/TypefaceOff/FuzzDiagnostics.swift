@@ -41,6 +41,7 @@ import TypefaceCore
         "selectedGlyph": comparison.selectedGlyph,
         "shape": comparison.shape,
         "spacing": comparison.spacing,
+        "frequency": comparison.frequency,
         "textUTF16": comparison.text.utf16.count,
       ]
       if let b = comparison.b {

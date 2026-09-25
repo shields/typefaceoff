@@ -124,10 +124,9 @@ import TypefaceCore
     host.enter("A custom specimen with punctuation: @ & !", in: replacement)
     try await host.settle()
     try await host.press("Apply")
-    try await host.settle()
+    try await host.settle { host.window.sheets.isEmpty }
     #expect(model.comparison.sample == .custom)
     #expect(model.comparison.text == replacement.string)
-    #expect(host.window.sheets.isEmpty)
     try await host.press("Undo")
     try await host.settle()
     #expect(model.comparison.sample == .reading)
@@ -163,8 +162,7 @@ import TypefaceCore
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
     try await host.press("Cancel")
-    try await host.settle()
-    #expect(host.window.sheets.isEmpty)
+    try await host.settle { host.window.sheets.isEmpty }
   }
 
   @Test(arguments: [Sample.reading, .alphabet, .numerals])
@@ -412,6 +410,17 @@ import TypefaceCore
   func settle() async throws {
     try await Task.sleep(for: .milliseconds(250))
     view.layoutSubtreeIfNeeded()
+  }
+
+  func settle(until condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation)
+    async throws
+  {
+    let deadline = ContinuousClock.now + .seconds(10)
+    try await settle()
+    while !condition(), ContinuousClock.now < deadline {
+      try await settle()
+    }
+    #expect(condition(), sourceLocation: sourceLocation)
   }
 
   func element(_ label: String) async throws -> AnyObject {

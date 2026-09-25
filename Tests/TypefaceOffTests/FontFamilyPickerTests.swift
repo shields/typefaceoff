@@ -105,9 +105,8 @@ import TypefaceCore
     search.currentEditor()?.doCommand(by: #selector(NSResponder.moveDown(_:)))
     #expect(model.comparison == initial)
     search.currentEditor()?.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
-    try await host.settle()
+    try await host.settle { !host.subviews.contains { $0 is NSSearchField } }
     #expect(model.comparison == initial)
-    #expect(!host.subviews.contains { $0 is NSSearchField })
     try await host.press("Font A family")
     try await host.settle()
     let reopened = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
@@ -123,8 +122,7 @@ import TypefaceCore
     let popover = try #require(table.window)
     popover.makeFirstResponder(table)
     try sendKey(53, characters: "\u{1b}", to: popover)
-    try await host.settle()
-    #expect(!host.subviews.contains { $0 is NSSearchField })
+    try await host.settle { !host.subviews.contains { $0 is NSSearchField } }
     #expect(model.comparison.a.face.family == "Skia")
   }
 

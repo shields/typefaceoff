@@ -124,10 +124,9 @@ import TypefaceCore
     host.enter("A custom specimen with punctuation: @ & !", in: replacement)
     try await host.settle()
     try await host.press("Apply")
-    try await host.settle()
+    try await host.settle { host.window.sheets.isEmpty }
     #expect(model.comparison.sample == .custom)
     #expect(model.comparison.text == replacement.string)
-    #expect(host.window.sheets.isEmpty)
     try await host.press("Undo")
     try await host.settle()
     #expect(model.comparison.sample == .reading)
@@ -163,8 +162,7 @@ import TypefaceCore
     try await host.settle()
     #expect(!host.window.sheets.isEmpty)
     try await host.press("Cancel")
-    try await host.settle()
-    #expect(host.window.sheets.isEmpty)
+    try await host.settle { host.window.sheets.isEmpty }
   }
 
   @Test(arguments: [Sample.reading, .alphabet, .numerals])
@@ -414,6 +412,17 @@ import TypefaceCore
     view.layoutSubtreeIfNeeded()
   }
 
+  func settle(until condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation)
+    async throws
+  {
+    let deadline = ContinuousClock.now + .seconds(10)
+    try await settle()
+    while !condition(), ContinuousClock.now < deadline {
+      try await settle()
+    }
+    #expect(condition(), sourceLocation: sourceLocation)
+  }
+
   func element(_ label: String) async throws -> AnyObject {
     if let result = visibleElement(label) { return result }
     // Older SwiftUI versions expose only the visible portion of a scroll view.
@@ -492,6 +501,29 @@ import TypefaceCore
     } else {
       _ = try await element(label).accessibilityPerformIncrement?()
     }
+  }
+
+  func incrementSlider(_ label: String, between leading: String, and trailing: String)
+    async throws
+  {
+    let sliders = subviews.compactMap { $0 as? NSSlider }
+    guard !sliders.isEmpty else {
+      _ = try await element(label).accessibilityPerformIncrement?()
+      return
+    }
+    // Older SwiftUI omits the native sliders' AX names. The labeled controls on
+    // either side of the slider identify it.
+    let before = try #require(try await element(leading).accessibilityFrame?())
+    let after = try #require(try await element(trailing).accessibilityFrame?())
+    let matches = sliders.filter { slider in
+      guard let owner = slider.window else { return false }
+      let frame = owner.convertToScreen(slider.convert(slider.bounds, to: nil))
+      return frame.minX >= before.maxX && frame.maxX <= after.minX
+        && frame.minY < before.maxY && frame.maxY > before.minY
+        && frame.minY < after.maxY && frame.maxY > after.minY
+    }
+    try #require(matches.count == 1, "Expected one slider between \(leading) and \(trailing)")
+    _ = matches[0].accessibilityPerformIncrement()
   }
 
   func choose(_ label: String, nativeTitles: [String], item: String? = nil) async throws {

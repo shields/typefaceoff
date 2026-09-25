@@ -37,6 +37,11 @@ final class GlyphScrollView: NSScrollView {
     guard zoom != magnification else { return }
     let anchor = point ?? NSPoint(x: contentView.bounds.midX, y: contentView.bounds.midY)
     setMagnification(zoom, centeredAt: anchor)
+    if zoom == minMagnification {
+      // AppKit's centering can leave roundoff in the fitted view's origin.
+      contentView.scroll(to: .zero)
+      reflectScrolledClipView(contentView)
+    }
     canvas.needsDisplay = true
     window?.invalidateCursorRects(for: canvas)
   }

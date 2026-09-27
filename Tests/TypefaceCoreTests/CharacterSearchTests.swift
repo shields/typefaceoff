@@ -24,8 +24,8 @@ import Testing
   }
 
   static func missing(_ fonts: [FontConfiguration]) -> (Unicode.Scalar) -> Int {
-    let coverage = fonts.map { CTFontCopyCharacterSet(FontRenderer.font($0)) }
-    return { CharacterSearch.missingFonts(for: $0, coverage: coverage) }
+    let probes = fonts.map(FontProbe.init)
+    return { scalar in probes.count { $0.lacks(scalar) } }
   }
 
   @Test(arguments: [false, true])
@@ -212,12 +212,20 @@ import Testing
     }
   }
 
-  @Test func invisibleCharactersRankAsTheRendererJudgesThem() {
-    let coverage = fonts.map { CTFontCopyCharacterSet(FontRenderer.font($0)) }
-    #expect(fonts.allSatisfy { FontRenderer.supports("\u{2066}", config: $0) })
-    #expect(CharacterSearch.missingFonts(for: "\u{2066}", coverage: coverage) == 0)
-    #expect(fonts.map { FontRenderer.supports("←", config: $0) } == [false, true])
-    #expect(CharacterSearch.missingFonts(for: "←", coverage: coverage) == 1)
+  @Test func invisibleAndFormatCharactersRankAsTheRendererJudgesThem() {
+    let probes = fonts.map(FontProbe.init)
+    #expect(probes.map { $0.lacks("←") } == [true, false])
+    var checked = 0
+    for scalar in index.scalars
+    where scalar.properties.isDefaultIgnorableCodePoint
+      || scalar.properties.generalCategory == .format
+    {
+      for (probe, config) in zip(probes, fonts) {
+        #expect(probe.lacks(scalar) == !FontRenderer.supports(String(scalar), config: config))
+      }
+      checked += 1
+    }
+    #expect(checked > 100)
   }
 
   @Test func missingFontsNeitherRankNorSupportCharacters() async throws {

@@ -23,33 +23,42 @@ public enum CharacterSearch {
     -> [CharacterSearchResult]
   {
     let index = CharacterSearchIndex.shared
-    let probeSize = 22.0
     // A missing font would lend the fallback font's coverage.
-    let available = fonts.map {
-      FontRenderer.isAvailable($0) ? FontRenderer.font($0, size: probeSize) : nil
-    }
-    let coverage = available.compactMap { $0.map(CTFontCopyCharacterSet) }
-    let glyphs = try index.search(query) { missingFonts(for: $0, coverage: coverage) }
+    let probes = fonts.map { FontRenderer.isAvailable($0) ? FontProbe($0) : nil }
+    let available = probes.compactMap { $0 }
+    let glyphs = try index.search(query) { scalar in available.count { $0.lacks(scalar) } }
     var results: [CharacterSearchResult] = []
     for glyph in glyphs {
       try Task.checkCancellation()
-      var supported: [Bool] = []
-      for (config, font) in zip(fonts, available) {
-        supported.append(
-          font.map {
-            FontRenderer.supports(
-              FontRenderer.line(glyph, config: config, font: $0, size: probeSize, tracking: false),
-              font: $0)
-          } ?? false)
-      }
-      results.append(CharacterSearchResult(glyph: glyph, supported: supported))
+      results.append(
+        CharacterSearchResult(glyph: glyph, supported: probes.map { $0?.renders(glyph) ?? false }))
     }
     return results
   }
+}
 
-  static func missingFonts(for scalar: Unicode.Scalar, coverage: [CFCharacterSet]) -> Int {
-    // Default-ignorable code points shape to no glyphs, which `supports` accepts in any font.
-    guard !scalar.properties.isDefaultIgnorableCodePoint else { return 0 }
-    return coverage.count { !CFCharacterSetIsLongCharacterMember($0, scalar.value) }
+struct FontProbe {
+  let config: FontConfiguration
+  let font: CTFont
+  let coverage: CFCharacterSet
+
+  init(_ config: FontConfiguration) {
+    self.config = config
+    font = FontRenderer.font(config, size: 22)
+    coverage = CTFontCopyCharacterSet(font)
+  }
+
+  func renders(_ glyph: String) -> Bool {
+    FontRenderer.supports(
+      FontRenderer.line(glyph, config: config, font: font, size: 22, tracking: false), font: font)
+  }
+
+  func lacks(_ scalar: Unicode.Scalar) -> Bool {
+    let properties = scalar.properties
+    // The cmap doesn't predict how invisible and format characters shape.
+    guard !properties.isDefaultIgnorableCodePoint, properties.generalCategory != .format else {
+      return !renders(String(scalar))
+    }
+    return !CFCharacterSetIsLongCharacterMember(coverage, scalar.value)
   }
 }

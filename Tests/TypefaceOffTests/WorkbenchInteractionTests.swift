@@ -225,8 +225,7 @@ import TypefaceCore
     try await host.press("Previous character")
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "a")
-    let field = try #require(
-      host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" })
+    let field = try #require(characterField(host))
     host.submit("@", to: field)
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "@")
@@ -250,8 +249,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    let field = try #require(
-      host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" })
+    let field = try #require(characterField(host))
     model.updatePresentation { $0.selectedGlyph = "\u{37E}" }
     try await host.settle()
     #expect(model.comparison.selectedScalars == ["\u{37E}"])
@@ -406,6 +404,10 @@ import TypefaceCore
     #expect(button.accessibilityPerformPress?() == true)
     try await host.settle()
     #expect(model.comparison.mode == .glyph)
+  }
+
+  private func characterField<Content>(_ host: WorkbenchTestHost<Content>) -> NSTextField? {
+    host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" }
   }
 }
 

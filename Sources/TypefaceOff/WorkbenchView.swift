@@ -16,6 +16,7 @@ struct WorkbenchView: View {
   @State private var sharedSize: String
   @State private var glyphFocusRequest: UUID
   @State private var glyphFocused: Bool
+  @State private var searchingCharacters: Bool
 
   // Initialize state explicitly so Xcode 26's coverage does not include unused
   // synthesized initializers for the property defaults.
@@ -29,6 +30,7 @@ struct WorkbenchView: View {
     _sharedSize = State(initialValue: "22")
     _glyphFocusRequest = State(initialValue: UUID())
     _glyphFocused = State(initialValue: false)
+    _searchingCharacters = State(initialValue: false)
   }
 
   private var comparison: Comparison { model.comparison }
@@ -44,7 +46,8 @@ struct WorkbenchView: View {
       model: model, undoManager: undoManager,
       showA: $showA, showB: $showB, mode: presentation(\.mode),
       shape: presentation(\.shape), spacing: presentation(\.spacing),
-      frequency: presentation(\.frequency), match: openMatch, editText: openEditor)
+      frequency: presentation(\.frequency), characterSearch: characterSearch, match: openMatch,
+      editText: openEditor)
   }
   private var rankingKey: RankingKey {
     .init(a: comparison.a, b: comparison.b, text: comparison.text)
@@ -94,8 +97,8 @@ struct WorkbenchView: View {
           .environment(\.colorScheme, .light)
         } else {
           GlyphComparisonView(
-            comparison: comparison, focusRequest: glyphFocusRequest, select: selectGlyph,
-            navigate: navigate,
+            comparison: comparison, focusRequest: glyphFocusRequest, searching: characterSearch,
+            select: selectGlyph, navigate: navigate,
             showText: { model.updatePresentation { $0.mode = .text } },
             focusChanged: { glyphFocused = $0 })
         }
@@ -127,6 +130,10 @@ struct WorkbenchView: View {
     .onChange(of: comparison.b?.size) { syncSize() }
     .onChange(of: locale) { syncSize() }
     .onChange(of: comparison.sample) { scrollPosition.reset() }
+    // The search popover's anchor leaves with the glyph view.
+    .onChange(of: comparison.mode) { _, mode in
+      if mode != .glyph { searchingCharacters = false }
+    }
     .onChange(of: comparison.customText) {
       if comparison.sample == .custom { scrollPosition.reset() }
     }
@@ -262,6 +269,15 @@ struct WorkbenchView: View {
         }.keyboardShortcut(.defaultAction)
       }
     }.padding(24)
+  }
+
+  private var characterSearch: Binding<Bool> {
+    Binding(
+      get: { searchingCharacters },
+      set: { open in
+        if open { model.updatePresentation { $0.mode = .glyph } }
+        searchingCharacters = open
+      })
   }
 
   private func openMatch() { showMatch = true }

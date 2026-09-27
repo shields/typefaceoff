@@ -44,6 +44,8 @@ import TypefaceCore
     try await host.press("Edit sample text…")
     try await host.press("Match fonts…")
     #expect(first.editRequested && first.matchRequested)
+    try await host.press("Find character…")
+    #expect(first.searching)
     host.setContent(CommandTestView(fixture: second, model: second.model))
     try await host.settle()
     #expect(try await host.element("Swap fonts").isAccessibilityEnabled?() == false)
@@ -57,9 +59,20 @@ import TypefaceCore
     #expect(try await host.element("Swap fonts").isAccessibilityEnabled?() == true)
   }
 
+  @Test func findCharacterIsTheOnlyCommandF() throws {
+    func items(_ menu: NSMenu) -> [NSMenuItem] {
+      menu.items + menu.items.compactMap(\.submenu).flatMap(items)
+    }
+    let commandF = items(try #require(NSApp.mainMenu)).filter {
+      $0.keyEquivalent == "f" && $0.keyEquivalentModifierMask == .command
+    }
+    #expect(commandF.map(\.title) == ["Find character…"])
+  }
+
   @Test func commandsAreDisabledWithoutAnAvailableWorkbench() async throws {
     let host = WorkbenchTestHost(
       VStack {
+        WorkbenchMenuItems(section: .find, actions: nil)
         WorkbenchMenuItems(section: .inspectors, actions: nil)
         WorkbenchMenuItems(section: .view, actions: nil)
         WorkbenchMenuItems(section: .comparison, actions: nil)
@@ -67,7 +80,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     for title in [
-      "Font A inspector", "Font B inspector", "Text view", "Glyph view",
+      "Find character…", "Font A inspector", "Font B inspector", "Text view", "Glyph view",
       "Highlight shape differences", "Highlight spacing differences",
       "Weight by character frequency", "Match fonts…", "Swap fonts", "Edit sample text…",
     ] {
@@ -83,6 +96,7 @@ private struct CommandTestView: View {
   var body: some View {
     let actions = fixture.actions
     VStack {
+      WorkbenchMenuItems(section: .find, actions: actions)
       WorkbenchMenuItems(section: .inspectors, actions: actions)
       WorkbenchMenuItems(section: .view, actions: actions)
       WorkbenchMenuItems(section: .comparison, actions: actions)
@@ -95,6 +109,7 @@ private struct CommandTestView: View {
   let undo = UndoManager()
   @Published var showA = true
   @Published var showB = true
+  @Published var searching = false
   var matchRequested = false
   var editRequested = false
 
@@ -109,7 +124,9 @@ private struct CommandTestView: View {
       showA: Binding(get: { self.showA }, set: { self.showA = $0 }),
       showB: Binding(get: { self.showB }, set: { self.showB = $0 }),
       mode: presentation(\.mode), shape: presentation(\.shape), spacing: presentation(\.spacing),
-      frequency: presentation(\.frequency), match: { self.matchRequested = true },
+      frequency: presentation(\.frequency),
+      characterSearch: Binding(get: { self.searching }, set: { self.searching = $0 }),
+      match: { self.matchRequested = true },
       editText: { self.editRequested = true })
   }
 

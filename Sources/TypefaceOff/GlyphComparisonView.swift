@@ -6,26 +6,30 @@ import TypefaceCore
 struct GlyphComparisonView: View {
   let comparison: Comparison
   let focusRequest: UUID
+  @Binding var searching: Bool
   let select: (String) -> Void
   let navigate: (Int) -> Void
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
   @State private var input: String
   @State private var zoom: Double
+  @State private var appeared: Bool
 
   init(
-    comparison: Comparison, focusRequest: UUID, select: @escaping (String) -> Void,
-    navigate: @escaping (Int) -> Void, showText: @escaping () -> Void,
-    focusChanged: @escaping (Bool) -> Void
+    comparison: Comparison, focusRequest: UUID, searching: Binding<Bool>,
+    select: @escaping (String) -> Void, navigate: @escaping (Int) -> Void,
+    showText: @escaping () -> Void, focusChanged: @escaping (Bool) -> Void
   ) {
     self.comparison = comparison
     self.focusRequest = focusRequest
+    _searching = searching
     self.select = select
     self.navigate = navigate
     self.showText = showText
     self.focusChanged = focusChanged
     _input = State(initialValue: "")
     _zoom = State(initialValue: 1)
+    _appeared = State(initialValue: false)
   }
 
   var body: some View {
@@ -43,6 +47,20 @@ struct GlyphComparisonView: View {
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
           .help("Inspect the next character (Right Arrow when the glyph view has focus)")
+        Button("Search characters", systemImage: "character.magnify") { searching = true }
+          .labelStyle(.iconOnly)
+          .help("Find a character by name, code point, or the character itself (⌘F)")
+          // A popover requested with the view, as by Find Character in text view, opens
+          // only once its anchor is onscreen.
+          .popover(
+            isPresented: Binding(get: { searching && appeared }, set: { searching = $0 }),
+            arrowEdge: .bottom
+          ) {
+            CharacterSearchPicker(comparison: comparison) { glyph in
+              searching = false
+              select(glyph)
+            }
+          }
         Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 14))
           .foregroundStyle(.primary).lineLimit(2)
           .help(unicodeDescription(comparison.selectedGlyph))
@@ -63,6 +81,7 @@ struct GlyphComparisonView: View {
       }.frame(height: 85, alignment: .top).padding(.bottom, 16)
     }
     .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
+    .task { appeared = true }
     .onChange(of: comparison.selectedScalars, initial: true) {
       input = comparison.selectedGlyph
     }
@@ -408,11 +427,12 @@ final class GlyphDrawingView: NSView {
     let key = OverlayKey(
       configs: configs, glyph: comparison.selectedScalars, sizes: sizes, origins: origins)
     if overlayCache?.key != key {
+      let glyph = comparison.selectedGlyph
       overlayCache = (
         key,
         GlyphOverlayOutline(
-          a: FontRenderer.line(comparison.selectedGlyph, config: configs[0], size: sizes[0]),
-          b: FontRenderer.line(comparison.selectedGlyph, config: configs[1], size: sizes[1]),
+          a: FontRenderer.line(glyph, config: configs[0], size: sizes[0]),
+          b: FontRenderer.line(glyph, config: configs[1], size: sizes[1]),
           origins: origins)
       )
     }

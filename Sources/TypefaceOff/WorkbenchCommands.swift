@@ -9,6 +9,7 @@ import TypefaceCore
   let shape: Binding<Bool>
   let spacing: Binding<Bool>
   let frequency: Binding<Bool>
+  let characterSearch: Binding<Bool>
   let canMatch: Bool
   let canSwap: Bool
   let match: () -> Void
@@ -18,8 +19,8 @@ import TypefaceCore
   init(
     model: WorkbenchModel, undoManager: UndoManager?, showA: Binding<Bool>,
     showB: Binding<Bool>, mode: Binding<ComparisonMode>, shape: Binding<Bool>,
-    spacing: Binding<Bool>, frequency: Binding<Bool>, match: @escaping () -> Void,
-    editText: @escaping () -> Void
+    spacing: Binding<Bool>, frequency: Binding<Bool>, characterSearch: Binding<Bool>,
+    match: @escaping () -> Void, editText: @escaping () -> Void
   ) {
     self.showA = showA
     self.showB = showB
@@ -27,6 +28,7 @@ import TypefaceCore
     self.shape = shape
     self.spacing = spacing
     self.frequency = frequency
+    self.characterSearch = characterSearch
     canMatch =
       FontRenderer.isAvailable(model.comparison.a)
       && model.comparison.b.map { FontRenderer.isAvailable($0) } == true
@@ -52,6 +54,9 @@ struct WorkbenchCommands: Commands {
   @FocusedValue(\.workbenchActions) private var actions
 
   var body: some Commands {
+    CommandGroup(after: .pasteboard) {
+      WorkbenchMenuItems(section: .find, actions: actions)
+    }
     CommandGroup(replacing: .sidebar) {
       WorkbenchMenuItems(section: .inspectors, actions: actions)
     }
@@ -65,13 +70,16 @@ struct WorkbenchCommands: Commands {
 }
 
 struct WorkbenchMenuItems: View {
-  enum Section { case inspectors, view, comparison }
+  enum Section { case find, inspectors, view, comparison }
   let section: Section
   let actions: WorkbenchActions?
 
   var body: some View {
     Group {
       switch section {
+      case .find:
+        Button("Find character…") { actions?.characterSearch.wrappedValue = true }
+          .keyboardShortcut("f")
       case .inspectors:
         Toggle("Font A inspector", isOn: actions?.showA ?? .constant(false))
           .keyboardShortcut("1", modifiers: [.command, .option])

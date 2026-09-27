@@ -177,6 +177,19 @@ import TypefaceCore
     try pickerData.write(
       to: URL(fileURLWithPath: folder).appendingPathComponent("similarity-picker.png"))
     picker.window.close()
+    let search = WorkbenchTestHost(
+      CharacterSearchPicker(comparison: Comparison()) { _ in }, width: 440, height: 460)
+    try await Task.sleep(for: .seconds(1))
+    search.enter(
+      "arrow", in: try #require(search.subviews.compactMap { $0 as? NSSearchField }.first))
+    try await Task.sleep(for: .seconds(4))
+    let searchBitmap = try #require(
+      search.view.bitmapImageRepForCachingDisplay(in: search.view.bounds))
+    search.view.cacheDisplay(in: search.view.bounds, to: searchBitmap)
+    let searchData = try #require(searchBitmap.representation(using: .png, properties: [:]))
+    try searchData.write(
+      to: URL(fileURLWithPath: folder).appendingPathComponent("character-search.png"))
+    search.window.close()
 
   }
 

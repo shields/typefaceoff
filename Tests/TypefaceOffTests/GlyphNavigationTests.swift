@@ -18,7 +18,8 @@ import TypefaceCore
     let view = NSHostingView(
       rootView:
         GlyphComparisonView(
-          comparison: comparison, focusRequest: UUID(), select: { _ in }, navigate: { _ in },
+          comparison: comparison, focusRequest: UUID(), searching: .constant(false),
+          select: { _ in }, navigate: { _ in },
           showText: {}, focusChanged: { focused = $0 }))
     window.contentView = view
     window.orderFront(nil)

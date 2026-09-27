@@ -19,12 +19,13 @@ import TypefaceCore
     try await host.settle()
     #expect(chosen.isEmpty)
     try sendKey(36, characters: "\r", to: host.window)
+    try await host.settle()
     #expect(chosen == ["Beta"])
     try sendKey(126, characters: "\u{F700}", to: host.window)
     try await host.settle()
     try sendKey(36, characters: "\r", to: host.window)
     #expect(chosen == ["Beta", "Alpha"])
-    let search = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    let search = try #require(fontSearch(host))
     for (command, expected) in [
       (#selector(NSResponder.moveDown(_:)), "Alpha"),
       (#selector(NSResponder.moveUp(_:)), "Gamma"),
@@ -47,7 +48,7 @@ import TypefaceCore
         choose: { chosen.append($0) }), width: 300, height: 400)
     defer { host.window.close() }
     try await host.settle()
-    let search = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    let search = try #require(fontSearch(host))
     #expect(search.currentEditor() != nil)
     host.enter("a", in: search)
     try await host.settle()
@@ -61,7 +62,7 @@ import TypefaceCore
     editor.setMarkedText(
       "a", selectedRange: NSRange(location: 1, length: 0),
       replacementRange: NSRange(location: 0, length: 1))
-    let delegate = try #require(search.delegate as? FontSearchField.Coordinator)
+    let delegate = try #require(search.delegate as? PickerSearchField.Coordinator)
     #expect(
       !delegate.control(
         search, textView: editor,
@@ -98,18 +99,18 @@ import TypefaceCore
     try await host.settle()
     try await host.press("Font A family")
     try await host.settle()
-    let search = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    let search = try #require(fontSearch(host))
     #expect(search.currentEditor() != nil)
     host.enter("Skia", in: search)
     try await host.settle()
     search.currentEditor()?.doCommand(by: #selector(NSResponder.moveDown(_:)))
     #expect(model.comparison == initial)
     search.currentEditor()?.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
-    try await host.settle { !host.subviews.contains { $0 is NSSearchField } }
+    try await host.settle { fontSearch(host) == nil }
     #expect(model.comparison == initial)
     try await host.press("Font A family")
     try await host.settle()
-    let reopened = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    let reopened = try #require(fontSearch(host))
     #expect(reopened.stringValue.isEmpty)
     host.enter("Skia", in: reopened)
     try await host.settle()
@@ -122,8 +123,14 @@ import TypefaceCore
     let popover = try #require(table.window)
     popover.makeFirstResponder(table)
     try sendKey(53, characters: "\u{1b}", to: popover)
-    try await host.settle { !host.subviews.contains { $0 is NSSearchField } }
+    try await host.settle { fontSearch(host) == nil }
     #expect(model.comparison.a.face.family == "Skia")
+  }
+
+  private func fontSearch<Content>(_ host: WorkbenchTestHost<Content>) -> NSSearchField? {
+    host.subviews.compactMap { $0 as? NSSearchField }.first {
+      $0.placeholderString == "Search installed fonts"
+    }
   }
 
   private func sendKey(_ code: UInt16, characters: String, to window: NSWindow) throws {

@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 import TypefaceCore
 
@@ -59,8 +58,9 @@ struct FontFamilyPicker: View {
 
   var body: some View {
     VStack(spacing: 10) {
-      FontSearchField(
-        text: $query, move: move, submit: confirm, cancel: { dismiss() }
+      PickerSearchField(
+        label: "Search installed fonts", text: $query, move: move, submit: confirm,
+        cancel: { dismiss() }
       ).padding([.top, .horizontal])
       if reference != nil {
         Picker("Sort fonts", selection: $ranking.sort) {
@@ -158,60 +158,5 @@ struct FontFamilyPicker: View {
   private func confirm() {
     guard let selection, choices.contains(selection) else { return }
     choose(selection.family)
-  }
-}
-
-/// Keep editing the query while arrow keys move through the list's selection.
-struct FontSearchField: NSViewRepresentable {
-  @Binding var text: String
-  var move: (Int) -> Void
-  var submit: () -> Void
-  var cancel: () -> Void
-
-  func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-  func makeNSView(context: Context) -> NSSearchField {
-    let field = InitiallyFocusedSearchField()
-    field.placeholderString = "Search installed fonts"
-    field.setAccessibilityLabel("Search installed fonts")
-    field.delegate = context.coordinator
-    return field
-  }
-
-  func updateNSView(_ field: NSSearchField, context: Context) {
-    context.coordinator.parent = self
-    if field.stringValue != text { field.stringValue = text }
-  }
-
-  final class Coordinator: NSObject, NSSearchFieldDelegate {
-    var parent: FontSearchField
-    init(_ parent: FontSearchField) { self.parent = parent }
-
-    func controlTextDidChange(_ notification: Notification) {
-      guard let field = notification.object as? NSSearchField else { return }
-      parent.text = field.stringValue
-    }
-
-    func control(
-      _ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector
-    ) -> Bool {
-      // Let the input method finish composing before handling navigation or confirmation.
-      guard !textView.hasMarkedText() else { return false }
-      switch commandSelector {
-      case #selector(NSResponder.moveUp(_:)): parent.move(-1)
-      case #selector(NSResponder.moveDown(_:)): parent.move(1)
-      case #selector(NSResponder.insertNewline(_:)): parent.submit()
-      case #selector(NSResponder.cancelOperation(_:)): parent.cancel()
-      default: return false
-      }
-      return true
-    }
-  }
-}
-
-private final class InitiallyFocusedSearchField: NSSearchField {
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
-    window?.makeFirstResponder(self)
   }
 }

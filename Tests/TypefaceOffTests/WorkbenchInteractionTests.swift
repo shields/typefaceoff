@@ -386,7 +386,6 @@ import TypefaceCore
   private var menuSelection: WorkbenchTestMenuSelection?
 
   init(_ content: Content, width: Double = 1440, height: Double = 900) {
-    NSApp.activate()
     window = WorkbenchTestWindow(
       contentRect: NSRect(x: 0, y: 0, width: width, height: height),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

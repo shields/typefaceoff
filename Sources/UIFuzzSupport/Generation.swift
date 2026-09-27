@@ -106,6 +106,14 @@ public struct TraceMutator: Sendable {
         FuzzAction(kind: .shortcut, keyCode: 19, modifiers: command),
         FuzzAction(kind: .click, target: "Glyph canvas"),
       ],
+      [
+        FuzzAction(kind: .shortcut, keyCode: 3, modifiers: command, delayMilliseconds: 400),
+        FuzzAction(
+          kind: .setValue, target: "Search Unicode characters", value: "left arrow",
+          delayMilliseconds: 400, commitValue: false),
+        FuzzAction(kind: .key, keyCode: 125),
+        FuzzAction(kind: .key, keyCode: 36, delayMilliseconds: 400),
+      ],
     ]
     var result = scenarios.enumerated().map { index, actions in
       FuzzTrace(seed: seed &+ UInt64(index), actions: actions, origin: "seed")
@@ -149,7 +157,8 @@ public struct TraceMutator: Sendable {
     case 0:
       let targets = [
         "Swap fonts", "Match…", "Apply", "Cancel", "Weight", "Tracking",
-        "Previous character", "Next character", "Zoom in", "Zoom out", "Reset glyph zoom",
+        "Previous character", "Next character", "Search characters", "Zoom in", "Zoom out",
+        "Reset glyph zoom",
         "Toggle font A inspector", "Toggle font B inspector", "Unlock appearance",
         "Lock appearance", "Edit text",
       ]
@@ -183,7 +192,7 @@ public struct TraceMutator: Sendable {
         (19, (1 << 20) | (1 << 17)), (18, (1 << 20) | (1 << 19)),
         (19, (1 << 20) | (1 << 19)), (6, 1 << 20), (6, (1 << 20) | (1 << 17)),
         (1, (1 << 20) | (1 << 19)), (14, (1 << 20) | (1 << 17)), (45, 1 << 20),
-        (13, 1 << 20),
+        (13, 1 << 20), (3, 1 << 20),
       ]
       let shortcut = shortcuts[Int(random.next() % UInt64(shortcuts.count))]
       return FuzzAction(

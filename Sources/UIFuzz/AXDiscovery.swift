@@ -54,7 +54,9 @@ extension AXDriver {
         FuzzAction(
           kind: $0, target: target, targetPath: node.path, targetRole: node.role,
           commitValue: $0 == .setValue
-            ? node.role != "AXTextArea" && target != "Search installed fonts" : nil)
+            ? node.role != "AXTextArea"
+              && !["Search installed fonts", "Search Unicode characters"].contains(target)
+            : nil)
       }
     }
     return result

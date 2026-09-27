@@ -34,6 +34,12 @@ public struct ActionExplorer {
       case "Character":
         let glyphs = ["a", "@", "Á", "e\u{301}", "🦄", "👩‍🚀", " "]
         action.value = glyphs[Int(random.next() % UInt64(glyphs.count))]
+      case "Search Unicode characters":
+        let queries = [
+          "", "arrow", "letter a", "left-arrow", "letf arrow", "U+2192", "u+1f984", "2192", "é",
+          "e\u{301}", "→", "-", "👩‍🚀", "A", "U+E000", "zzzz",
+        ]
+        action.value = queries[Int(random.next() % UInt64(queries.count))]
       case "Custom specimen text":
         action.value = mutator.text(using: &random)
       default:
@@ -61,6 +67,7 @@ public struct ActionExplorer {
         (18, command), (19, command), (18, command | shift), (19, command | shift),
         (18, command | option), (19, command | option), (6, command), (6, command | shift),
         (1, command | option), (14, command | shift), (46, command | shift), (45, command),
+        (3, command),
       ]
       result += shortcuts.map { FuzzAction(kind: .shortcut, keyCode: $0.0, modifiers: $0.1) }
     }

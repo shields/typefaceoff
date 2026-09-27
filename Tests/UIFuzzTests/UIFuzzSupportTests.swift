@@ -11,7 +11,7 @@ import Testing
 
     let mutator = TraceMutator(maximumActions: 4, maximumTextUnits: 32)
     let seeds = mutator.initialCorpus(seed: 1)
-    #expect(seeds.count == 15)
+    #expect(seeds.count == 16)
     #expect(seeds.allSatisfy { !$0.actions.isEmpty && $0.origin == "seed" })
     let input = FuzzTrace(seed: 7, actions: seeds.flatMap(\.actions), origin: "test")
     for seed in 0..<200 {
@@ -50,12 +50,14 @@ import Testing
   @Test func installedFontsDoNotCrowdOutUIActionsOrStartup() {
     let families = (0..<2000).map { "Family \($0)" }
     let mutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: families)
-    #expect(mutator.initialCorpus(seed: 42).count == 17)
+    #expect(mutator.initialCorpus(seed: 42).count == 18)
     #expect(mutator.initialCorpus(seed: 42) == mutator.initialCorpus(seed: 42))
     let actions = (0..<2000).flatMap {
       mutator.mutate(FuzzTrace(seed: 0), seed: UInt64($0)).actions
     }
-    for target in ["Swap fonts", "Match…", "Edit text", "Toggle font B inspector"] {
+    for target in [
+      "Swap fonts", "Match…", "Edit text", "Toggle font B inspector", "Search characters",
+    ] {
       #expect(actions.contains { $0.kind == .press && $0.target == target })
     }
     for side in ["A", "B"] {
@@ -113,7 +115,10 @@ import Testing
     var second = ActionExplorer(mutator: mutator)
     var left = SplitMix64(seed: 7)
     var right = SplitMix64(seed: 7)
-    let edits = ["Search installed fonts", "Character", "Custom specimen text", "Size"].map {
+    let edits = [
+      "Search installed fonts", "Search Unicode characters", "Character", "Custom specimen text",
+      "Size",
+    ].map {
       FuzzAction(
         kind: .setValue, target: $0, targetPath: [1, 2], targetRole: "AXTextField",
         commitValue: false)

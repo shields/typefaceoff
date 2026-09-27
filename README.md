@@ -43,16 +43,10 @@ reopen the app to refresh its catalog.
   the glyph view navigate the ranked characters. Type a grapheme in the
   character field and press Return to inspect any Unicode character. Click the
   glyph canvas at 100% to return to the text, or choose **Text** (⌘1).
-- Click the magnifying glass beside the character field, or choose **Find
-  Character** (⌘F), to search for a character by name (“left arrow”, even
-  misspelled as “letf arrow”), by the character itself, or by code point
-  (U+2192). Use ↑/↓ to highlight a result, Return to inspect it, or Escape to
-  dismiss the search; browsing leaves the inspected character unchanged. Results
-  rank closer name matches first, then characters both fonts have, then more
-  frequent characters, and label characters a font lacks. Names come from macOS,
-  so characters newer than its Unicode version, controls, private-use
-  characters, and emoji sequences are found by the character or its code point,
-  and abbreviations such as “nbsp” aren’t recognized.
+- Click the inspected character’s name, or choose **Find Character** (⌘F), to
+  search by name (“left arrow”), by the character itself, or by code point
+  (U+2192). Use ↑/↓ to highlight a result and Return to inspect it, or Escape to
+  dismiss the search.
 - In glyph view, use the mouse wheel, pinch gesture, or zoom slider to magnify
   the canvas from 100% to 800% without changing font settings. Zoom follows the
   pointer for wheel and pinch gestures. Drag or scroll with two fingers to pan

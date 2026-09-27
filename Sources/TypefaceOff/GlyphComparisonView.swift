@@ -47,23 +47,7 @@ struct GlyphComparisonView: View {
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
           .help("Inspect the next character (Right Arrow when the glyph view has focus)")
-        Button("Search characters", systemImage: "character.magnify") { searching = true }
-          .labelStyle(.iconOnly)
-          .help("Find a character by name, code point, or the character itself (⌘F)")
-          // A popover requested with the view, as by Find Character in text view, opens
-          // only once its anchor is onscreen.
-          .popover(
-            isPresented: Binding(get: { searching && appeared }, set: { searching = $0 }),
-            arrowEdge: .bottom
-          ) {
-            CharacterSearchPicker(comparison: comparison) { glyph in
-              searching = false
-              select(glyph)
-            }
-          }
-        Text(verbatim: unicodeDescription(comparison.selectedGlyph)).font(.system(size: 14))
-          .foregroundStyle(.primary).lineLimit(2)
-          .help(unicodeDescription(comparison.selectedGlyph))
+        searchButton
         Spacer(minLength: 8)
         zoomControls
       }.frame(height: 32).padding(16)
@@ -84,6 +68,38 @@ struct GlyphComparisonView: View {
     .task { appeared = true }
     .onChange(of: comparison.selectedScalars, initial: true) {
       input = comparison.selectedGlyph
+    }
+  }
+
+  private var searchButton: some View {
+    let description = unicodeDescription(comparison.selectedGlyph)
+    return Button {
+      searching = true
+    } label: {
+      HStack(spacing: 6) {
+        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+        Text(verbatim: description).foregroundStyle(.primary).lineLimit(1)
+          .truncationMode(.middle)
+      }
+      .font(.system(size: 14)).padding(.horizontal, 8)
+      .frame(maxWidth: 480, minHeight: 26, alignment: .leading)
+      .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.94)))
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel("Search characters")
+    .accessibilityValue(Text(verbatim: description))
+    .help("\(description)\nFind a character by name, code point, or the character itself (⌘F)")
+    // A popover requested with the view, as by Find Character in text view, opens only once
+    // its anchor is onscreen.
+    .popover(
+      isPresented: Binding(get: { searching && appeared }, set: { searching = $0 }),
+      arrowEdge: .bottom
+    ) {
+      CharacterSearchPicker(comparison: comparison) { glyph in
+        searching = false
+        select(glyph)
+      }
     }
   }
 

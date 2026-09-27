@@ -74,15 +74,17 @@ struct CharacterSearchPicker: View {
   }
 
   private func list(_ answer: CharacterSearchModel.Answer) -> some View {
-    ScrollViewReader { proxy in
+    let names = CharacterSearchRow.names(of: answer.request.fonts)
+    return ScrollViewReader { proxy in
       List(answer.results, selection: $selection) { result in
         Button {
           choose(result.glyph)
         } label: {
           CharacterSearchRow(
-            result: result, fonts: answer.request.fonts,
+            result: result, fonts: answer.request.fonts, names: names,
             spacingOnly: comparison.spacing && !comparison.shape)
-        }.buttonStyle(.plain).accessibilityLabel(Text(verbatim: CharacterSearchRow.label(result)))
+        }.buttonStyle(.plain)
+          .accessibilityLabel(Text(verbatim: CharacterSearchRow.label(result, names: names)))
           .tag(result.id).id(result.id)
       }
       .onKeyPress(.return) {
@@ -117,6 +119,7 @@ struct CharacterSearchPicker: View {
 struct CharacterSearchRow: View {
   let result: CharacterSearchResult
   let fonts: [FontConfiguration]
+  let names: [String]
   let spacingOnly: Bool
 
   var body: some View {
@@ -125,7 +128,7 @@ struct CharacterSearchRow: View {
         .allowsHitTesting(false).accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(verbatim: unicodeDescription(result.glyph)).lineLimit(2)
-        if let unavailable = Self.unavailability(result) {
+        if let unavailable = Self.unavailability(result, names: names) {
           Text(verbatim: unavailable).font(.caption).foregroundStyle(.orange)
         }
       }
@@ -143,14 +146,27 @@ struct CharacterSearchRow: View {
     }
   }
 
-  static func label(_ result: CharacterSearchResult) -> String {
-    unicodeDescription(result.glyph) + (unavailability(result).map { ". \($0)" } ?? "")
+  /// Families name the fonts unless both share one; a missing font has only the name it was
+  /// configured with.
+  static func names(of fonts: [FontConfiguration]) -> [String] {
+    let families = fonts.map { FontRenderer.isAvailable($0) ? $0.face.family : $0.postScriptName }
+    guard Set(families).count < families.count else { return families }
+    return fonts.map {
+      FontRenderer.isAvailable($0) ? "\($0.face.family) \($0.face.style)" : $0.postScriptName
+    }
   }
 
-  static func unavailability(_ result: CharacterSearchResult) -> String? {
-    let missing = zip(["A", "B"], result.supported).filter { !$0.1 }.map(\.0)
+  static func label(_ result: CharacterSearchResult, names: [String]) -> String {
+    unicodeDescription(result.glyph)
+      + (unavailability(result, names: names).map { ". \($0)" } ?? "")
+  }
+
+  static func unavailability(_ result: CharacterSearchResult, names: [String]) -> String? {
+    var missing: [String] = []
+    for (name, supported) in zip(names, result.supported) where !supported {
+      if !missing.contains(name) { missing.append(name) }
+    }
     guard !missing.isEmpty else { return nil }
-    return result.supported.count == 1
-      ? "Unavailable" : "Unavailable in \(missing.joined(separator: " and "))"
+    return "Unavailable in \(missing.joined(separator: " and "))"
   }
 }

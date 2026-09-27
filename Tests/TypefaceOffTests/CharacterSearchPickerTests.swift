@@ -155,17 +155,30 @@ import TypefaceCore
     }
   }
 
-  @Test func rowsLabelAndDrawOnlyTheFontsThatHaveTheCharacter() async throws {
-    let cases: [([Bool], String?)] = [
-      ([true], nil), ([false], "Unavailable"), ([true, true], nil),
-      ([false, true], "Unavailable in A"), ([true, false], "Unavailable in B"),
-      ([false, false], "Unavailable in A and B"),
+  @Test func rowsNameAndDrawOnlyTheFontsThatHaveTheCharacter() async throws {
+    let helvetica = FontConfiguration("HelveticaNeue")
+    let names = CharacterSearchRow.names(of: [helvetica, FontConfiguration("ArialMT")])
+    #expect(names == ["Helvetica Neue", "Arial"])
+    #expect(
+      CharacterSearchRow.names(of: [helvetica, FontConfiguration("HelveticaNeue-Bold")])
+        == ["Helvetica Neue Regular", "Helvetica Neue Bold"])
+    #expect(
+      CharacterSearchRow.names(of: [FontConfiguration("TypefaceOff-Does-Not-Exist")])
+        == ["TypefaceOff-Does-Not-Exist"])
+    let cases: [([Bool], [String], String?)] = [
+      ([true], ["Helvetica Neue"], nil),
+      ([false], ["Helvetica Neue"], "Unavailable in Helvetica Neue"),
+      ([true, true], names, nil),
+      ([false, true], names, "Unavailable in Helvetica Neue"),
+      ([true, false], names, "Unavailable in Arial"),
+      ([false, false], names, "Unavailable in Helvetica Neue and Arial"),
+      ([false, false], ["Arial", "Arial"], "Unavailable in Arial"),
     ]
-    for (supported, expected) in cases {
+    for (supported, names, expected) in cases {
       let result = CharacterSearchResult(glyph: "→", supported: supported)
-      #expect(CharacterSearchRow.unavailability(result) == expected)
+      #expect(CharacterSearchRow.unavailability(result, names: names) == expected)
       #expect(
-        CharacterSearchRow.label(result)
+        CharacterSearchRow.label(result, names: names)
           == "U+2192 RIGHTWARDS ARROW" + (expected.map { ". \($0)" } ?? ""))
     }
     let results = ["a", "b", "c", "d"].enumerated().map { index, glyph in
@@ -180,7 +193,8 @@ import TypefaceCore
     try await host.settle()
     host.enter("letter", in: try #require(searchField(host)))
     try await host.settle { table(host) != nil }
-    _ = try await host.element("U+0064 LATIN SMALL LETTER D. Unavailable in A and B")
+    _ = try await host.element(
+      "U+0064 LATIN SMALL LETTER D. Unavailable in Helvetica Neue and Arial")
   }
 
   @Test func workbenchSearchInspectsWithoutUndoAndCloses() async throws {

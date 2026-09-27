@@ -43,6 +43,16 @@ reopen the app to refresh its catalog.
   the glyph view navigate the ranked characters. Type a grapheme in the
   character field and press Return to inspect any Unicode character. Click the
   glyph canvas at 100% to return to the text, or choose **Text** (⌘1).
+- Click the magnifying glass beside the character field, or choose **Find
+  Character** (⌘F), to search for a character by name (“left arrow”, even
+  misspelled as “letf arrow”), by the character itself, or by code point
+  (U+2192). Use ↑/↓ to highlight a result, Return to inspect it, or Escape to
+  dismiss the search; browsing leaves the inspected character unchanged. Results
+  rank closer name matches first, then characters both fonts have, then more
+  frequent characters, and label characters a font lacks. Names come from macOS,
+  so characters newer than its Unicode version, controls, private-use
+  characters, and emoji sequences are found by the character or its code point,
+  and abbreviations such as “nbsp” aren’t recognized.
 - In glyph view, use the mouse wheel, pinch gesture, or zoom slider to magnify
   the canvas from 100% to 800% without changing font settings. Zoom follows the
   pointer for wheel and pinch gestures. Drag or scroll with two fingers to pan
@@ -80,8 +90,8 @@ reopen the app to refresh its catalog.
   discards it, and Apply changes only B in one undoable edit, recalibrating
   appearance links. Only improvements verified on the full fitting corpus can be
   applied.
-- Browsing glyphs, switching views, and toggling highlights preserve Undo/Redo.
-  Undoing a font edit keeps the current inspection in view.
+- Browsing or searching glyphs, switching views, and toggling highlights
+  preserve Undo/Redo. Undoing a font edit keeps the current inspection in view.
 - Launching the app opens a fresh comparison window. Each window is independent;
   settings and sample text stay in memory and are discarded when it closes.
   Missing fonts and glyphs are labeled rather than silently compared using
@@ -90,7 +100,8 @@ reopen the app to refresh its catalog.
   feature. Some fonts’ ligatures apply to scripts other than Latin. Features
   without a verified example show **No preview available**.
 
-The **View** menu switches between Text (⌘1) and Glyph (⌘2), toggles the font
+The **Edit** menu’s Find Character (⌘F) searches for a character to inspect. The
+**View** menu switches between Text (⌘1) and Glyph (⌘2), toggles the font
 inspectors (⌥⌘1 and ⌥⌘2), and toggles Shape and Spacing highlights (⇧⌘1 and ⇧⌘2)
 and frequency weighting (⇧⌘F). The **Comparison** menu offers Match (⇧⌘M), Swap
 Fonts (⌥⌘S), and Edit Sample Text (⇧⌘E). Commands apply to the active comparison
@@ -153,9 +164,10 @@ builds the tests once and runs them on macOS 15 without rebuilding.
 `.build/portable-tests.tar`, and `make test-without-building` unpacks and runs
 them with whatever Xcode is installed, saving results like `make test-app`.
 
-`make review` renders native text, glyph, and single-font windows into
-`.build/review` for visual inspection and records glyph redraw timings in
-`glyph-performance.json`. It requires an active macOS desktop session.
+`make review` renders native text, glyph, single-font, and character search
+windows into `.build/review` for visual inspection and records glyph redraw
+timings in `glyph-performance.json`. It requires an active macOS desktop
+session.
 
 `make benchmark` runs an opt-in release benchmark and writes
 `.build/similarity-benchmark/scores.json`, rendered specimens, and
@@ -165,7 +177,8 @@ Open the HTML locally for blind triplet judgments with ties; download judgments
 and import multiple reviewers’ files to calculate individual and majority
 agreement. Nothing is uploaded. The JSON records configurations, component
 scores, corpus and score versions, OS, scale, runtime, and quick/refined fit
-results.
+results. `character-search.json` records character search index and query
+timings.
 
 Swift 6 language mode, strict concurrency, warnings as errors, `swift-format`,
 and the shared [right-answers](../right-answers/README.md) guidelines apply.

@@ -14,6 +14,10 @@ struct CharacterSearchIndex: Sendable {
 
   /// Rows in popularity order, so a row's index is its final tie-break.
   let scalars: [Unicode.Scalar]
+  /// Equal for rows the frequency table doesn't order apart.
+  let popularity: [Int32]
+  let tiers: [UInt8]
+  let variants: [Bool]
   /// Sorted bytewise, so each prefix's words are contiguous.
   let vocabulary: [[UInt8]]
   let postingStarts: [Int]
@@ -46,6 +50,35 @@ struct CharacterSearchIndex: Sendable {
     return name.hasSuffix("-" + String(repeating: "0", count: max(0, 4 - hex.count)) + hex)
   }
 
+  /// Ranks characters the frequency table doesn't, like raycast-charp's category tiers:
+  /// lowercase letters, other letters, numbers, then symbols, punctuation, and spaces, then
+  /// modifiers, marks, and invisible characters.
+  static func categoryTier(_ scalar: Unicode.Scalar) -> UInt8 {
+    switch scalar.properties.generalCategory {
+    case .lowercaseLetter: 7
+    case .uppercaseLetter, .titlecaseLetter, .otherLetter: 6
+    case .decimalNumber, .letterNumber, .otherNumber: 5
+    case .currencySymbol, .mathSymbol, .otherSymbol, .connectorPunctuation, .dashPunctuation,
+      .openPunctuation, .closePunctuation, .initialPunctuation, .finalPunctuation,
+      .otherPunctuation, .spaceSeparator, .lineSeparator, .paragraphSeparator:
+      4
+    case .modifierSymbol, .modifierLetter: 3
+    case .nonspacingMark, .spacingMark, .enclosingMark: 2
+    default: 1
+    }
+  }
+
+  /// A duplicate of another character, such as GREEK PROSGEGRAMMENI of ι, or a styled form of
+  /// one, such as ϐ or ①, ranks after it, as raycast-charp ranks styled forms. Ligatures,
+  /// composites such as ‼, and spaces of other widths remain characters of their own.
+  static func isVariant(_ scalar: Unicode.Scalar) -> Bool {
+    guard scalar.properties.generalCategory != .spaceSeparator else { return false }
+    let text = String(scalar)
+    let compatible = Array(text.precomposedStringWithCompatibilityMapping.unicodeScalars)
+    return compatible.count == 1 && compatible != [scalar]
+      || !text.precomposedStringWithCanonicalMapping.unicodeScalars.elementsEqual([scalar])
+  }
+
   init(entries: [Entry]) {
     var shares: [Double] = []
     for entry in entries { shares.append(CharacterFrequency.table[entry.scalar] ?? 0) }
@@ -54,6 +87,15 @@ struct CharacterSearchIndex: Sendable {
         ? shares[a] > shares[b] : entries[a].scalar.value < entries[b].scalar.value
     }
     precondition(order.count < Int(Int32.max))
+    var popularity: [Int32] = []
+    var tiers: [UInt8] = []
+    var variants: [Bool] = []
+    for (position, index) in order.enumerated() {
+      let tied = position > 0 && shares[order[position - 1]] == shares[index]
+      popularity.append(tied ? popularity[position - 1] : Int32(position))
+      tiers.append(Self.categoryTier(entries[index].scalar))
+      variants.append(Self.isVariant(entries[index].scalar))
+    }
     var scalars: [Unicode.Scalar] = []
     var nameTokens: [[[UInt8]]] = []
     var aliasTokens: [[[UInt8]]] = []
@@ -97,6 +139,9 @@ struct CharacterSearchIndex: Sendable {
       for word in aliasTokens[row] { fill(word, row: row) }
     }
     self.scalars = scalars
+    self.popularity = popularity
+    self.tiers = tiers
+    self.variants = variants
     self.vocabulary = vocabulary
     self.postingStarts = postingStarts
     self.postings = postings
@@ -162,19 +207,23 @@ struct CharacterSearchIndex: Sendable {
 
   /// The pinned glyph leads regardless of score: the character typed as is, then one
   /// spelled as code points, so every scalar and cluster is reachable.
-  func search(_ query: String, missingFonts: (Unicode.Scalar) -> Int) throws -> [String] {
+  func search(_ query: String, fontCount: Int, missingFonts: (Unicode.Scalar) -> Int) throws
+    -> [String]
+  {
     let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
     let pin = query.count == 1 ? query : trimmed.count == 1 ? trimmed : Self.codePointGlyph(trimmed)
     var results = pin.map { [$0] } ?? []
     guard !trimmed.isEmpty else { return results }
     let terms = Self.terms(trimmed)
-    var matches = try self.matches(terms, fuzzy: false, missingFonts: missingFonts)
+    var matches = try self.matches(
+      terms, fuzzy: false, fontCount: fontCount, missingFonts: missingFonts)
     // Only a query that otherwise finds nothing pays for edit distances, which count scalars.
     let longEnoughToFuzzyMatch = terms.contains {
       $0.unicodeScalars.count >= Self.fuzzyMinimumLength
     }
     if matches.isEmpty, longEnoughToFuzzyMatch {
-      matches = try self.matches(terms, fuzzy: true, missingFonts: missingFonts)
+      matches = try self.matches(
+        terms, fuzzy: true, fontCount: fontCount, missingFonts: missingFonts)
     }
     matches.sort { $0.precedes($1) }
     let pinned = pin.map { Array($0.unicodeScalars) }
@@ -193,8 +242,15 @@ struct CharacterSearchIndex: Sendable {
     let covered: Int
     let words: Int
     let score: UInt8
+    let unrenderable: Bool
+    let popularity: Int32
+    let tier: UInt8
+    let variant: Bool
     let missing: Int
 
+    /// A character no compared font has sinks, but one only some fonts have still ranks by
+    /// popularity, so a common arrow in one font leads obscure marks in both. Shorter names
+    /// break the remaining ties, so CHECK MARK precedes AEGEAN CHECK MARK.
     func precedes(_ other: Match) -> Bool {
       if bucket != other.bucket { return bucket < other.bucket }
       if charHit != other.charHit { return charHit }
@@ -202,25 +258,39 @@ struct CharacterSearchIndex: Sendable {
       let otherCoverage = other.covered * words
       if coverage != otherCoverage { return coverage > otherCoverage }
       if score != other.score { return score > other.score }
+      if unrenderable != other.unrenderable { return other.unrenderable }
+      if popularity != other.popularity { return popularity < other.popularity }
+      if tier != other.tier { return tier > other.tier }
+      if variant != other.variant { return other.variant }
       if missing != other.missing { return missing < other.missing }
+      if words != other.words { return words < other.words }
       return row < other.row
     }
   }
 
-  func matches(_ terms: [String], fuzzy: Bool, missingFonts: (Unicode.Scalar) -> Int) throws
-    -> [Match]
-  {
+  func matches(
+    _ terms: [String], fuzzy: Bool, fontCount: Int, missingFonts: (Unicode.Scalar) -> Int
+  ) throws -> [Match] {
     let (scores, charHits, prefixes) = try scores(terms, fuzzy: fuzzy)
     var result: [Match] = []
     for row in scalars.indices where scores[row] > 0 {
       let names = nameWords[nameWordStarts[row]..<nameWordStarts[row + 1]]
-      // Fuzzy matches don't count, so a typo can't make a longer name look complete.
-      let covered = names.count { word in prefixes.contains { $0.contains(Int(word)) } }
+      let missing = missingFonts(scalars[row])
+      // Fuzzy matches don't count, so a typo can't make a longer name look complete. One
+      // term covers one word of any name it matches, so its coverage would only favor short
+      // names ("LATIN CROSS" for "latin") over common characters.
+      let covered =
+        terms.count > 1 ? names.count { word in prefixes.contains { $0.contains(Int(word)) } } : 0
+      // A query naming a letter's script ("greek") wants letters; one naming what a letter
+      // sounds like (LATIN SMALL LETTER HALF H for "half") ranks it with symbols.
+      let leading = names.first.map { word in prefixes.contains { $0.contains(Int(word)) } }
+      let tier = tiers[row] >= 6 && leading != true ? 4 : tiers[row]
       result.append(
         Match(
           row: Int32(row), bucket: Self.bucket(scores[row]), charHit: charHits[row],
           covered: covered, words: max(1, names.count), score: scores[row],
-          missing: missingFonts(scalars[row])))
+          unrenderable: fontCount > 0 && missing == fontCount, popularity: popularity[row],
+          tier: tier, variant: variants[row], missing: missing))
     }
     return result
   }
@@ -255,7 +325,10 @@ struct CharacterSearchIndex: Sendable {
       let prefix = prefixRange(bytes)
       prefixes.append(prefix)
       for word in prefix {
-        raise(&scores, word, to: vocabulary[word].count == bytes.count ? 80 : 60)
+        // A plural ("EQUALS" for "equal") counts as the word itself.
+        let exact =
+          vocabulary[word].count == bytes.count || vocabulary[word] == bytes + [UInt8(ascii: "s")]
+        raise(&scores, word, to: exact ? 80 : 60)
       }
       for word in vocabulary.indices where Self.contains(vocabulary[word], bytes) {
         raise(&scores, word, to: 20)

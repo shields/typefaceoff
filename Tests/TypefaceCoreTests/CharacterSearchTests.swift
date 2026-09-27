@@ -151,7 +151,21 @@ import Testing
     #expect(!CharacterSearchIndex.fuzzyMatch(word, "right".unicodeScalars.map(\.value)))
   }
 
-  @Test func nameCoverageThenFontSupportOrderEqualMatches() throws {
+  @Test func singleWordsRankCommonCharactersBeforeShortNames() async throws {
+    #expect(try await ids("latin").first == scalars("e")[0])
+    #expect(Array(try await ids("check").prefix(1)) == scalars("✓"))
+    let greek = try await ids("greek")
+    let alpha = try #require(greek.firstIndex(of: scalars("α")[0]))
+    #expect(greek.firstIndex(of: scalars("ϐ")[0]).map { alpha < $0 } != false)
+    for variant: Unicode.Scalar in ["ϐ", "\u{1FBE}", "①", "\u{212B}"] {
+      #expect(CharacterSearchIndex.isVariant(variant), "\(variant)")
+    }
+    for character: Unicode.Scalar in ["ﬁ", "‼", "é", "\u{2003}", "½"] {
+      #expect(!CharacterSearchIndex.isVariant(character), "\(character)")
+    }
+  }
+
+  @Test func equalMatchesRankByFontSupportThenPopularity() throws {
     let entries = [
       Entry(scalar: "\u{10B00}", name: "AVESTAN LETTER A", alias: nil),
       Entry(scalar: "\u{10B01}", name: "AVESTAN LETTER AA", alias: nil),
@@ -159,11 +173,12 @@ import Testing
     ]
     let index = CharacterSearchIndex(entries: entries)
     func search(_ query: String, missing: Set<UInt32> = []) throws -> [String] {
-      try index.search(query) { missing.contains($0.value) ? 1 : 0 }
+      try index.search(query, fontCount: 1) { missing.contains($0.value) ? 1 : 0 }
     }
     #expect(try search("letter a") == ["a", "\u{10B00}", "\u{10B01}"])
-    #expect(try search("letter") == ["\u{10B00}", "\u{10B01}", "a"])
-    #expect(try search("letter", missing: [0x10B00]) == ["\u{10B01}", "\u{10B00}", "a"])
+    #expect(try search("avestan letter a") == ["\u{10B00}", "\u{10B01}"])
+    #expect(try search("letter") == ["a", "\u{10B00}", "\u{10B01}"])
+    #expect(try search("letter", missing: [0x61, 0x10B00]) == ["\u{10B01}", "a", "\u{10B00}"])
   }
 
   @Test func namelessCharactersAreFoundThroughAliases() throws {
@@ -171,7 +186,7 @@ import Testing
       entries: [
         Entry(scalar: "—", name: nil, alias: "EMDASH"), Entry(scalar: "a", name: "A", alias: nil),
       ])
-    #expect(try index.search("emdash") { _ in 0 } == ["—"])
+    #expect(try index.search("emdash", fontCount: 0) { _ in 0 } == ["—"])
   }
 
   @Test func placeholderNamesContributeNoWords() async throws {
@@ -196,7 +211,7 @@ import Testing
 
   @Test func hangulSyllablesAndSpacesAreFoundByName() async throws {
     #expect(try await ids("hangul syllable ga").first == scalars("가")[0])
-    #expect(try await ids("space").first == scalars(" ")[0])
+    #expect(try await ids("space", fonts: fonts).first == scalars(" ")[0])
   }
 
   @Test func supportedFlagsMatchTheRenderer() async throws {
@@ -271,8 +286,8 @@ import Testing
     ] {
       for fonts in [[], fonts] {
         let missing = Self.missing(fonts)
-        let fast = try index.search(query, missingFonts: missing)
-        let slow = naive.search(query, missingFonts: missing)
+        let fast = try index.search(query, fontCount: fonts.count, missingFonts: missing)
+        let slow = naive.search(query, fontCount: fonts.count, missingFonts: missing)
         #expect(
           fast.map { Array($0.unicodeScalars) } == slow.map { Array($0.unicodeScalars) }, "\(query)"
         )
@@ -285,6 +300,9 @@ import Testing
 private struct NaiveCharacterSearch {
   struct Row {
     let scalar: Unicode.Scalar
+    let share: Double
+    let variant: Bool
+    let tier: UInt8
     let names: [String]
     let words: [String]
   }
@@ -292,20 +310,19 @@ private struct NaiveCharacterSearch {
   let rows: [Row]
 
   init(entries: [CharacterSearchIndex.Entry]) {
-    let shares = entries.map { CharacterFrequency.table[$0.scalar] ?? 0 }
-    let order = entries.indices.sorted {
-      (-shares[$0], entries[$0].scalar.value) < (-shares[$1], entries[$1].scalar.value)
-    }
-    rows = order.map { index in
-      let entry = entries[index]
+    rows = entries.map { entry in
       let names = CharacterSearchIndex.words(entry.name ?? "")
       return Row(
-        scalar: entry.scalar, names: names,
+        scalar: entry.scalar, share: CharacterFrequency.table[entry.scalar] ?? 0,
+        variant: CharacterSearchIndex.isVariant(entry.scalar),
+        tier: CharacterSearchIndex.categoryTier(entry.scalar), names: names,
         words: names + CharacterSearchIndex.words(entry.alias ?? ""))
     }
   }
 
-  func search(_ query: String, missingFonts: (Unicode.Scalar) -> Int) -> [String] {
+  func search(_ query: String, fontCount: Int, missingFonts: (Unicode.Scalar) -> Int)
+    -> [String]
+  {
     let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
     let pin =
       query.count == 1
@@ -313,11 +330,12 @@ private struct NaiveCharacterSearch {
     var results = pin.map { [$0] } ?? []
     guard !trimmed.isEmpty else { return results }
     let terms = CharacterSearchIndex.terms(trimmed)
-    var matches = self.matches(terms, fuzzy: false, missingFonts: missingFonts)
-    if matches.isEmpty, terms.contains(where: { $0.count >= 4 }) {
-      matches = self.matches(terms, fuzzy: true, missingFonts: missingFonts)
+    var matches = self.matches(terms, fuzzy: false, fontCount: fontCount, missing: missingFonts)
+    if matches.isEmpty, terms.contains(where: { $0.unicodeScalars.count >= 4 }) {
+      matches = self.matches(terms, fuzzy: true, fontCount: fontCount, missing: missingFonts)
     }
-    for match in matches.sorted(by: { $0.key < $1.key }) where results.count < 200 {
+    let sorted = matches.sorted { $0.key.lexicographicallyPrecedes($1.key) }
+    for match in sorted where results.count < 200 {
       if pin.map({ Array($0.unicodeScalars) }) != [match.scalar] {
         results.append(String(match.scalar))
       }
@@ -325,11 +343,11 @@ private struct NaiveCharacterSearch {
     return results
   }
 
-  private func matches(_ terms: [String], fuzzy: Bool, missingFonts: (Unicode.Scalar) -> Int) -> [(
-    scalar: Unicode.Scalar, key: (Int, Int, Double, Int, Int, Int)
-  )] {
-    var result: [(scalar: Unicode.Scalar, key: (Int, Int, Double, Int, Int, Int))] = []
-    for (index, row) in rows.enumerated() {
+  private func matches(
+    _ terms: [String], fuzzy: Bool, fontCount: Int, missing: (Unicode.Scalar) -> Int
+  ) -> [(scalar: Unicode.Scalar, key: [Double])] {
+    var result: [(scalar: Unicode.Scalar, key: [Double])] = []
+    for row in rows {
       var score = 100
       var charHit = false
       for term in terms {
@@ -338,13 +356,22 @@ private struct NaiveCharacterSearch {
         charHit = charHit || hit
       }
       guard score > 0 else { continue }
-      let covered = row.names.count { name in terms.contains { name.hasPrefix($0) } }
+      let covered =
+        terms.count > 1 ? row.names.count { name in terms.contains { name.hasPrefix($0) } } : 0
       let coverage = row.names.isEmpty ? 0 : Double(covered) / Double(row.names.count)
       let bucket = score == 100 ? 0 : score >= 60 ? 1 : score == 20 ? 2 : 3
+      let lacking = missing(row.scalar)
+      let unrenderable = fontCount > 0 && lacking == fontCount
+      let leading = row.names.first.map { name in terms.contains { name.hasPrefix($0) } }
+      let tier = row.tier >= 6 && leading != true ? 4 : row.tier
       result.append(
         (
           row.scalar,
-          (bucket, charHit ? 0 : 1, -coverage, 100 - score, missingFonts(row.scalar), index)
+          [
+            Double(bucket), charHit ? 0 : 1, -coverage, Double(100 - score), unrenderable ? 1 : 0,
+            -row.share, -Double(tier), row.variant ? 1 : 0, Double(lacking),
+            Double(max(1, row.names.count)), Double(row.scalar.value),
+          ]
         ))
     }
     return result
@@ -357,7 +384,7 @@ private struct NaiveCharacterSearch {
       tier = 100
       hit = true
     }
-    if row.words.contains(term) { tier = max(tier, 80) }
+    if row.words.contains(term) || row.words.contains(term + "s") { tier = max(tier, 80) }
     if row.words.contains(where: { $0.hasPrefix(term) }) { tier = max(tier, 60) }
     if row.words.contains(where: { $0.contains(term) }) { tier = max(tier, 20) }
     let digits = term.hasPrefix("u+") || term.hasPrefix("0x") ? String(term.dropFirst(2)) : term

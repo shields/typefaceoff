@@ -111,7 +111,12 @@ public enum FontRenderer {
   }
 
   static func supports(_ line: CTLine, font: CTFont) -> Bool {
-    let configuredName = CTFontCopyPostScriptName(font) as String
+    supports(line, configuredName: CTFontCopyPostScriptName(font) as String)
+  }
+
+  /// For callers that already have the font's PostScript name, such as one probing many
+  /// glyphs against the same font.
+  static func supports(_ line: CTLine, configuredName: String) -> Bool {
     // Core Text guarantees that this array contains CTRun objects.
     let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     return runs.allSatisfy { run in

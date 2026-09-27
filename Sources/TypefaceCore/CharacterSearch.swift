@@ -26,7 +26,9 @@ public enum CharacterSearch {
     // A missing font would lend the fallback font's coverage.
     let probes = fonts.map { FontRenderer.isAvailable($0) ? FontProbe($0) : nil }
     let available = probes.compactMap { $0 }
-    let glyphs = try index.search(query) { scalar in available.count { $0.lacks(scalar) } }
+    let glyphs = try index.search(query, fontCount: available.count) { scalar in
+      available.count { $0.lacks(scalar) }
+    }
     var results: [CharacterSearchResult] = []
     for glyph in glyphs {
       try Task.checkCancellation()
@@ -41,16 +43,19 @@ struct FontProbe {
   let config: FontConfiguration
   let font: CTFont
   let coverage: CFCharacterSet
+  let configuredName: String
 
   init(_ config: FontConfiguration) {
     self.config = config
     font = FontRenderer.font(config, size: 22)
     coverage = CTFontCopyCharacterSet(font)
+    configuredName = CTFontCopyPostScriptName(font) as String
   }
 
   func renders(_ glyph: String) -> Bool {
     FontRenderer.supports(
-      FontRenderer.line(glyph, config: config, font: font, size: 22, tracking: false), font: font)
+      FontRenderer.line(glyph, config: config, font: font, size: 22, tracking: false),
+      configuredName: configuredName)
   }
 
   func lacks(_ scalar: Unicode.Scalar) -> Bool {

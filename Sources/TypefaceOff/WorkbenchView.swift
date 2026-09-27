@@ -233,7 +233,7 @@ struct WorkbenchView: View {
                 selectGlyph(item.glyph)
               } label: {
                 stripItem(item, maximumShape: maximumShape, maximumSpacing: maximumSpacing)
-              }.buttonStyle(.plain).id(item.glyph)
+              }.buttonStyle(.plain).id(item.id)
                 .accessibilityLabel("Inspect \(unicodeDescription(item.glyph))")
                 .accessibilityAddTraits(isInspected(item.glyph) ? .isSelected : [])
                 .help(stripHelp(item))
@@ -241,7 +241,7 @@ struct WorkbenchView: View {
           }.padding(1)
         }.scrollIndicators(.hidden).frame(height: 84)
           .onChange(of: comparison.selectedScalars) {
-            proxy.scrollTo(comparison.selectedGlyph, anchor: .center)
+            proxy.scrollTo(comparison.selectedScalars, anchor: .center)
           }
       }
       if ranked.isEmpty && !ranking.comparing {
@@ -376,8 +376,7 @@ struct WorkbenchView: View {
       ? "" : SharedSizeFormat.style(locale: locale).format(comparison.a.size)
   }
   private func isInspected(_ glyph: String) -> Bool {
-    comparison.mode == .glyph
-      && comparison.selectedScalars.elementsEqual(glyph.unicodeScalars)
+    comparison.mode == .glyph && comparison.matches(glyph)
   }
   private func selectGlyph(_ glyph: String) {
     guard let first = glyph.first else { return }
@@ -393,7 +392,7 @@ struct WorkbenchView: View {
     guard !glyphs.isEmpty else { return }
     // A canonically equivalent spelling still navigates from its place in the list.
     let index =
-      glyphs.firstIndex { comparison.selectedScalars.elementsEqual($0.unicodeScalars) }
+      glyphs.firstIndex { comparison.matches($0) }
       ?? glyphs.firstIndex(of: comparison.selectedGlyph) ?? 0
     selectGlyph(glyphs[(index + direction + glyphs.count) % glyphs.count])
   }

@@ -1,7 +1,9 @@
 import Foundation
 
 public struct GlyphDifference: Identifiable, Hashable, Sendable {
-  public var id: String { glyph }
+  // String identity is canonical equivalence, which would merge distinct candidates
+  // (U+037E GREEK QUESTION MARK and ';') into one SwiftUI identity.
+  public var id: [Unicode.Scalar] { Array(glyph.unicodeScalars) }
   public let glyph: String
   public let shape: Double
   public let spacing: Double
@@ -57,11 +59,19 @@ public enum Differences {
   }
 
   public static func candidates(sample: String) -> [String] {
-    Set(
-      (String((33...126).compactMap(UnicodeScalar.init).map(Character.init)) + sample).map(
-        String.init)
-    )
-    .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.sorted()
+    // Dedup by scalars: String equality is canonical equivalence, which would drop
+    // U+037E GREEK QUESTION MARK from a sample as a duplicate of the fixed ';'.
+    var seen = Set<[Unicode.Scalar]>()
+    var result: [String] = []
+    for character in String((33...126).compactMap(UnicodeScalar.init).map(Character.init))
+      + sample
+    {
+      guard !String(character).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        continue
+      }
+      if seen.insert(Array(character.unicodeScalars)).inserted { result.append(String(character)) }
+    }
+    return result.sorted()
   }
 
   public static func ranked(
@@ -80,19 +90,17 @@ public enum Differences {
     let spacingRanks = percentiles(scores, key: \.spacing)
     // Both maps contain every input glyph, including ties and duplicate glyphs.
     return scores.sorted {
-      let left = $0.weighted(
-        shapeRanks[$0.glyph]! + spacingRanks[$0.glyph]!, frequency: frequency)
-      let right = $1.weighted(
-        shapeRanks[$1.glyph]! + spacingRanks[$1.glyph]!, frequency: frequency)
+      let left = $0.weighted(shapeRanks[$0.id]! + spacingRanks[$0.id]!, frequency: frequency)
+      let right = $1.weighted(shapeRanks[$1.id]! + spacingRanks[$1.id]!, frequency: frequency)
       return left == right ? $0.glyph < $1.glyph : left > right
     }
   }
 
   private static func percentiles(
     _ scores: [GlyphDifference], key: KeyPath<GlyphDifference, Double>
-  ) -> [String: Double] {
+  ) -> [[Unicode.Scalar]: Double] {
     let sorted = scores.sorted { $0[keyPath: key] < $1[keyPath: key] }
-    var result: [String: Double] = [:]
+    var result: [[Unicode.Scalar]: Double] = [:]
     var start = 0
     while start < sorted.count {
       var end = start + 1
@@ -101,7 +109,7 @@ public enum Differences {
       let value =
         sorted[start][keyPath: key] > 1e-9
         ? Double(start + end - 1) / 2 / Double(max(1, sorted.count - 1)) : 0
-      for index in start..<end { result[sorted[index].glyph] = value }
+      for index in start..<end { result[sorted[index].id] = value }
       start = end
     }
     return result

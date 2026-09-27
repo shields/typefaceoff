@@ -165,4 +165,15 @@ import Testing
       Differences.ranked(scores, shape: true, spacing: true, frequency: false)
         == Differences.ranked(scores, shape: false, spacing: false, frequency: false))
   }
+
+  @Test func canonicallyEquivalentCharactersRankSeparately() {
+    let candidates = Differences.candidates(sample: "\u{37E}")
+    #expect(candidates.filter { $0 == ";" }.map(\.unicodeScalars.first) == [";", "\u{37E}"])
+    let scores = [
+      GlyphDifference(glyph: ";", shape: 0.1, spacing: 0.01),
+      .init(glyph: "\u{37E}", shape: 0.9, spacing: 0.09),
+    ]
+    let ranked = Differences.ranked(scores, shape: true, spacing: true, frequency: false)
+    #expect(ranked.map(\.id) == [["\u{37E}"], [";"]])
+  }
 }

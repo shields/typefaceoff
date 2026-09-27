@@ -162,7 +162,7 @@ import Testing
         scores, text: "0123456789", shape: false, spacing: true, frequency: false
       ).isEmpty)
     #expect(Differences.ranked([], shape: true, spacing: true, frequency: false).isEmpty)
-    #expect(scores[3].id == "3")
+    #expect(scores[3].id == Array("3".unicodeScalars))
   }
 
   @Test func rankingCacheReturnsEquivalentResultsAfterEviction() async throws {

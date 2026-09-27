@@ -140,6 +140,12 @@ public struct Comparison: Equatable, Sendable {
 
   public var text: String { sample == .custom ? customText : sample.text }
 
+  /// String equality is canonical equivalence, which would match a visually
+  /// distinct glyph that merely shares a canonical decomposition.
+  public func matches(_ glyph: String) -> Bool {
+    selectedScalars.elementsEqual(glyph.unicodeScalars)
+  }
+
   public mutating func calibrate() { link = b.map { AppearanceLink(a: a, b: $0) } }
 
   public subscript(side: Side) -> FontConfiguration? {

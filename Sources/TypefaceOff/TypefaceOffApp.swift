@@ -2,6 +2,13 @@ import SwiftUI
 
 @main
 struct TypefaceOffApp: App {
+  init() {
+    if ProcessInfo.processInfo.environment["TYPEFACEOFF_TESTING"] == "1" {
+      // App-hosted tests need AppKit and SwiftUI, but must not activate on the desktop.
+      precondition(NSApplication.shared.setActivationPolicy(.prohibited))
+    }
+  }
+
   var body: some Scene {
     WindowGroup("Typeface/Off") {
       WorkbenchWindow()

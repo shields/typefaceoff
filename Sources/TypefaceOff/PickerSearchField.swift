@@ -55,6 +55,13 @@ struct PickerSearchField: NSViewRepresentable {
 private final class InitiallyFocusedSearchField: NSSearchField {
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
-    window?.makeFirstResponder(self)
+    guard let window else { return }
+    // Editing that begins before the window is onscreen leaves the placeholder
+    // drawn behind the typed text.
+    if window.isVisible {
+      window.makeFirstResponder(self)
+    } else {
+      window.initialFirstResponder = self
+    }
   }
 }

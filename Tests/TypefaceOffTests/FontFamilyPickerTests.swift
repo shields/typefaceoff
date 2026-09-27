@@ -111,6 +111,7 @@ import TypefaceCore
     try await host.press("Font A family")
     try await host.settle()
     let reopened = try #require(fontSearch(host))
+    #expect(reopened.currentEditor() != nil)
     #expect(reopened.stringValue.isEmpty)
     host.enter("Skia", in: reopened)
     try await host.settle()
@@ -125,6 +126,30 @@ import TypefaceCore
     try sendKey(53, characters: "\u{1b}", to: popover)
     try await host.settle { fontSearch(host) == nil }
     #expect(model.comparison.a.face.family == "Skia")
+  }
+
+  @Test func typingHidesTheSearchPlaceholder() async throws {
+    let host = WorkbenchTestHost(FontInspector(model: WorkbenchModel(), side: .a), width: 246)
+    defer { host.window.close() }
+    try await host.settle()
+    try await host.press("Font A family")
+    try await host.settle { fontSearch(host)?.currentEditor() != nil }
+    let search = try #require(fontSearch(host))
+    try sendKey(1, characters: "S", to: try #require(search.window))
+    try await host.settle()
+    #expect(search.stringValue == "S")
+    let text = try #require(search.cell as? NSSearchFieldCell).searchTextRect(
+      forBounds: search.bounds)
+    let band = NSRect(x: text.midX, y: text.midY - 3, width: text.width / 2, height: 6)
+    let bitmap = try #require(search.bitmapImageRepForCachingDisplay(in: band))
+    search.cacheDisplay(in: band, to: bitmap)
+    let brightness = try (0..<bitmap.pixelsHigh).flatMap { y in
+      try (0..<bitmap.pixelsWide).map { x in
+        try #require(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB)).brightnessComponent
+      }
+    }
+    let range = try #require(brightness.max()) - #require(brightness.min())
+    #expect(range < 0.1)
   }
 
   private func fontSearch<Content>(_ host: WorkbenchTestHost<Content>) -> NSSearchField? {

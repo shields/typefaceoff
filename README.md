@@ -138,7 +138,8 @@ valid across rebuilds.
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`
 contains the macOS UI and in-memory comparison state. Tests use Swift Testing:
-SwiftPM runs the core tests, and Xcode runs the native tests inside the app.
+SwiftPM runs the core tests, and Xcode runs the native tests inside the app. The
+test host runs with activation prohibited so it cannot steal desktop focus.
 `make test-app` runs only the native suite, saves its result bundle in
 `.build/TestResults.xcresult`, and prints assertion failures when tests fail.
 `make coverage` runs both with instrumentation and reports coverage through

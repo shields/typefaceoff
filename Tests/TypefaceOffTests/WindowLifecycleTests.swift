@@ -5,6 +5,8 @@ import Testing
 
 @Suite(.serialized) @MainActor struct WindowLifecycleTests {
   @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
+    #expect(NSApp.activationPolicy() == .prohibited)
+    #expect(!NSApp.isActive)
     #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Helvetica Neue vs. Arial" })
     let fileMenu = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)
     #expect(

@@ -242,6 +242,35 @@ import TypefaceCore
     #expect(model.comparison.selectedGlyph == "\"")
   }
 
+  @Test func canonicallyEquivalentCharactersRemainDistinct() async throws {
+    var comparison = Comparison(b: nil)
+    comparison.mode = .glyph
+    comparison.selectedGlyph = ";"
+    let model = WorkbenchModel(comparison: comparison)
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
+    defer { host.window.close() }
+    try await host.settle()
+    let field = try #require(
+      host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" })
+    model.updatePresentation { $0.selectedGlyph = "\u{37E}" }
+    try await host.settle()
+    #expect(model.comparison.selectedScalars == ["\u{37E}"])
+    let canvas = try await host.element("Glyph canvas")
+    #expect(canvas.accessibilityLabel?()?.hasPrefix("U+037E GREEK QUESTION MARK.") == true)
+    field.window?.makeFirstResponder(field)
+    field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+    try await host.settle()
+    #expect(model.comparison.selectedScalars == ["\u{37E}"])
+    model.updatePresentation {
+      $0.sample = .custom
+      $0.customText = "\u{E9}"
+      $0.selectedGlyph = "e\u{301}"
+    }
+    try await host.settle()
+    try await host.press("Next character")
+    #expect(model.comparison.selectedGlyph == "!")
+  }
+
   @Test func sharedSizeSubmissionCalibratesBothFontsAndRejectsInvalidText() async throws {
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(

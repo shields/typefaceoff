@@ -8,7 +8,8 @@ import TypefaceCore
 
     private let writer: FuzzEventWriter?
     private var timer: Timer?
-    private var glyphGeometries: [String: (context: String, glyph: String, baseline: Double)] = [:]
+    private var glyphGeometries:
+      [String: (context: String, glyph: [Unicode.Scalar], baseline: Double)] = [:]
 
     private init() {
       guard let folder = ProcessInfo.processInfo.environment["TYPEFACEOFF_FUZZ_DIR"],
@@ -79,7 +80,7 @@ import TypefaceCore
     }
 
     func glyphGeometry(
-      view: String, context: String, glyph: String, baseline: Double
+      view: String, context: String, glyph: [Unicode.Scalar], baseline: Double
     ) {
       if let previous = glyphGeometries[view], previous.context == context,
         previous.glyph != glyph, abs(previous.baseline - baseline) > 0.001
@@ -88,7 +89,8 @@ import TypefaceCore
       }
       glyphGeometries[view] = (context, glyph, baseline)
       emit([
-        "event": "glyph-geometry", "view": view, "context": context, "glyph": glyph,
+        "event": "glyph-geometry", "view": view, "context": context,
+        "glyph": String(String.UnicodeScalarView(glyph)),
         "baseline": baseline,
       ])
     }
@@ -204,6 +206,8 @@ import TypefaceCore
 
     func rendered(_ kind: String) {}
 
-    func glyphGeometry(view: String, context: String, glyph: String, baseline: Double) {}
+    func glyphGeometry(
+      view: String, context: String, glyph: [Unicode.Scalar], baseline: Double
+    ) {}
   }
 #endif

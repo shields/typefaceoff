@@ -63,7 +63,9 @@ struct GlyphComparisonView: View {
       }.frame(height: 85, alignment: .top).padding(.bottom, 16)
     }
     .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
-    .onChange(of: comparison.selectedGlyph, initial: true) { _, value in input = value }
+    .onChange(of: comparison.selectedScalars, initial: true) {
+      input = comparison.selectedGlyph
+    }
   }
 
   private var zoomControls: some View {
@@ -277,7 +279,7 @@ final class GlyphDrawingView: NSView {
       view: String(ObjectIdentifier(self).hashValue),
       context:
         "\(comparison.a.hashValue):\(comparison.b?.hashValue ?? 0):\(comparison.text.hashValue):\(bounds.width):\(bounds.height)",
-      glyph: comparison.selectedGlyph, baseline: baseline)
+      glyph: comparison.selectedScalars, baseline: baseline)
     let scale = max(
       0.01,
       min(
@@ -404,13 +406,14 @@ final class GlyphDrawingView: NSView {
     -> GlyphOverlayOutline?
   {
     let key = OverlayKey(
-      configs: configs, glyph: comparison.selectedGlyph, sizes: sizes, origins: origins)
+      configs: configs, glyph: comparison.selectedScalars, sizes: sizes, origins: origins)
     if overlayCache?.key != key {
       overlayCache = (
         key,
         GlyphOverlayOutline(
-          a: FontRenderer.line(key.glyph, config: configs[0], size: sizes[0]),
-          b: FontRenderer.line(key.glyph, config: configs[1], size: sizes[1]), origins: origins)
+          a: FontRenderer.line(comparison.selectedGlyph, config: configs[0], size: sizes[0]),
+          b: FontRenderer.line(comparison.selectedGlyph, config: configs[1], size: sizes[1]),
+          origins: origins)
       )
     }
     return overlayCache?.outline
@@ -449,7 +452,7 @@ final class GlyphDrawingView: NSView {
   }
   private struct OverlayKey: Equatable {
     let configs: [FontConfiguration]
-    let glyph: String
+    let glyph: [Unicode.Scalar]
     let sizes: [Double]
     let origins: [CGPoint]
   }

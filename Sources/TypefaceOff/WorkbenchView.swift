@@ -228,16 +228,13 @@ struct WorkbenchView: View {
                 stripItem(item, maximumShape: maximumShape, maximumSpacing: maximumSpacing)
               }.buttonStyle(.plain).id(item.glyph)
                 .accessibilityLabel("Inspect \(unicodeDescription(item.glyph))")
-                .accessibilityAddTraits(
-                  comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
-                    ? .isSelected : []
-                )
+                .accessibilityAddTraits(isInspected(item.glyph) ? .isSelected : [])
                 .help(stripHelp(item))
             }
           }.padding(1)
         }.scrollIndicators(.hidden).frame(height: 84)
-          .onChange(of: comparison.selectedGlyph) { _, glyph in
-            proxy.scrollTo(glyph, anchor: .center)
+          .onChange(of: comparison.selectedScalars) {
+            proxy.scrollTo(comparison.selectedGlyph, anchor: .center)
           }
       }
       if ranked.isEmpty && !ranking.comparing {
@@ -281,7 +278,7 @@ struct WorkbenchView: View {
   private func stripItem(_ item: GlyphDifference, maximumShape: Double, maximumSpacing: Double)
     -> some View
   {
-    let isSelected = comparison.mode == .glyph && comparison.selectedGlyph == item.glyph
+    let isSelected = isInspected(item.glyph)
     return VStack(spacing: 5) {
       if let b = comparison.b {
         GlyphDifferencePreview(
@@ -362,6 +359,10 @@ struct WorkbenchView: View {
       comparison.b != nil && comparison.a.size != comparison.b?.size
       ? "" : SharedSizeFormat.style(locale: locale).format(comparison.a.size)
   }
+  private func isInspected(_ glyph: String) -> Bool {
+    comparison.mode == .glyph
+      && comparison.selectedScalars.elementsEqual(glyph.unicodeScalars)
+  }
   private func selectGlyph(_ glyph: String) {
     guard let first = glyph.first else { return }
     model.updatePresentation {
@@ -374,7 +375,10 @@ struct WorkbenchView: View {
     let glyphs =
       ranked.isEmpty ? Differences.candidates(sample: comparison.text) : ranked.map(\.glyph)
     guard !glyphs.isEmpty else { return }
-    let index = glyphs.firstIndex(of: comparison.selectedGlyph) ?? 0
+    // A canonically equivalent spelling still navigates from its place in the list.
+    let index =
+      glyphs.firstIndex { comparison.selectedScalars.elementsEqual($0.unicodeScalars) }
+      ?? glyphs.firstIndex(of: comparison.selectedGlyph) ?? 0
     selectGlyph(glyphs[(index + direction + glyphs.count) % glyphs.count])
   }
 }

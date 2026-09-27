@@ -120,7 +120,12 @@ public struct Comparison: Equatable, Sendable {
   public var mode: ComparisonMode = .text
   public var sample: Sample = .reading
   public var customText = ""
-  public var selectedGlyph = "a"
+  public var selectedGlyph: String {
+    get { String(String.UnicodeScalarView(selectedScalars)) }
+    set { selectedScalars = Array(newValue.unicodeScalars) }
+  }
+  // String equality is canonical equivalence, which would treat U+212B ANGSTROM SIGN as Å.
+  public private(set) var selectedScalars: [Unicode.Scalar] = ["a"]
   public var shape = true
   public var spacing = false
   public var frequency = true

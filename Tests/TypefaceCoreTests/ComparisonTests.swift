@@ -230,4 +230,16 @@ import Testing
       try JSONDecoder().decode(FontConfiguration.self, from: malformed)
     }
   }
+
+  @Test func selectedGlyphsCompareByScalarsRatherThanCanonicalEquivalence() {
+    var semicolon = Comparison()
+    semicolon.selectedGlyph = ";"
+    var greekQuestionMark = Comparison()
+    greekQuestionMark.selectedGlyph = "\u{37E}"
+    #expect(semicolon.selectedGlyph == greekQuestionMark.selectedGlyph)
+    #expect(semicolon != greekQuestionMark)
+    var reassigned = Comparison()
+    reassigned.selectedGlyph = "a"
+    #expect(reassigned == Comparison())
+  }
 }

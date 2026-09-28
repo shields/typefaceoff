@@ -39,8 +39,12 @@
         }
         milestones["settled"] = ProcessInfo.processInfo.systemUptime
         let data = try! JSONSerialization.data(withJSONObject: milestones, options: [.sortedKeys])
-        print("TYPEFACEOFF_STARTUP " + String(decoding: data, as: UTF8.self))
-        NSApp.terminate(nil)
+        FileHandle.standardOutput.write(
+          Data(("TYPEFACEOFF_STARTUP " + String(decoding: data, as: UTF8.self) + "\n").utf8))
+        // The sampling driver owns this process and terminates it after collecting the profile.
+        if ProcessInfo.processInfo.environment["TYPEFACEOFF_STARTUP_PROFILE"] != "1" {
+          NSApp.terminate(nil)
+        }
       }
     }
   }

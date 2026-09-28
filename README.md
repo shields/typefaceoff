@@ -123,18 +123,20 @@ the same schedule when resumed. Discovered actions record their accessibility
 paths, roles, and labels for replay, including controls with duplicate labels.
 Progress reports use `measured-ms` for the action sequence and resulting UI
 work; `total-ms` also includes app startup, shutdown, and coverage collection.
-The action count shows completed/attempted actions. Campaigns wait when their
-desktop session or workbench controls are unavailable, retrying with a delay
-that grows from five to 60 seconds. These retries do not advance the campaign or
-enter its corpus; `availability.json` and its associated run retain the latest
-availability failure. Returning to an interactive desktop resumes exploration.
-Crashes, hangs, and correctness failures are still preserved during an outage.
-Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign. Replay or
-reduce a finding with `make fuzz-replay CASE=…` or `make fuzz-minimize CASE=…`;
-`make fuzz-benchmark` remeasures the corpus in an optimized build without
-coverage instrumentation and excludes failed or incomplete executions from its
-timings. Set `FUZZ_ARTIFACTS=…` to keep a separate campaign or replay directory.
-The driver requires an active desktop session and macOS Accessibility and
+The action count shows completed/attempted actions. Campaigns pause while the
+screen is locked or the desktop session is otherwise unavailable, because a
+locked session hides app windows from Accessibility, and resume as soon as the
+desktop returns. When the workbench controls are unavailable, campaigns retry
+with a delay that grows from five to 60 seconds. These retries do not advance
+the campaign or enter its corpus; `availability.json` and its associated run
+retain the latest availability failure. Crashes, hangs, and correctness failures
+are still preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'`
+for a bounded campaign. Replay or reduce a finding with
+`make fuzz-replay CASE=…` or `make fuzz-minimize CASE=…`; `make fuzz-benchmark`
+remeasures the corpus in an optimized build without coverage instrumentation and
+excludes failed or incomplete executions from its timings. Set
+`FUZZ_ARTIFACTS=…` to keep a separate campaign or replay directory. The driver
+requires an active, unlocked desktop session and macOS Accessibility and
 event-posting permission. On first use, the driver stays open while you enable
 `.build/fuzz-driver/UIFuzzDriver.app` in System Settings, then relaunches itself
 and continues automatically. Its stable bundle identity keeps the permission

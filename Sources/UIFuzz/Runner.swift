@@ -240,7 +240,8 @@ final class SequenceRunner {
     if let reason = finalSession.unavailableReason,
       !findings.contains(where: { $0.kind == .unavailable })
     {
-      findings.append(AvailabilityError(signature: "desktop-session", detail: reason).finding)
+      findings.append(
+        AvailabilityError(signature: DesktopSession.unavailableSignature, detail: reason).finding)
     }
 
     if let application = launchedApplication {
@@ -263,7 +264,7 @@ final class SequenceRunner {
       }
     }
 
-    if configuration.collectCoverage {
+    if configuration.collectCoverage && launchedApplication != nil {
       do {
         if let rawProfile = try FileManager.default.contentsOfDirectory(
           at: runDirectory, includingPropertiesForKeys: nil

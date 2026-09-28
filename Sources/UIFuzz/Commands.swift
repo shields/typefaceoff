@@ -83,15 +83,21 @@ struct Run: ParsableCommand {
     let runner = SequenceRunner(configuration: common.runnerConfiguration, mutator: mutator)
     var slowest = try loadSlowCandidates(artifactURL)
     var backoff = CampaignBackoff()
+    var desktopUnavailableReason: String?
     var pendingTrace: FuzzTrace?
     outputLine(
       "seed \(campaignSeed); \(corpus.count) corpus entries; \(installedFonts.count) installed font families; running until interrupted"
     )
 
     while !stop.isStopped && deadline.map({ ProcessInfo.processInfo.systemUptime < $0 }) != false {
-      if let reason = DesktopSession.current().unavailableReason {
-        outputLine("waiting for desktop: \(reason) Retrying in \(Int(backoff.failed())) seconds.")
-        stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+      let reason = DesktopSession.current().unavailableReason
+      if reason != desktopUnavailableReason {
+        outputLine(
+          reason.map { "waiting for desktop: \($0)" } ?? "desktop available; resuming campaign")
+        desktopUnavailableReason = reason
+      }
+      if reason != nil {
+        stop.wait(seconds: 0.5, deadline: deadline)
         continue
       }
       let trace =
@@ -103,14 +109,19 @@ struct Run: ParsableCommand {
         trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
       if report.needsAvailabilityRecovery {
         try preserveAvailability(report, artifacts: artifactURL)
-        outputLine(
-          "waiting for workbench: \(report.findings[0].detail) Retrying in \(Int(backoff.failed())) seconds."
-        )
-        stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+        let unavailable = report.findings.first(where: { $0.kind == .unavailable })!
+        if unavailable.signature != DesktopSession.unavailableSignature
+          && DesktopSession.current().unavailableReason == nil
+        {
+          outputLine(
+            "waiting for workbench: \(unavailable.detail) Retrying in \(Int(backoff.failed())) seconds."
+          )
+          stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+        }
         continue
       }
       if backoff.delaySeconds > 0 {
-        outputLine("desktop and workbench available; resuming campaign")
+        outputLine("workbench available; resuming campaign")
       }
       backoff.recovered()
       pendingTrace = nil
@@ -333,7 +344,8 @@ private func preserveFindings(_ report: ExecutionReport, identifier: String, art
   }
 }
 
-/// Keep the latest availability evidence, not thousands of duplicate reports and raw profiles.
+/// Keep the latest availability evidence, including desktop outages such as a locked screen, not
+/// thousands of duplicate reports and raw profiles.
 private func preserveAvailability(_ report: ExecutionReport, artifacts: URL) throws {
   let output = artifacts.appending(path: "availability.json")
   let decoder = JSONDecoder()

@@ -30,7 +30,9 @@ struct AXDriver {
     AXUIElementSetMessagingTimeout(application, 0.5)
     var ready = false
     for _ in 0..<200 {
-      if !(attribute(kAXWindowsAttribute, of: application) as? [AXUIElement] ?? []).isEmpty {
+      try DesktopSession.current().requireAvailable()
+      let windows = attribute(kAXWindowsAttribute, of: application) as? [AXUIElement] ?? []
+      if windows.contains(where: { stringAttribute(kAXRoleAttribute, of: $0) == kAXWindowRole }) {
         ready = true
         break
       }
@@ -268,6 +270,7 @@ struct AXDriver {
     // that synchronous accessibility write when delivering keys into menus or sheets.
     if attribute(kAXFrontmostAttribute, of: application) as? Bool != true {
       guard NSRunningApplication(processIdentifier: processIdentifier)?.activate() == true else {
+        try DesktopSession.current().requireAvailable()
         throw AvailabilityError(
           signature: "activation",
           detail: "The diagnostic app could not activate in the current desktop session.")

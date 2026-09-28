@@ -86,6 +86,9 @@ final class RankingModel: ObservableObject {
   private let engine = DifferenceEngine()
 
   func update(_ comparison: Comparison) async {
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.mark("rankingRequested")
+    #endif
     let fuzzWork = FuzzDiagnostics.shared.beginWork("ranking")
     defer {
       FuzzDiagnostics.shared.endWork(
@@ -99,6 +102,9 @@ final class RankingModel: ObservableObject {
     comparing = true
     do {
       try await Task.sleep(for: .milliseconds(120))
+      #if TYPEFACEOFF_STARTUP_BENCHMARK
+        StartupDiagnostics.mark("rankingSearchStarted")
+      #endif
       let result = try await engine.scores(a: comparison.a, b: b, sample: comparison.text)
       try Task.checkCancellation()
       scores = result

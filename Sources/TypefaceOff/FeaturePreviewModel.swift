@@ -30,8 +30,14 @@ final class FeaturePreviewModel: ObservableObject {
     self.request = request
     result = nil
     guard let config else { return }
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.mark("previewRequested-\(config.postScriptName)")
+    #endif
     do {
       try await Task.sleep(for: .milliseconds(120))
+      #if TYPEFACEOFF_STARTUP_BENCHMARK
+        StartupDiagnostics.mark("previewSearchStarted-\(config.postScriptName)")
+      #endif
       let previews = try await load(config)
       try Task.checkCancellation()
       guard self.request == request else { return }

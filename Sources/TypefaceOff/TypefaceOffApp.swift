@@ -10,6 +10,8 @@ struct TypefaceOffApp: App {
       // App-hosted tests need AppKit and SwiftUI, but must not activate on the desktop.
       precondition(NSApplication.shared.setActivationPolicy(.prohibited))
     }
+    // Font discovery can overlap AppKit's launch work instead of delaying the first window.
+    DispatchQueue.global(qos: .userInitiated).async { _ = WorkbenchModel.installedCatalog }
   }
 
   var body: some Scene {

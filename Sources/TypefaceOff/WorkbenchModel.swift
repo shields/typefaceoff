@@ -4,6 +4,10 @@ import TypefaceCore
 
 @MainActor
 final class WorkbenchModel: ObservableObject {
+  // All windows use the same immutable installed-font snapshot. Swift's once-only
+  // initialization lets launch preparation and the first window safely meet here.
+  nonisolated static let installedCatalog = FontCatalog()
+
   @Published var comparison: Comparison {
     didSet { FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison) }
   }
@@ -16,7 +20,7 @@ final class WorkbenchModel: ObservableObject {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("catalogStart")
     #endif
-    catalog = FontCatalog()
+    catalog = Self.installedCatalog
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("catalogReady")
     #endif

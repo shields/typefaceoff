@@ -24,10 +24,13 @@ let truncationFloor = 1e-5
 
 /// Speakers: Ethnologue, Languages of the World, 29th edition (2026), SIL
 /// Global, as reproduced in Wikipedia's "List of languages by total number of
-/// speakers" (revision 1342539322). Of the top 40, Hausa, Sudanese Arabic,
-/// Jinyu, and Min Nan have no FineFreq table. `manifestISO` is FineFreq's code,
-/// which differs from Ethnologue's for Iranian Persian (pes → fas) and Tagalog
-/// (tgl → fil).
+/// speakers" (revision 1342700363). Of the top 40, Hausa, Sudanese Arabic,
+/// Jinyu, and Min Nan have no FineFreq table. Greek, Hebrew, and Polish, which
+/// rank below the top 40, are added so that their common letters aren't left
+/// at the floor; their speakers are Ethnologue's 22nd edition (2019) figures as
+/// recorded in Wikidata, first-language only for Greek and Polish.
+/// `manifestISO` is FineFreq's code, which differs from Ethnologue's for Iranian
+/// Persian (pes → fas) and Tagalog (tgl → fil).
 struct Language {
   let name: String
   let manifestISO: String
@@ -148,6 +151,15 @@ let languages: [Language] = [
   Language(
     name: "Bhojpuri", manifestISO: "bho", speakers: 52_700_000,
     leipzigCorpusID: "hin_mixed_2019_100K", leipzigCorpusBytes: 23_434_441),
+  Language(
+    name: "Polish", manifestISO: "pol", speakers: 39_700_000,
+    leipzigCorpusID: "pol_news_2023_100K", leipzigCorpusBytes: 21_295_904),
+  Language(
+    name: "Greek", manifestISO: "ell", speakers: 13_100_000,
+    leipzigCorpusID: "ell_news_2023_100K", leipzigCorpusBytes: 28_110_694),
+  Language(
+    name: "Hebrew", manifestISO: "heb", speakers: 9_303_950,
+    leipzigCorpusID: "heb_news_2020_100K", leipzigCorpusBytes: 22_421_266),
 ]
 
 let excludedCategories: Set<Unicode.GeneralCategory> = [
@@ -669,8 +681,10 @@ func run() throws {
       + " to estimate the characters FineFreq's own NFKC normalization discards; corpus ids per"
       + " language are pinned in this script.",
     "# Ethnologue: Languages of the World, 29th edition (2026), SIL Global, as reproduced in"
-      + " Wikipedia's \"List of languages by total number of speakers\" (revision 1342539322)"
-      + " — total speakers (L1+L2) for the top 40 languages by that count.",
+      + " Wikipedia's \"List of languages by total number of speakers\" (revision 1342700363)"
+      + " — total speakers (L1+L2) for the top 40 languages by that count; Greek, Hebrew, and"
+      + " Polish from Ethnologue's 22nd edition (2019) as recorded in Wikidata, first-language"
+      + " only for Greek and Polish.",
     "# Method: each FineFreq table is normalized to a probability distribution over"
       + " non-whitespace, non-control, non-format, non-private-use, non-surrogate,"
       + " non-unassigned code points; characters NFKC folds out of FineFreq are estimated from a"

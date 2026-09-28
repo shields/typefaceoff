@@ -15,55 +15,62 @@ FineWeb2 data behind every other language, so English is 84% of all the
 characters it counts. Summing the tables would reproduce the English table.
 
 Instead, each language’s table is normalized to shares of its non-whitespace
-characters, and the shares are mixed in proportion to the language’s total
-speakers (L1 + L2). English then carries 18.86% of the mix.
+characters, and the shares are mixed in proportion to the language’s speakers
+(L1 + L2, or L1 alone for Greek and Polish). English then carries 18.71% of the
+mix.
 
 ## Languages
 
 The mix uses the top 40 languages by total speakers in Ethnologue’s 29th edition
 (2026). Four of them have no FineFreq table: Hausa (rank 20, 94.5M speakers),
 Sudanese Arabic (36, 54.3M), Jinyu Chinese (39, 48.0M), and Min Nan Chinese (40,
-45.8M), together 3.0% of the top 40’s speakers. The other 36 languages’ weights
-are normalized to sum to 1:
+45.8M), together 3.0% of the top 40’s speakers. Greek, Hebrew, and Polish rank
+below the top 40 but are added so that their common letters are ranked rather
+than left at the floor; their speakers are Ethnologue’s 22nd edition (2019)
+figures as recorded in Wikidata, first-language only for Greek and Polish. The
+39 languages’ weights are normalized to sum to 1:
 
 | Rank | Language         | Speakers | Weight |
 | ---: | ---------------- | -------: | -----: |
-|    1 | English          | 1,493.0M | 18.86% |
-|    2 | Mandarin Chinese | 1,183.0M | 14.94% |
-|    3 | Hindi            |   611.2M |  7.72% |
-|    4 | Spanish          |   561.3M |  7.09% |
-|    5 | Standard Arabic  |   334.9M |  4.23% |
-|    6 | French           |   333.5M |  4.21% |
-|    7 | Bengali          |   274.4M |  3.47% |
-|    8 | Portuguese       |   269.4M |  3.40% |
-|    9 | Indonesian       |   254.8M |  3.22% |
-|   10 | Urdu             |   246.0M |  3.11% |
-|   11 | Russian          |   210.3M |  2.66% |
-|   12 | Standard German  |   133.4M |  1.68% |
-|   13 | Japanese         |   125.7M |  1.59% |
-|   14 | Nigerian Pidgin  |   120.7M |  1.52% |
-|   15 | Egyptian Arabic  |   118.4M |  1.50% |
-|   16 | Marathi          |    99.2M |  1.25% |
-|   17 | Vietnamese       |    97.1M |  1.23% |
-|   18 | Telugu           |    95.9M |  1.21% |
-|   19 | Swahili          |    95.2M |  1.20% |
-|   21 | Turkish          |    93.7M |  1.18% |
-|   22 | Western Punjabi  |    90.4M |  1.14% |
-|   23 | Tagalog          |    87.1M |  1.10% |
-|   24 | Tamil            |    86.4M |  1.09% |
+|    1 | English          | 1,493.0M | 18.71% |
+|    2 | Mandarin Chinese | 1,183.0M | 14.83% |
+|    3 | Hindi            |   611.2M |  7.66% |
+|    4 | Spanish          |   561.3M |  7.03% |
+|    5 | Standard Arabic  |   334.9M |  4.20% |
+|    6 | French           |   333.5M |  4.18% |
+|    7 | Bengali          |   274.4M |  3.44% |
+|    8 | Portuguese       |   269.4M |  3.38% |
+|    9 | Indonesian       |   254.8M |  3.19% |
+|   10 | Urdu             |   246.0M |  3.08% |
+|   11 | Russian          |   210.3M |  2.64% |
+|   12 | Standard German  |   133.4M |  1.67% |
+|   13 | Japanese         |   125.7M |  1.58% |
+|   14 | Nigerian Pidgin  |   120.7M |  1.51% |
+|   15 | Egyptian Arabic  |   118.4M |  1.48% |
+|   16 | Marathi          |    99.2M |  1.24% |
+|   17 | Vietnamese       |    97.1M |  1.22% |
+|   18 | Telugu           |    95.9M |  1.20% |
+|   19 | Swahili          |    95.2M |  1.19% |
+|   21 | Turkish          |    93.7M |  1.17% |
+|   22 | Western Punjabi  |    90.4M |  1.13% |
+|   23 | Tagalog          |    87.1M |  1.09% |
+|   24 | Tamil            |    86.4M |  1.08% |
 |   25 | Yue Chinese      |    85.8M |  1.08% |
-|   26 | Wu Chinese       |    83.3M |  1.05% |
-|   27 | Iranian Persian  |    82.5M |  1.04% |
-|   28 | Korean           |    82.2M |  1.04% |
-|   29 | Amharic          |    78.0M |  0.99% |
-|   30 | Thai             |    71.4M |  0.90% |
+|   26 | Wu Chinese       |    83.3M |  1.04% |
+|   27 | Iranian Persian  |    82.5M |  1.03% |
+|   28 | Korean           |    82.2M |  1.03% |
+|   29 | Amharic          |    78.0M |  0.98% |
+|   30 | Thai             |    71.4M |  0.89% |
 |   31 | Javanese         |    69.2M |  0.87% |
-|   32 | Italian          |    65.6M |  0.83% |
-|   33 | Gujarati         |    62.5M |  0.79% |
+|   32 | Italian          |    65.6M |  0.82% |
+|   33 | Gujarati         |    62.5M |  0.78% |
 |   34 | Kannada          |    58.7M |  0.74% |
-|   35 | Levantine Arabic |    57.8M |  0.73% |
-|   37 | Yoruba           |    52.9M |  0.67% |
-|   38 | Bhojpuri         |    52.7M |  0.67% |
+|   35 | Levantine Arabic |    57.8M |  0.72% |
+|   37 | Yoruba           |    52.9M |  0.66% |
+|   38 | Bhojpuri         |    52.7M |  0.66% |
+|    — | Polish           |    39.7M |  0.50% |
+|    — | Greek            |    13.1M |  0.16% |
+|    — | Hebrew           |     9.3M |  0.12% |
 
 Several languages have more than one FineFreq table, such as Hindi in Devanagari
 and in romanized Latin; a language’s weight is split among its tables in
@@ -86,7 +93,7 @@ semicolon by half, and gives fullwidth punctuation, …, and ำ shares of their
 own. Romanized tables keep FineFreq’s counts unchanged, because the only Leipzig
 corpora for their languages are in the native script.
 
-The generated table keeps the 2,935 characters with a share of at least 1e-5,
+The generated table keeps the 2,979 characters with a share of at least 1e-5,
 which together account for 98.7% of all characters.
 
 ## Choosing the weighting formula
@@ -137,10 +144,14 @@ at the bottom in every mode.
 - **Web text is not all text.** FineFreq counts web pages, and `|` in particular
   is inflated by navigation text such as “Home | About”, so it keeps a weight of
   about 0.7.
-- **Languages outside the top 40 get the floor.** Greek, Hebrew, Polish ł, and
-  other characters of smaller languages appear only incidentally in the mix, so
-  they take the minimum weight; turn Frequency off when comparing fonts for
-  them, for code, or for the Numerals & punctuation sample.
+- **Smaller languages stay discounted.** Greek, Hebrew, and Polish together
+  carry under 1% of the mix, so even their commonest letters, such as α, י, and
+  ł, reach only about 10⁻⁴ and a weight near 0.3. Rarer letters such as Greek β,
+  ζ, ξ, and ψ, Hebrew final ך, ף, and ץ, and Polish ź, as well as Greek and
+  Polish capitals, fall below the floor. Characters of other languages outside
+  the top 40 appear only incidentally and take the minimum weight. Turn
+  Frequency off when comparing fonts for these languages, for code, or for the
+  Numerals & punctuation sample.
 - **The constants were tuned on eight pairs.** The 10⁻³ saturation point and
   10⁻⁵ floor sit on a broad plateau in that evaluation, but a very different
   pair could favor other values. Changing the shape metric would also call for

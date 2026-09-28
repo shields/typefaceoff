@@ -67,7 +67,7 @@ reopen the app to refresh its catalog.
   outranks a larger one in a rare symbol. Each difference bar shows the weighted
   value over a faint track at the measured value, and a character’s tooltip
   gives its frequency and weight. Turn Frequency off to rank symbols, code, or
-  scripts outside the 40 most-spoken languages by measured difference alone. See
+  less widely used scripts by measured difference alone. See
   [Character frequencies](#character-frequencies).
 - In B’s font picker, switch **Name** to **Similarity** to rank installed
   families against A’s family. Both use the family’s regular face (normal width,
@@ -227,9 +227,10 @@ bundled as `Sources/TypefaceCore/Resources/character-frequencies.tsv`. It mixes
 [FineFreq](https://huggingface.co/datasets/lgi2p/finefreq)’s per-language
 character counts from web text, each normalized separately, in proportion to the
 total speakers of the 40 most-spoken languages in Ethnologue (36 of which
-FineFreq covers). Characters that FineFreq’s Unicode normalization folded away,
-such as …, ½, and fullwidth CJK punctuation, are estimated from the
-non-normalized [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de).
+FineFreq covers), plus Greek, Hebrew, and Polish. Characters that FineFreq’s
+Unicode normalization folded away, such as …, ½, and fullwidth CJK punctuation,
+are estimated from the non-normalized
+[Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de).
 
 A character that appears at least once per thousand characters counts fully.
 Rarer characters are discounted by the square root of how much rarer they are,

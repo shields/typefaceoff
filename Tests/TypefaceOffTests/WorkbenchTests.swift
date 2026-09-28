@@ -64,6 +64,32 @@ import TypefaceCore
         == "Unavailable")
   }
 
+  @Test func specimenRunsKeepUTF16TargetsAroundMissingCharactersAndWhitespace() throws {
+    let text = "\tfi e\u{301} 🦄\r\n👩‍🚀 fl  "
+    let config = FontConfiguration("HelveticaNeue")
+    let content = SpecimenText.makeContent(config: config, text: text)
+    #expect(
+      content.text.string
+        == "2 unavailable characters\n\tfi e\u{301} [U+1F984]\r\n[U+1F469 U+200D U+1F680] fl  ")
+    #expect(content.spans.map(\.glyph) == ["f", "i", "e\u{301}", "🦄", "👩‍🚀", "f", "l"])
+    for span in content.spans {
+      let rendered = content.text.attributedSubstring(from: span.range)
+      if span.supported {
+        #expect(rendered.string == span.glyph)
+        #expect(rendered.attribute(.toolTip, at: 0, effectiveRange: nil) == nil)
+        let font = try #require(rendered.attribute(.font, at: 0, effectiveRange: nil)) as! CTFont
+        #expect(CTFontCopyPostScriptName(font) as String == config.postScriptName)
+      } else {
+        #expect(rendered.string.hasPrefix("[U+"))
+        #expect(
+          rendered.attribute(.toolTip, at: 0, effectiveRange: nil) as? String
+            == "Unavailable: \(unicodeDescription(span.glyph))")
+      }
+    }
+    #expect(SpecimenText.makeContent(config: config, text: "").text.length == 0)
+    #expect(SpecimenText.makeContent(config: config, text: "  \n").text.string == "  \n")
+  }
+
   @Test(arguments: Sample.allCases, [14.0, 37.0])
   func specimensPreserveConfiguredTypographyAndNativeSpacing(sample: Sample, size: Double) {
     var config = FontConfiguration("HelveticaNeue-Italic")

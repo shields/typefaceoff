@@ -159,6 +159,18 @@ struct SpecimenText: NSViewRepresentable {
         italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
       }
       var sourceOffset = 0
+      var displayedOffset = content.length
+      var run = ""
+      var runEmphasized = false
+      // Append whole shaping runs. Building an attributed string for every character in the
+      // chapter repeatedly bridges the same attributes and mutates Foundation's run storage.
+      func flushRun() {
+        guard !run.isEmpty else { return }
+        content.append(
+          NSAttributedString(
+            string: run, attributes: runEmphasized ? italicAttributes : attributes))
+        run.removeAll(keepingCapacity: true)
+      }
       for character in text {
         let glyph = String(character)
         let emphasized = italicLocations.contains(sourceOffset)
@@ -167,12 +179,9 @@ struct SpecimenText: NSViewRepresentable {
         // Every non-whitespace character was checked before constructing the specimen.
         let glyphSupport = emphasized && italicConfig != nil ? italicSupport : support
         let supported = whitespace || glyphSupport[glyph] == true
-        var styled = emphasized ? italicAttributes : attributes
-        if !supported {
-          styled[.font] = NSFont.monospacedSystemFont(
-            ofSize: max(11, config.size * 0.55), weight: .medium)
-          styled[.foregroundColor] = NSColor.systemOrange
-          styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
+        if !supported || emphasized != runEmphasized {
+          flushRun()
+          runEmphasized = emphasized
         }
         let displayed =
           supported
@@ -181,12 +190,23 @@ struct SpecimenText: NSViewRepresentable {
         if !whitespace {
           spans.append(
             .init(
-              range: NSRange(location: content.length, length: displayed.utf16.count),
+              range: NSRange(location: displayedOffset, length: displayed.utf16.count),
               glyph: glyph,
               supported: supported))
         }
-        content.append(NSAttributedString(string: displayed, attributes: styled))
+        displayedOffset += displayed.utf16.count
+        if supported {
+          run.append(contentsOf: displayed)
+        } else {
+          var styled = emphasized ? italicAttributes : attributes
+          styled[.font] = NSFont.monospacedSystemFont(
+            ofSize: max(11, config.size * 0.55), weight: .medium)
+          styled[.foregroundColor] = NSColor.systemOrange
+          styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
+          content.append(NSAttributedString(string: displayed, attributes: styled))
+        }
       }
+      flushRun()
     }
     return SampleContent(text: content, spans: spans)
   }

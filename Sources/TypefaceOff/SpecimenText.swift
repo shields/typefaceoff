@@ -251,7 +251,8 @@ final class SpecimenScrollView: NSScrollView {
         contentView.bounds.width > 0
       {
         view.layoutManager?.ensureLayout(for: container)
-        (view as? SpecimenNSTextView)?.refreshToolTips()
+        // AppKit calls updateTrackingAreas after geometry changes. Rebuilding tooltips
+        // here repeats that work for every intermediate tile during window layout.
       }
     }
   }

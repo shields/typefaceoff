@@ -57,6 +57,10 @@ final class SequenceRunner {
     let start = ProcessInfo.processInfo.systemUptime
     let runID = UUID().uuidString.lowercased()
     let runDirectory = configuration.artifacts.appending(path: "runs/\(runID)")
+    // LLVM maps coverage counters into the raw profile, and those writes never reach a file
+    // in a virtual machine's shared folder, so profiles start on the local disk.
+    let profileDirectory = FileManager.default.temporaryDirectory.appending(
+      path: "ui-fuzz-\(runID)")
     let telemetryURL = runDirectory.appending(path: "telemetry.jsonl")
     var findings: [ExecutionFinding] = []
     var actionTimes: [Double] = []
@@ -78,7 +82,9 @@ final class SequenceRunner {
       try initialSession.requireAvailable()
       try FileManager.default.createDirectory(at: runDirectory, withIntermediateDirectories: true)
       try TraceIO.save(input, to: runDirectory.appending(path: "candidate.json"))
-      let application = try launch(runDirectory: runDirectory)
+      try FileManager.default.createDirectory(
+        at: profileDirectory, withIntermediateDirectories: true)
+      let application = try launch(runDirectory: runDirectory, profileDirectory: profileDirectory)
       launchedApplication = application
       application.activate(options: [.activateAllWindows])
       let driver = try AXDriver(processIdentifier: application.processIdentifier)
@@ -264,13 +270,16 @@ final class SequenceRunner {
       }
     }
 
-    if configuration.collectCoverage && launchedApplication != nil {
+    if FileManager.default.fileExists(atPath: profileDirectory.path) {
       do {
-        if let rawProfile = try FileManager.default.contentsOfDirectory(
-          at: runDirectory, includingPropertiesForKeys: nil
-        ).first(where: { $0.pathExtension == "profraw" }) {
+        if configuration.collectCoverage,
+          let rawProfile = try FileManager.default.contentsOfDirectory(
+            at: profileDirectory, includingPropertiesForKeys: nil
+          ).first(where: { $0.pathExtension == "profraw" })
+        {
           let result = try CoverageReader.read(
-            rawProfile: rawProfile, binary: configuration.binary, workingDirectory: runDirectory)
+            rawProfile: rawProfile, binary: configuration.binary,
+            workingDirectory: profileDirectory)
           coverage = result.regions
           buckets = result.countBuckets
         }
@@ -279,6 +288,20 @@ final class SequenceRunner {
           ExecutionFinding(
             kind: .automation, signature: "coverage-export",
             detail: "Could not export coverage: \(error)"))
+      }
+      do {
+        for file in try FileManager.default.contentsOfDirectory(
+          at: profileDirectory, includingPropertiesForKeys: nil)
+        {
+          try FileManager.default.moveItem(
+            at: file, to: runDirectory.appending(path: file.lastPathComponent))
+        }
+        try FileManager.default.removeItem(at: profileDirectory)
+      } catch {
+        findings.append(
+          ExecutionFinding(
+            kind: .automation, signature: "profile-archive",
+            detail: "Could not move the raw coverage profile into the run: \(error)"))
       }
     }
 
@@ -318,10 +341,10 @@ final class SequenceRunner {
       metadata: metadata)
   }
 
-  private func launch(runDirectory: URL) throws -> NSRunningApplication {
+  private func launch(runDirectory: URL, profileDirectory: URL) throws -> NSRunningApplication {
     let environment = [
       "TYPEFACEOFF_FUZZ_DIR": runDirectory.path,
-      "LLVM_PROFILE_FILE": runDirectory.appending(path: "%p%c.profraw").path,
+      "LLVM_PROFILE_FILE": profileDirectory.appending(path: "%p%c.profraw").path,
     ]
     let standardOutput = runDirectory.appending(path: "stdout.log")
     let standardError = runDirectory.appending(path: "stderr.log")

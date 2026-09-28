@@ -11,12 +11,16 @@ FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff
 FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
 FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
+FUZZ_VM = typefaceoff-fuzz
+FUZZ_VM_IMAGE = ghcr.io/cirruslabs/macos-golden-gate-vanilla:latest
+FUZZ_VM_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz-vm
+FUZZ_VM_FLAGS = $(FUZZ_VM) $(FUZZ_VM_IMAGE) "$(abspath $(FUZZ_VM_ARTIFACTS))" "$(FUZZ_DRIVER_APP)" "$(FUZZ_COVERAGE_APP)"
 FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
 STARTUP_APP = .build/startup/Build/Products/StartupBenchmark/TypefaceOff.app
 STARTUP_RUNS ?= 7
 STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 
-.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark benchmark-startup
+.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark benchmark-startup
 
 project:
 	xcodegen generate --spec project.yml
@@ -74,6 +78,12 @@ fuzz-build: project
 # Campaigns run until SIGINT or SIGTERM unless FUZZ_ARGS includes --duration.
 fuzz: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" run --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
+
+fuzz-vm-setup: fuzz-build
+	./scripts/fuzz-vm.sh setup $(FUZZ_VM_FLAGS)
+
+fuzz-vm: fuzz-build
+	./scripts/fuzz-vm.sh run $(FUZZ_VM_FLAGS) $(FUZZ_ARGS)
 
 fuzz-replay: fuzz-build
 	test -n "$(CASE)"

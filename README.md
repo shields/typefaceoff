@@ -142,6 +142,20 @@ event-posting permission. On first use, the driver stays open while you enable
 and continues automatically. Its stable bundle identity keeps the permission
 valid across rebuilds.
 
+`make fuzz-vm` runs the same campaign in a macOS 27 virtual machine whose
+session never locks, so it continues while this Mac is locked and keeps its
+state under `.build/ui-fuzz-vm`. It requires [Tart](https://tart.run)
+(`brew install openai/tools/tart`; Tart moved from Cirrus Labs to OpenAI in
+2026), Xcode, and an unlocked login keychain, which macOS keeps unlocked while
+the screen is locked unless Keychain Access is set to lock it. The guest runs
+headless with only the system's fonts, uses this Mac's Xcode read-only for
+coverage tools, and stops when the campaign does. Run `make fuzz-vm-setup` once
+first: it clones Cirrus Labs' `macos-golden-gate-vanilla` image (about 35 GB) as
+`typefaceoff-fuzz`, shows the guest's window while you allow UIFuzzDriver in its
+Accessibility settings, and runs a one-second campaign to confirm the driver
+works. Guest timings are comparable to this Mac's but are not interchangeable
+with them.
+
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`
 contains the macOS UI and in-memory comparison state. Tests use Swift Testing:

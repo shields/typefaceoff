@@ -84,6 +84,7 @@ final class RankingModel: ObservableObject {
   @Published var scores: [GlyphDifference] = []
   @Published var comparing = false
   private let engine = DifferenceEngine()
+  private var hasRequested = false
 
   func update(_ comparison: Comparison) async {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
@@ -100,8 +101,13 @@ final class RankingModel: ObservableObject {
       return
     }
     comparing = true
+    let debounce = hasRequested
+    hasRequested = true
     do {
-      try await Task.sleep(for: .milliseconds(120))
+      // Start the initial computation while the window is still laying out.
+      // Subsequent requests debounce rapid font and appearance edits.
+      if debounce { try await Task.sleep(for: .milliseconds(120)) }
+      try Task.checkCancellation()
       #if TYPEFACEOFF_STARTUP_BENCHMARK
         StartupDiagnostics.mark("rankingSearchStarted")
       #endif

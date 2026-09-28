@@ -10,6 +10,7 @@ final class FeaturePreviewModel: ObservableObject {
 
   @Published private(set) var result: Result?
   private var request = UUID()
+  private var hasRequested = false
   private let load: @Sendable (FontConfiguration) async throws -> [String: FontFeaturePreview]
 
   init(engine: FontFeaturePreviewEngine = .shared) {
@@ -33,8 +34,12 @@ final class FeaturePreviewModel: ObservableObject {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("previewRequested-\(config.postScriptName)")
     #endif
+    let debounce = hasRequested
+    hasRequested = true
     do {
-      try await Task.sleep(for: .milliseconds(120))
+      // Initial previews can run alongside the first window layout.
+      if debounce { try await Task.sleep(for: .milliseconds(120)) }
+      try Task.checkCancellation()
       #if TYPEFACEOFF_STARTUP_BENCHMARK
         StartupDiagnostics.mark("previewSearchStarted-\(config.postScriptName)")
       #endif

@@ -5,16 +5,18 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct FeaturePreviewModelTests {
-  @Test func cancellingDuringDebounceAvoidsTheSearch() async {
+  @Test(arguments: [false, true])
+  func cancelledRequestsAvoidTheSearch(afterInitialRequest: Bool) async {
     let calls = Mutex(0)
     let model = FeaturePreviewModel { _ in
       calls.withLock { $0 += 1 }
       return [:]
     }
+    if afterInitialRequest { await model.update(.init("ArialMT")) }
     let task = Task { await model.update(.init("HelveticaNeue")) }
     task.cancel()
     await task.value
-    #expect(calls.withLock { $0 } == 0)
+    #expect(calls.withLock { $0 } == (afterInitialRequest ? 1 : 0))
     #expect(model.result == nil)
   }
 

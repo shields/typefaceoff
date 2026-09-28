@@ -63,7 +63,7 @@ struct FontFamilyPicker: View {
         cancel: { dismiss() }
       ).padding([.top, .horizontal])
       if reference != nil {
-        Picker("Sort fonts", selection: $ranking.sort) {
+        Picker("Sort fonts", selection: $ranking.sort.settingAfterViewUpdate) {
           ForEach(FamilySimilarityModel.Sort.allCases, id: \.self) {
             Text(verbatim: $0.rawValue).tag($0)
           }
@@ -115,9 +115,12 @@ struct FontFamilyPicker: View {
           .onChange(of: selection) { _, choice in
             if let choice { proxy.scrollTo(choice) }
           }
-          // Live similarity results reorder `choices` without changing `selection`,
-          // so keep the highlighted row in view as new results arrive too.
+          // Live similarity results and toggling sort order both reorder `choices` without
+          // changing `selection`, so keep the highlighted row in view for either.
           .onChange(of: ranking.results.count) {
+            if let selection { proxy.scrollTo(selection) }
+          }
+          .onChange(of: ranking.sort) {
             if let selection { proxy.scrollTo(selection) }
           }
         }

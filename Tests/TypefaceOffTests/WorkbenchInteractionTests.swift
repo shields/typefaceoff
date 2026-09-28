@@ -241,6 +241,17 @@ import TypefaceCore
     #expect(model.comparison.selectedGlyph == "\"")
   }
 
+  @Test func modeSegmentsSwitchViewsThroughAccessibility() async throws {
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
+    defer { host.window.close() }
+    try await host.settle()
+    try await host.press("Glyph")
+    try await host.settle { model.comparison.mode == .glyph }
+    try await host.press("Text")
+    try await host.settle { model.comparison.mode == .text }
+  }
+
   @Test func canonicallyEquivalentCharactersRemainDistinct() async throws {
     var comparison = Comparison(b: nil)
     comparison.mode = .glyph

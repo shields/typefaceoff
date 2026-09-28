@@ -146,11 +146,12 @@ contains the macOS UI and in-memory comparison state. Tests use Swift Testing:
 SwiftPM runs the core tests, and Xcode runs the native tests inside the app. The
 test host runs with activation prohibited so it cannot steal desktop focus.
 `make test-app` runs only the native suite, saves its result bundle in
-`.build/TestResults.xcresult`, and prints assertion failures when tests fail.
-`make coverage` runs both with instrumentation and reports coverage through
-`llvm-cov`, requiring 100% line coverage for every engine, app, and reusable
-fuzzing-support source file. Tests for Inter’s optional variable axes and
-character variants require that font to be installed.
+`.build/TestResults.xcresult`, and prints assertion failures when tests fail. A
+runtime warning, such as SwiftUI’s, fails the run. `make coverage` runs both
+with instrumentation and reports coverage through `llvm-cov`, requiring 100%
+line coverage for every engine, app, and reusable fuzzing-support source file.
+Tests for Inter’s optional variable axes and character variants require that
+font to be installed.
 
 The app supports macOS 15, but Xcode 26.4 and later need macOS 26.2, so CI
 builds the tests once and runs them on macOS 15 without rebuilding.

@@ -146,7 +146,7 @@ struct WorkbenchView: View {
   private var controls: some View {
     VStack(spacing: 12) {
       HStack {
-        Picker("Comparison mode", selection: presentation(\.mode)) {
+        Picker("Comparison mode", selection: presentation(\.mode).settingAfterViewUpdate) {
           Text("Text").tag(ComparisonMode.text)
           Text("Glyph").tag(ComparisonMode.glyph)
         }.pickerStyle(.segmented).frame(width: 168).labelsHidden()

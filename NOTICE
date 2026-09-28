@@ -44,8 +44,8 @@ are bundled; the corpora themselves are not redistributed.
 
 ---
 
-Each language's contribution to the mix is weighted by its total speakers
-(L1 + L2), from Ethnologue.
+Each language's contribution to the mix is weighted by its speakers
+(L1 + L2, or L1 alone for Greek and Polish), from Ethnologue.
 
     Ethnologue: Languages of the World, 29th edition (2026), SIL Global —
     https://www.ethnologue.com
@@ -54,5 +54,8 @@ Each language's contribution to the mix is weighted by its total speakers
     speakers" —
     https://en.wikipedia.org/wiki/List_of_languages_by_total_number_of_speakers
 
+    Greek, Hebrew, and Polish from Ethnologue's 22nd edition (2019), as
+    recorded in Wikidata — https://www.wikidata.org
+
 Only the speaker counts used as mixing weights are reflected in the
-generated table; no Ethnologue or Wikipedia text is redistributed.
+generated table; no Ethnologue, Wikipedia, or Wikidata text is redistributed.

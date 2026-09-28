@@ -225,9 +225,11 @@ struct CharacterSearchIndex: Sendable {
       matches = try self.matches(
         terms, fuzzy: true, fontCount: fontCount, missingFonts: missingFonts)
     }
-    matches.sort { $0.precedes($1) }
     let pinned = pin.map { Array($0.unicodeScalars) }
-    for match in matches {
+    // A broad single-letter query can match thousands of rows; keep only the results a pin
+    // could displace instead of sorting all of them.
+    let topMatches = Self.top(Self.maximumResults + (pinned == nil ? 0 : 1), of: matches)
+    for match in topMatches {
       guard results.count < Self.maximumResults else { break }
       let scalar = scalars[Int(match.row)]
       if pinned != [scalar] { results.append(String(scalar)) }
@@ -266,6 +268,30 @@ struct CharacterSearchIndex: Sendable {
       if words != other.words { return words < other.words }
       return row < other.row
     }
+  }
+
+  static func top(_ count: Int, of matches: [Match]) -> [Match] {
+    var kept: [Match] = []
+    kept.reserveCapacity(min(count, matches.count))
+    for match in matches {
+      if kept.count < count {
+        kept.insert(match, at: insertionIndex(for: match, in: kept))
+      } else if match.precedes(kept[kept.count - 1]) {
+        kept.insert(match, at: insertionIndex(for: match, in: kept))
+        kept.removeLast()
+      }
+    }
+    return kept
+  }
+
+  private static func insertionIndex(for match: Match, in matches: [Match]) -> Int {
+    var low = 0
+    var high = matches.count
+    while low < high {
+      let middle = (low + high) / 2
+      if match.precedes(matches[middle]) { high = middle } else { low = middle + 1 }
+    }
+    return low
   }
 
   func matches(

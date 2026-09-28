@@ -12,6 +12,7 @@ final class WorkbenchModel: ObservableObject {
     didSet { FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison) }
   }
   let catalog: FontCatalog
+  let initialWork: InitialFontWork
   private let fuzzWindow: UUID
   let familySimilarity = FamilySimilarityModel()
   private var continuousEdit: (name: String, initial: Comparison)?
@@ -26,8 +27,11 @@ final class WorkbenchModel: ObservableObject {
     #endif
     fuzzWindow = UUID()
     self.comparison = comparison
+    initialWork = InitialFontWork(comparison: comparison)
     FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison)
   }
+
+  deinit { initialWork.cancel() }
 
   func edit(_ name: String, undoManager: UndoManager?, _ body: (inout Comparison) -> Void) {
     let previous = comparison
@@ -83,8 +87,14 @@ final class WorkbenchModel: ObservableObject {
 final class RankingModel: ObservableObject {
   @Published var scores: [GlyphDifference] = []
   @Published var comparing = false
-  private let engine = DifferenceEngine()
+  private let engine: DifferenceEngine
+  private var preparation: PreparedSearch<Comparison, [GlyphDifference]>?
   private var hasRequested = false
+
+  init(preparation: InitialFontWork? = nil) {
+    engine = preparation?.rankingEngine ?? DifferenceEngine()
+    self.preparation = preparation?.ranking
+  }
 
   func update(_ comparison: Comparison) async {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
@@ -103,15 +113,27 @@ final class RankingModel: ObservableObject {
     comparing = true
     let debounce = hasRequested
     hasRequested = true
+    let prepared = preparation
+    preparation = nil
     do {
       // Start the initial computation while the window is still laying out.
       // Subsequent requests debounce rapid font and appearance edits.
       if debounce { try await Task.sleep(for: .milliseconds(120)) }
       try Task.checkCancellation()
       #if TYPEFACEOFF_STARTUP_BENCHMARK
-        StartupDiagnostics.mark("rankingSearchStarted")
+        StartupDiagnostics.mark("rankingLoadStarted")
       #endif
-      let result = try await engine.scores(a: comparison.a, b: b, sample: comparison.text)
+      let result: [GlyphDifference]
+      // Ranking identities distinguish scalars that String equality treats as equivalent.
+      if let prepared,
+        prepared.input.customText.unicodeScalars.elementsEqual(
+          comparison.customText.unicodeScalars),
+        let ready = try await prepared.value(for: comparison)
+      {
+        result = ready
+      } else {
+        result = try await engine.scores(a: comparison.a, b: b, sample: comparison.text)
+      }
       try Task.checkCancellation()
       scores = result
       comparing = false

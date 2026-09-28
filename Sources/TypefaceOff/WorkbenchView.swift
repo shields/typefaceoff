@@ -3,7 +3,7 @@ import TypefaceCore
 
 struct WorkbenchView: View {
   @ObservedObject var model: WorkbenchModel
-  @StateObject private var ranking = RankingModel()
+  @StateObject private var ranking: RankingModel
   @StateObject private var scrollPosition = SpecimenScrollPosition()
   @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
@@ -22,6 +22,7 @@ struct WorkbenchView: View {
   // synthesized initializers for the property defaults.
   init(model: WorkbenchModel) {
     self.model = model
+    _ranking = StateObject(wrappedValue: RankingModel(preparation: model.initialWork))
     _showA = State(initialValue: true)
     _showB = State(initialValue: true)
     _showMatch = State(initialValue: false)

@@ -9,7 +9,19 @@ struct FontTypography: View {
   let config: FontConfiguration
   @Binding var collapsedGroups: Set<FontFeature.Group>
   @Environment(\.workbenchUndoManager) private var undoManager
-  @StateObject private var previews = FeaturePreviewModel()
+  @StateObject private var previews: FeaturePreviewModel
+
+  init(
+    model: WorkbenchModel, side: Side, config: FontConfiguration,
+    collapsedGroups: Binding<Set<FontFeature.Group>>
+  ) {
+    self.model = model
+    self.side = side
+    self.config = config
+    _collapsedGroups = collapsedGroups
+    _previews = StateObject(
+      wrappedValue: FeaturePreviewModel(preparation: model.initialWork.previews(for: side)))
+  }
 
   private var previewConfig: FontConfiguration {
     var result = config

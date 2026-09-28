@@ -11,9 +11,14 @@ final class FeaturePreviewModel: ObservableObject {
   @Published private(set) var result: Result?
   private var request = UUID()
   private var hasRequested = false
+  private var preparation: PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>?
   private let load: @Sendable (FontConfiguration) async throws -> [String: FontFeaturePreview]
 
-  init(engine: FontFeaturePreviewEngine = .shared) {
+  init(
+    engine: FontFeaturePreviewEngine = .shared,
+    preparation: PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>? = nil
+  ) {
+    self.preparation = preparation
     load = { try await engine.previews(config: $0) }
   }
 
@@ -36,14 +41,21 @@ final class FeaturePreviewModel: ObservableObject {
     #endif
     let debounce = hasRequested
     hasRequested = true
+    let prepared = preparation
+    preparation = nil
     do {
       // Initial previews can run alongside the first window layout.
       if debounce { try await Task.sleep(for: .milliseconds(120)) }
       try Task.checkCancellation()
       #if TYPEFACEOFF_STARTUP_BENCHMARK
-        StartupDiagnostics.mark("previewSearchStarted-\(config.postScriptName)")
+        StartupDiagnostics.mark("previewLoadStarted-\(config.postScriptName)")
       #endif
-      let previews = try await load(config)
+      let previews: [String: FontFeaturePreview]
+      if let ready = try await prepared?.value(for: config) {
+        previews = ready
+      } else {
+        previews = try await load(config)
+      }
       try Task.checkCancellation()
       guard self.request == request else { return }
       result = Result(config: config, previews: previews)

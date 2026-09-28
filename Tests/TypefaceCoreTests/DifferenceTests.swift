@@ -176,4 +176,14 @@ import Testing
     let ranked = Differences.ranked(scores, shape: true, spacing: true, frequency: false)
     #expect(ranked.map(\.id) == [["\u{37E}"], [";"]])
   }
+
+  @Test func highlightsDoNotTreatACanonicalEquivalentAsPresent() {
+    let scores = [
+      GlyphDifference(glyph: ";", shape: 0.5, spacing: 0),
+      GlyphDifference(glyph: "\u{37E}", shape: 0, spacing: 0),
+    ]
+    let highlighted = Differences.highlights(
+      scores, text: "\u{37E}", shape: true, spacing: false, frequency: false)
+    #expect(highlighted.isEmpty)
+  }
 }

@@ -3,6 +3,9 @@ import SwiftUI
 @main
 struct TypefaceOffApp: App {
   init() {
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.mark("appInit")
+    #endif
     if ProcessInfo.processInfo.environment["TYPEFACEOFF_TESTING"] == "1" {
       // App-hosted tests need AppKit and SwiftUI, but must not activate on the desktop.
       precondition(NSApplication.shared.setActivationPolicy(.prohibited))

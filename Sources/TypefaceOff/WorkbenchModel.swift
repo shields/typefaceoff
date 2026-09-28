@@ -7,12 +7,19 @@ final class WorkbenchModel: ObservableObject {
   @Published var comparison: Comparison {
     didSet { FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison) }
   }
-  let catalog = FontCatalog()
+  let catalog: FontCatalog
   private let fuzzWindow: UUID
   let familySimilarity = FamilySimilarityModel()
   private var continuousEdit: (name: String, initial: Comparison)?
 
   init(comparison: Comparison = Comparison()) {
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.mark("catalogStart")
+    #endif
+    catalog = FontCatalog()
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.mark("catalogReady")
+    #endif
     fuzzWindow = UUID()
     self.comparison = comparison
     FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison)
@@ -92,6 +99,9 @@ final class RankingModel: ObservableObject {
       try Task.checkCancellation()
       scores = result
       comparing = false
+      #if TYPEFACEOFF_STARTUP_BENCHMARK
+        StartupDiagnostics.mark("rankingReady")
+      #endif
     } catch {
       // A newer request owns the progress indicator after cancellation.
       if !Task.isCancelled { comparing = false }

@@ -36,6 +36,9 @@ final class FeaturePreviewModel: ObservableObject {
       try Task.checkCancellation()
       guard self.request == request else { return }
       result = Result(config: config, previews: previews)
+      #if TYPEFACEOFF_STARTUP_BENCHMARK
+        StartupDiagnostics.mark("preview-\(config.postScriptName)")
+      #endif
     } catch {
       // Cancelled or superseded searches must not replace the current configuration's previews.
     }

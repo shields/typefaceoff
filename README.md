@@ -164,6 +164,18 @@ windows into `.build/review` for visual inspection and records glyph redraw
 timings in `glyph-performance.json`. It requires an active macOS desktop
 session.
 
+`make benchmark-startup` launches the optimized, sandboxed app in fresh
+processes with coverage disabled. It measures process launch through the first
+drawn pair of specimens and through the displayed initial ranking and typography
+previews. One warmup is reported separately, followed by seven measured
+launches; set `STARTUP_RUNS=…` to change the count and `STARTUP_OUTPUT=…` to
+retain a baseline. `.build/startup-benchmark.json` records every run, phase
+timestamps, medians, 90th percentiles, OS, revision, and executable hash. It
+requires an active desktop session and opens and closes its own app windows. OS
+and font caches are not flushed, so this measures repeated launches, not the
+first launch after a reboot. Startup probes are compiled only into the dedicated
+benchmark configuration.
+
 `make benchmark` runs an opt-in release benchmark and writes
 `.build/similarity-benchmark/scores.json`, rendered specimens, and
 `review.html`. It compares the existing glyph IoU, signed distance fields,

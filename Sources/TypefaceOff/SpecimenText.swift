@@ -67,9 +67,15 @@ struct SpecimenText: NSViewRepresentable {
     coordinator.side = side
     coordinator.position.preserveDuringUpdate {
       if contentChanged {
+        #if TYPEFACEOFF_STARTUP_BENCHMARK
+          StartupDiagnostics.mark("specimen-\(side.rawValue)-start")
+        #endif
         let content = Self.makeContent(config: config, text: text, sample: sample)
         view.textStorage?.setAttributedString(content.text)
         view.spans = content.spans
+        #if TYPEFACEOFF_STARTUP_BENCHMARK
+          StartupDiagnostics.mark("specimen-\(side.rawValue)-ready")
+        #endif
       }
       // Temporary drawing attributes preserve the original shaping runs and ligatures.
       // Ranking updates change only these attributes; rebuilding the specimen also reshapes
@@ -235,6 +241,13 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var select: (String) -> Void = { _ in }
   var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
+
+  #if TYPEFACEOFF_STARTUP_BENCHMARK
+    override func draw(_ dirtyRect: NSRect) {
+      super.draw(dirtyRect)
+      StartupDiagnostics.specimenDrawn(self)
+    }
+  #endif
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()

@@ -12,8 +12,11 @@ FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
 FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
 FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
+STARTUP_APP = .build/startup/Build/Products/StartupBenchmark/TypefaceOff.app
+STARTUP_RUNS ?= 7
+STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 
-.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark
+.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark benchmark-startup
 
 project:
 	xcodegen generate --spec project.yml
@@ -85,6 +88,11 @@ fuzz-benchmark: fuzz-build
 
 benchmark:
 	TYPEFACEOFF_BENCHMARK_DIR="$(CURDIR)/.build/similarity-benchmark" swift test $(SWIFT_FLAGS) -c release --filter SimilarityBenchmark
+
+benchmark-startup: project
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration StartupBenchmark -derivedDataPath .build/startup -destination 'platform=macOS' CODE_SIGN_IDENTITY=- build
+	swiftc -swift-version 6 -warnings-as-errors -O scripts/startup-benchmark.swift -o .build/startup/benchmark
+	STARTUP_APP="$(CURDIR)/$(STARTUP_APP)" STARTUP_RUNS="$(STARTUP_RUNS)" STARTUP_OUTPUT="$(STARTUP_OUTPUT)" STARTUP_REVISION="$$(git rev-parse HEAD)" .build/startup/benchmark
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift scripts

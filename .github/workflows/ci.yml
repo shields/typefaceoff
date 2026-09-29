@@ -16,7 +16,7 @@ concurrency:
 jobs:
   test:
     name: Build, lint, and test
-    # Xcode 27 is offered only on the xcode-27 image, which runs macOS 27:
+    # Xcode 27 is offered only on the xcode-27 image, a public preview that runs macOS 27:
     # https://github.com/actions/runner-images/issues/14404
     runs-on: xcode-27
     env:

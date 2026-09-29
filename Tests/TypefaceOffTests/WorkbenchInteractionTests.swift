@@ -502,7 +502,8 @@ import TypefaceCore
     var unnamed: [String: Int] = [:]
     var seen = Set<ObjectIdentifier>()
     // hitElements returns an element once per sample point that lands on it.
-    for element in elements + hitElements where seen.insert(ObjectIdentifier(element)).inserted {
+    for element in elements + hitElements + finelySampledHitElements
+    where seen.insert(ObjectIdentifier(element)).inserted {
       let role = element.accessibilityRole?()?.rawValue ?? "no role"
       let names = [
         element.accessibilityIdentifier?(), element.accessibilityLabel?(),
@@ -531,6 +532,7 @@ import TypefaceCore
         || element.accessibilityTitle?() == label
     }
     return elements.first(where: matches) ?? hitElements.first(where: matches)
+      ?? finelySampledHitElements.first(where: matches)
   }
 
   private struct MissingControl: Error, CustomStringConvertible {
@@ -659,12 +661,25 @@ import TypefaceCore
           result.append(hit as AnyObject)
         }
       }
-      let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
-      for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: 16) {
-        for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
-          if let hit = root.accessibilityHitTest(NSPoint(x: x, y: y)) {
-            result.append(hit as AnyObject)
-          }
+      result += sampledHits(in: root, rowStep: 16)
+    }
+    return result
+  }
+
+  // A 15-point row falls between sample rows 16 points apart when the window sits at the wrong
+  // offset on the screen, as a disclosure header did on a 1024 by 768 display.
+  var finelySampledHitElements: [AnyObject] {
+    contentRoots.flatMap { sampledHits(in: $0, rowStep: 4) }
+  }
+
+  private func sampledHits(in root: NSView, rowStep: Double) -> [AnyObject] {
+    guard let owner = root.window else { return [] }
+    var result: [AnyObject] = []
+    let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
+    for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: rowStep) {
+      for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
+        if let hit = root.accessibilityHitTest(NSPoint(x: x, y: y)) {
+          result.append(hit as AnyObject)
         }
       }
     }

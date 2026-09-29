@@ -132,11 +132,28 @@ public enum Differences {
   }
 }
 
+/// The configurations a difference ranking depends on. Only the B/A size ratio matters, so
+/// proportional size changes yield equal inputs.
+public struct DifferenceInput: Hashable, Sendable {
+  public let a: FontConfiguration
+  public let b: FontConfiguration
+
+  public init(a: FontConfiguration, b: FontConfiguration) {
+    // Calibrated links recompute B's size from A's, which drifts by a few ulps.
+    let ratio = (b.size / a.size * 1e9).rounded() / 1e9
+    var left = a
+    var right = b
+    left.size = 22
+    right.size = 22 * ratio
+    self.a = left
+    self.b = right
+  }
+}
+
 /// Work runs off the main actor. Callers cancel obsolete requests between glyphs.
 public actor DifferenceEngine {
   private struct Key: Hashable {
-    let a: FontConfiguration
-    let b: FontConfiguration
+    let input: DifferenceInput
     let candidates: [String]
   }
   private var cache: [Key: [GlyphDifference]] = [:]
@@ -145,18 +162,17 @@ public actor DifferenceEngine {
   public func scores(a: FontConfiguration, b: FontConfiguration, sample: String) throws
     -> [GlyphDifference]
   {
-    var left = a
-    var right = b
-    left.size = 22
-    right.size = 22 * b.size / a.size
+    let input = DifferenceInput(a: a, b: b)
     let candidates = Differences.candidates(sample: sample)
-    let key = Key(a: left, b: right, candidates: candidates)
+    let key = Key(input: input, candidates: candidates)
     if let cached = cache[key] { return cached }
     var result: [GlyphDifference] = []
     for glyph in candidates {
       try Task.checkCancellation()
-      if FontRenderer.supports(glyph, config: left), FontRenderer.supports(glyph, config: right) {
-        result.append(Differences.compare(glyph, a: left, b: right))
+      if FontRenderer.supports(glyph, config: input.a),
+        FontRenderer.supports(glyph, config: input.b)
+      {
+        result.append(Differences.compare(glyph, a: input.a, b: input.b))
       }
     }
     if cache.count >= 8 { cache.removeAll(keepingCapacity: true) }

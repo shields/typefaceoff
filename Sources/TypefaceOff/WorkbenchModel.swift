@@ -83,6 +83,17 @@ final class WorkbenchModel: ObservableObject {
   }
 }
 
+/// The inputs of a difference ranking. Edits outside them keep the current scores.
+struct RankingKey: Equatable {
+  let input: DifferenceInput?
+  let text: String
+
+  init(_ comparison: Comparison) {
+    input = comparison.b.map { DifferenceInput(a: comparison.a, b: $0) }
+    text = comparison.text
+  }
+}
+
 @MainActor
 final class RankingModel: ObservableObject {
   @Published var scores: [GlyphDifference] = []

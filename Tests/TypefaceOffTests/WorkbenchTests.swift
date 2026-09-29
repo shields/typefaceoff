@@ -246,6 +246,58 @@ import TypefaceCore
     #expect(model.comparison.selectedGlyph == "g")
   }
 
+  @Test func rankingKeyChangesOnlyWithRankingInputs() {
+    let catalog = WorkbenchModel.installedCatalog
+    var base = Comparison()
+    base.a.size = 20
+    base.b?.size = 22
+    base.calibrate()
+    let key = RankingKey(base)
+
+    var stepped = base
+    stepped.set(.size, to: 33, side: .a, catalog: catalog)
+    #expect(stepped.a.size == 33)
+    #expect(RankingKey(stepped) == key)
+    stepped.set(.size, to: 11, side: .b, catalog: catalog)
+    #expect(RankingKey(stepped) == key)
+    var browsing = base
+    browsing.mode = .glyph
+    browsing.selectedGlyph = "g"
+    browsing.shape = false
+    browsing.frequency = false
+    #expect(RankingKey(browsing) == key)
+
+    var edits: [Comparison] = []
+    var tracked = base
+    tracked.set(.tracking, to: 0.05, side: .a, catalog: catalog)
+    edits.append(tracked)
+    var featured = base
+    featured.a.features["ot.liga"] = 0
+    edits.append(featured)
+    var replaced = base
+    replaced.b = FontConfiguration("Georgia")
+    edits.append(replaced)
+    var unlinked = base
+    unlinked.appearanceLocked = false
+    unlinked.set(.size, to: 30, side: .b, catalog: catalog)
+    edits.append(unlinked)
+    var clamped = base
+    clamped.set(.size, to: 140, side: .a, catalog: catalog)
+    edits.append(clamped)
+    var typed = base
+    typed.sample = .custom
+    typed.customText = "abc"
+    edits.append(typed)
+    edits.append(Comparison(a: base.a, b: nil))
+    for edit in edits { #expect(RankingKey(edit) != key) }
+
+    var alone = Comparison(b: nil)
+    let aloneKey = RankingKey(alone)
+    alone.a.size = 40
+    alone.a.tracking = 0.1
+    #expect(RankingKey(alone) == aloneKey)
+  }
+
   @Test func removingBWhileRankingClearsResults() async {
     let ranking = RankingModel()
     await ranking.update(Comparison())

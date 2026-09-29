@@ -50,9 +50,7 @@ struct WorkbenchView: View {
       frequency: presentation(\.frequency), characterSearch: characterSearch, match: openMatch,
       editText: openEditor)
   }
-  private var rankingKey: RankingKey {
-    .init(a: comparison.a, b: comparison.b, text: comparison.text)
-  }
+  private var rankingKey: RankingKey { .init(comparison) }
   private var ranked: [GlyphDifference] {
     Differences.ranked(
       ranking.scores, shape: comparison.shape, spacing: comparison.spacing,
@@ -419,12 +417,6 @@ enum SharedSizeFormat {
     else { return nil }
     return value
   }
-}
-
-private struct RankingKey: Equatable {
-  let a: FontConfiguration
-  let b: FontConfiguration?
-  let text: String
 }
 
 func number(_ value: Double, digits: Int = 1) -> String {

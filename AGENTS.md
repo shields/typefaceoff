@@ -11,6 +11,20 @@ Preserve calibrated links, independent typography, native-unit metrics, and
 fixed-baseline glyph navigation when changing the app. Missing fonts or
 characters must be visible; never compare a silent fallback.
 
+The fuzzer finds controls by accessibility identifier, title, description, and
+help, and recorded traces replay the names they saw. Identifiers for
+per-inspector controls are its contract: `Font A <label>` or `Font B <label>`
+built with `side.fontName`, and scroll areas ending in `scroll area`. An
+identifier must be unique within a window and never equal another element's
+label, title, or menu title. Never change an existing identifier, label, or
+title the fuzzer uses, such as `Shared point size`, `Glyph canvas`, the search
+fields, the `Font A specimen` labels, and the symbol-name identifiers of
+icon-only buttons. Name matching, window scope, and visibility rules live in
+`Sources/UIFuzzSupport` behind `AccessibilityNode`, where the coverage gate
+applies. `Sources/UIFuzz` adapts the system accessibility API to them, and its
+`AXDiscovery.swift` still decides which actions each control offers, outside the
+gate.
+
 Character search uses the running macOS's Unicode names, which differ between
 this Mac, CI, and macOS 15. Tests that depend on names must use long-established
 characters.
@@ -22,4 +36,5 @@ table.
 Write fail-fast checks as `precondition(condition)` or `try!` on a line that
 also runs normally. `make coverage` counts a `fatalError` call or a
 `precondition` message as unexecuted lines, because the exit tests that reach
-them record no coverage.
+them record no coverage. It also counts the closing line of a `while true` loop,
+which has no reachable exit, so loop on a condition.

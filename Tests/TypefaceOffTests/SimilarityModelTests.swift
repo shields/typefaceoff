@@ -30,6 +30,13 @@ import TypefaceCore
     }
   }
 
+  static func wait(until condition: () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(10)
+    while !condition(), ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+  }
+
   @Test func familyScoresSortWithStableNamesAndUnavailableEntriesLast() async throws {
     let model = FamilySimilarityModel { _, _, _ in
       AsyncThrowingStream {
@@ -79,7 +86,7 @@ import TypefaceCore
     let fit = FontFitModel(load: Self.fitResult)
     #expect(!fit.apply(to: model, undoManager: nil))
     fit.start(request)
-    try await Task.sleep(for: .milliseconds(30))
+    try await Self.wait { !fit.running }
     #expect(fit.result?.improved == true && !fit.running)
     model.comparison.a.size += 1
     #expect(!fit.apply(to: model, undoManager: nil))
@@ -94,7 +101,7 @@ import TypefaceCore
     undo.undo()
     #expect(model.comparison == initial)
     fit.start(request, refine: true)
-    try await Task.sleep(for: .milliseconds(30))
+    try await Self.wait { !fit.running }
     #expect(fit.result?.evaluations == 20)
     fit.start(nil)
     #expect(fit.result == nil && !fit.running)
@@ -117,7 +124,7 @@ import TypefaceCore
     #expect(fit.result == nil && !fit.running)
     let failed = FontFitModel { _, _ in throw SimilarityError.renderingFailed }
     failed.start(request)
-    try await Task.sleep(for: .milliseconds(20))
+    try await Self.wait { !failed.running }
     #expect(failed.error != nil && !failed.running)
   }
 }

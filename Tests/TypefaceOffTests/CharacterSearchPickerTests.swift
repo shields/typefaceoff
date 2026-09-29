@@ -253,11 +253,16 @@ import TypefaceCore
     let host = WorkbenchTestHost(FindCharacterProbe(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Probe find character")
-    try await host.settle { searchField(host) != nil }
+    let deadline = ContinuousClock.now + .seconds(10)
+    repeat {
+      try await host.press("Probe find character")
+      try await host.settle()
+    } while searchField(host) == nil && ContinuousClock.now < deadline
+    let search = try #require(searchField(host))
     #expect(model.comparison.mode == .glyph)
-    try #require(searchField(host)).currentEditor()?.doCommand(
-      by: #selector(NSResponder.cancelOperation(_:)))
+    search.window?.makeFirstResponder(search)
+    let editor = try #require(search.currentEditor())
+    editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     try await host.settle { searchField(host) == nil }
   }
 

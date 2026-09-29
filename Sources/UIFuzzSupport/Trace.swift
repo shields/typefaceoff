@@ -17,7 +17,7 @@ public struct FuzzTrace: Codable, Equatable, Sendable {
 }
 
 public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
-  public enum Kind: String, Codable, Sendable {
+  public enum Kind: String, Codable, Sendable, CaseIterable {
     case press
     case setValue
     case increment
@@ -30,6 +30,16 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
     case click
     case drag
     case showMenu
+
+    public var needsTarget: Bool {
+      switch self {
+      case .press, .setValue, .increment, .decrement, .showMenu, .scroll, .selectFont, .click,
+        .drag:
+        true
+      case .shortcut, .key, .pause:
+        false
+      }
+    }
   }
 
   public var kind: Kind
@@ -82,6 +92,32 @@ public struct ExecutionFinding: Codable, Equatable, Sendable {
     self.kind = kind
     self.signature = signature
     self.detail = detail
+  }
+
+  /// Findings about the fuzzer's own side files. They accompany a primary finding and never stand
+  /// for it, so Minimize never treats one as reproducing or as the target.
+  public var isSideFileFailure: Bool {
+    ResolutionFindings.SideFile(rawValue: signature) != nil
+  }
+
+  /// Whether this finding, seen in a later execution, reproduces `target`. A missing or ambiguous
+  /// control counts as the same finding when it names the same control, because counts and the
+  /// missing-versus-ambiguous split vary with timing.
+  public func reproduces(_ target: ExecutionFinding) -> Bool {
+    guard kind == target.kind, !isSideFileFailure, !target.isSideFileFailure else { return false }
+    if signature == target.signature { return true }
+    guard let remainder = controlRemainder, let targetRemainder = target.controlRemainder else {
+      return false
+    }
+    return remainder == targetRemainder
+  }
+
+  private var controlRemainder: Substring? {
+    for prefix in [ResolutionSignature.missing, ResolutionSignature.ambiguous]
+    where signature.hasPrefix(prefix) {
+      return signature.dropFirst(prefix.count)
+    }
+    return nil
   }
 }
 
@@ -162,6 +198,14 @@ public enum TraceIO {
     encoder.dateEncodingStrategy = .iso8601
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     try encoder.encode(report).write(to: url, options: .atomic)
+  }
+
+  public static func save(_ dump: TreeDump, to url: URL) throws {
+    try FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    try encoder.encode(dump).write(to: url, options: .atomic)
   }
 
   public enum TraceError: Error, Equatable {

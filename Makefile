@@ -41,7 +41,7 @@ test-app: project
 	rm -rf .build/xcode/Build/ProfileData
 	./scripts/test-app.sh $(XCODE_FLAGS) test
 
-# CI builds these once and runs them on macOS versions too old for this Xcode.
+# CI builds these once and runs them on other macOS versions, some too old for this Xcode.
 build-for-testing: project
 	rm -rf .build/portable/Build/Products
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing

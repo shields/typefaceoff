@@ -13,16 +13,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
-env:
-  # Keep Xcode 26.6 until the macos-26 image includes a stable Xcode 27.
-  # Xcode 27 is currently offered only through a separate preview image:
-  # https://github.com/actions/runner-images/issues/14404
-  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-
 jobs:
   test:
     name: Build, lint, and test
-    runs-on: macos-26
+    # Xcode 27 is offered only on the xcode-27 image, which runs macOS 27:
+    # https://github.com/actions/runner-images/issues/14404
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,8 +38,12 @@ jobs:
         run: make build
 
   build-tests:
-    name: Build tests for macOS 15
+    name: Build tests
     runs-on: macos-26
+    env:
+      # Xcode 26's Swift Testing overlay needs symbols that Xcode 27's Testing
+      # lacks, so the older runners run bundles built by Xcode 26.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,14 +59,23 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  test-macos-15:
-    name: Test on macOS 15
+  test-older-macos:
+    name: Test on macOS ${{ matrix.macos }}
     needs: build-tests
-    runs-on: macos-15
+    runs-on: macos-${{ matrix.macos }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The test job already runs these tests on macOS 27.
+        include:
+          # Xcode 26.4 and later need macOS 26.2, so macOS 15 runs Xcode 26.3.
+          - macos: 15
+            xcode: "26.3"
+          - macos: 26
+            xcode: "26.6"
     env:
-      # Xcode 26.4 and later need macOS 26.2, so this job runs the tests that
-      # build-tests compiled with a newer Xcode.
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR:
+        /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

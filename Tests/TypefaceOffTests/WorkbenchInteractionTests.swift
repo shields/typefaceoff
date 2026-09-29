@@ -232,6 +232,7 @@ import TypefaceCore
     host.submit("", to: field)
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "@")
+    #expect(field.stringValue == "@")
     model.updatePresentation {
       $0.customText = ""
       $0.selectedGlyph = "🦄"

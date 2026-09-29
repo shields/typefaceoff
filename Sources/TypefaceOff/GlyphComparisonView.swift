@@ -12,6 +12,7 @@ struct GlyphComparisonView: View {
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
   @State private var input: String
+  @State private var inspected: [Unicode.Scalar]
   @State private var zoom: Double
   @State private var appeared: Bool
 
@@ -28,6 +29,7 @@ struct GlyphComparisonView: View {
     self.showText = showText
     self.focusChanged = focusChanged
     _input = State(initialValue: "")
+    _inspected = State(initialValue: [])
     _zoom = State(initialValue: 1)
     _appeared = State(initialValue: false)
   }
@@ -42,8 +44,11 @@ struct GlyphComparisonView: View {
         TextField("Character", text: $input).frame(width: 40).multilineTextAlignment(.center)
           .accessibilityIdentifier("Character")
           .onSubmit {
-            select(input)
-            input = comparison.selectedGlyph
+            // A submit action can run with an older `comparison`, so read the inspected scalars
+            // from state. String equality is canonical: text equal to them keeps their spelling.
+            let current = String(String.UnicodeScalarView(inspected))
+            select(input == current ? current : input)
+            input = current
           }
         Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
           .help("Inspect the next character (Right Arrow when the glyph view has focus)")
@@ -66,8 +71,9 @@ struct GlyphComparisonView: View {
     }
     .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
     .task { appeared = true }
-    .onChange(of: comparison.selectedScalars, initial: true) {
-      input = comparison.selectedGlyph
+    .onChange(of: comparison.selectedScalars, initial: true) { _, scalars in
+      inspected = scalars
+      input = String(String.UnicodeScalarView(scalars))
     }
   }
 

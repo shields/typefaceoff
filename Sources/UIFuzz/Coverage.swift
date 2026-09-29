@@ -1,4 +1,5 @@
 import Foundation
+import UIFuzzSupport
 
 struct CoverageResult {
   var regions: Set<String>
@@ -33,17 +34,11 @@ enum CoverageReader {
           guard let source = filename.range(of: "/Sources/") else { continue }
           let identity = "\(filename[source.upperBound...]):\(line):\(column)"
           regions.insert(identity)
-          buckets.insert("\(identity)=\(coverageBucket(count))")
+          buckets.insert("\(identity)=\(CoverageBuckets.bucket(count))")
         }
       }
     }
     return CoverageResult(regions: regions, countBuckets: buckets)
-  }
-
-  private static func coverageBucket(_ count: Int) -> Int {
-    var bucket = 1
-    while bucket <= count / 2 { bucket *= 2 }
-    return bucket
   }
 
   private static func run(

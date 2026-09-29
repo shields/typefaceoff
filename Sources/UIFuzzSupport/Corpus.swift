@@ -26,9 +26,11 @@ public struct CorpusState: Codable, Equatable, Sendable {
 }
 
 public enum CoverageBuckets {
+  /// The largest power of two not above `count`. A region that never ran has no bucket, so zero
+  /// and negative counts map to 0.
   public static func bucket(_ count: Int) -> Int {
     guard count > 0 else { return 0 }
-    return 1 << Int(floor(log2(Double(count))))
+    return 1 << (Int.bitWidth - 1 - count.leadingZeroBitCount)
   }
 }
 

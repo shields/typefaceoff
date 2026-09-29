@@ -52,18 +52,21 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: portable-tests
-          path: .build/portable-tests.tar
+          path: |
+            .build/portable-tests.tar
+            .build/portable-runtime.tar
           if-no-files-found: error
           retention-days: 1
 
   test-older-macos:
-    name: Test on macOS ${{ matrix.macos }}
+    name: Test on macOS ${{ matrix.macos }} with ${{ matrix.runtime }} runtime
     needs: build-tests
     runs-on: macos-${{ matrix.macos }}
     strategy:
       fail-fast: false
       matrix:
-        # The test job already runs these tests on macOS 27.
+        macos: [15, 26]
+        runtime: [none, testing, xctest]
         include:
           # Xcode 26.4 and later need macOS 26.2, so macOS 15 runs Xcode 26.3.
           - macos: 15
@@ -74,6 +77,7 @@ jobs:
       # The runners lack Xcode 27, so they run its bundles with their own Xcode 26.
       DEVELOPER_DIR:
         /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      RUNTIME: ${{ matrix.runtime }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

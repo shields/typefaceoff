@@ -5,6 +5,8 @@ XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug 
 XCODE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme TypefaceOff -derivedDataPath .build/xcode
 PORTABLE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme PortableTests -derivedDataPath .build/portable
 PORTABLE_TESTS = .build/portable-tests.tar
+PORTABLE_RUNTIME = .build/portable-runtime.tar
+RUNTIME ?= none
 RAW_FUZZ_TOOL = .build/fuzz-tool/debug/ui-fuzz
 FUZZ_DRIVER_APP = .build/fuzz-driver/UIFuzzDriver.app
 FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff.app
@@ -43,24 +45,43 @@ test-app: project
 
 # CI builds these once and runs them on other macOS versions, some too old for this Xcode.
 build-for-testing: project
-	rm -rf .build/portable/Build/Products
+	rm -rf .build/portable/Build/Products .build/portable-runtime
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing
-	# Test processes search the products directory first, so an older Xcode
-	# runs these bundles with the Swift Testing runtime, overlays, and XCTest
-	# support library they were built against. Like xcodebuild,
-	# `xcode-select -p` reports DEVELOPER_DIR when it's set.
-	ditto "$$(xcode-select -p)/../SharedFrameworks/Testing.framework" .build/portable/Build/Products/Debug/Testing.framework
-	ditto "$$(xcode-select -p)/../SharedFrameworks/lib_TestingInterop.dylib" .build/portable/Build/Products/Debug/lib_TestingInterop.dylib
-	ditto "$$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib" .build/portable/Build/Products/Debug/libXCTestSwiftSupport.dylib
-	for overlay in "$$(xcode-select -p)"/../SharedFrameworks/_Testing_*.framework; do \
-		ditto "$$overlay" ".build/portable/Build/Products/Debug/$$(basename "$$overlay")"; \
-	done
 	tar -cf $(PORTABLE_TESTS) -C .build/portable/Build Products
+	# The Xcode that built the bundles also stages its own test runtime, in two
+	# sizes. Test processes search the products directory first, so
+	# test-without-building can run the bundles with that runtime instead of the
+	# older Xcode's. Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR
+	# when it's set.
+	mkdir -p .build/portable-runtime/testing .build/portable-runtime/xctest
+	# XCTest and XCUIAutomation are both in the platform's Library/Frameworks.
+	set -e; \
+	developer="$$(xcode-select -p)"; \
+	shared="$$developer/../SharedFrameworks"; \
+	platform="$$developer/Platforms/MacOSX.platform/Developer"; \
+	ditto "$$shared/Testing.framework" .build/portable-runtime/testing/Testing.framework; \
+	ditto "$$shared/lib_TestingInterop.dylib" .build/portable-runtime/testing/lib_TestingInterop.dylib; \
+	for overlay in "$$shared"/_Testing_*.framework; do \
+		ditto "$$overlay" ".build/portable-runtime/testing/$$(basename "$$overlay")"; \
+	done; \
+	ditto .build/portable-runtime/testing .build/portable-runtime/xctest; \
+	for framework in "$$shared/XCTestCore.framework" "$$shared/XCTAutomationSupport.framework" \
+		"$$platform/Library/Frameworks/XCTest.framework" \
+		"$$platform/Library/Frameworks/XCUIAutomation.framework"; do \
+		ditto "$$framework" ".build/portable-runtime/xctest/$$(basename "$$framework")"; \
+	done; \
+	ditto "$$platform/usr/lib/libXCTestSwiftSupport.dylib" .build/portable-runtime/xctest/libXCTestSwiftSupport.dylib
+	tar -cf $(PORTABLE_RUNTIME) -C .build portable-runtime
 
+# RUNTIME is none (the running Xcode's), testing, or xctest.
 test-without-building:
 	rm -rf .build/portable-run
 	mkdir -p .build/portable-run
 	tar -xf $(PORTABLE_TESTS) -C .build/portable-run
+	if [ "$(RUNTIME)" != none ]; then \
+		tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
+		ditto ".build/portable-run/portable-runtime/$(RUNTIME)" .build/portable-run/Products/Debug; \
+	fi
 	./scripts/test-app.sh -quiet -destination 'platform=macOS' -parallel-testing-enabled NO -xctestrun .build/portable-run/Products/*.xctestrun test-without-building
 
 coverage: test

@@ -30,11 +30,14 @@ import TypefaceCore
     }
   }
 
-  static func wait(until condition: () -> Bool) async throws {
+  static func wait(until condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation)
+    async throws
+  {
     let deadline = ContinuousClock.now + .seconds(10)
     while !condition(), ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(10))
     }
+    #expect(condition(), "Timed out after 10 seconds", sourceLocation: sourceLocation)
   }
 
   @Test func familyScoresSortWithStableNamesAndUnavailableEntriesLast() async throws {
@@ -63,10 +66,10 @@ import TypefaceCore
     model.sort = .similarity
     let request = FamilySimilarityModel.Request(reference: .init("ArialMT"), scale: 2)
     let task = Task { await model.update(request, catalog: FontCatalog()) }
-    while !model.comparing { await Task.yield() }
+    try await Self.wait { model.comparing }
     try await Task.sleep(for: .milliseconds(230))
     continuation.yield(.init(family: "Arial", score: Self.score(0)))
-    try await Task.sleep(for: .milliseconds(20))
+    try await Self.wait { model.results.count == 1 }
     #expect(model.comparing && model.results.count == 1)
     task.cancel()
     await task.value

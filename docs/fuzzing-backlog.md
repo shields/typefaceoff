@@ -1,0 +1,333 @@
+# UI fuzzer review backlog
+
+Follow-ups from a review of two campaigns on 2026-09-28. Each item names the
+evidence and the first step so it can be picked up without redoing the analysis.
+Item ids in parentheses (A1, VT4, ...) refer to the candidate lists from the
+review; the raw outputs were saved untracked under `.build/fuzz-review/`.
+
+## The campaigns
+
+- Host campaign, `.build/ui-fuzz`: 19 executions in 5 minutes on 2026-09-27
+  (about commit `db9ee32`). Every execution became a finding: 13 `slow`, 6
+  `automation`.
+- VM campaign, `.build/ui-fuzz-vm`: 1,071 executions from 08:26 to 12:35 on
+  2026-09-28 in the `typefaceoff-fuzz` guest. The app under test matches commit
+  `91baf55`'s lineage, not the startup work merged later. The first 216 runs
+  (08:26-09:59) predate the three-hour campaign.
+- Result: no crash, hang, correctness, or unavailable findings. 593 executions
+  (55.4%) aborted on a harness failure ("Control not found" 590, `AXPress`
+  failure 3). The 20 `slow` findings are the cap of the top-20 leaderboard.
+- Coverage: 3,373 of 3,711 regions (90.9%) were reached by execution 71. The
+  other 1,000 executions added 338 regions, mostly in two bursts (executions 519
+  and 673, which reached the Match sheet).
+
+Four blind spots hid this, so "no crashes" says little: stale process liveness
+(crash detection cannot fire), inert mouse events, a custom-text stress path
+that never lands, and empty app stdout/stderr logs.
+
+## Owned by other sessions
+
+- Control resolution, window scoping, idle waits, and app accessibility names
+  (see `.build/handoff/control-not-found.md`). It covers A1-A3, VT1-VT3, and
+  VB2. Stable identifiers for inspector controls are committed on its branch
+  (`dd9afcc`); the resolver rewrite is not.
+- Mouse delivery (`.build/handoff/mouse-clicks.md`, D1, VC3).
+
+## Merged to main (9b829d7)
+
+Four branches, each committed through LGTMCP, integrated without conflicts, and
+fast-forwarded into `main` after `make coverage` passed. Nothing here has run
+against a live UI; the checks that need one are listed with each branch.
+
+- `fuzzfix/mutation-state` (VT4, VC4, VB3; the Cmd-W and unchanged-base
+  findings). The mutator tracks mode, sheet, popover, and appearance lock, and
+  puts an idempotent enabler before controls that need a state. Offline on the
+  VM corpus, plans with a state-blind action fell from 46% to 0%, and Cmd-W was
+  replaced by Shift-Cmd-M. Confirm in a campaign that Escape closes sheets and
+  popovers in time and that Cmd-1/Cmd-2/Cmd-F work right after it.
+- `fuzzfix/process-liveness` (VR1, VR2). `kill(pid, 0)` replaces the stale
+  `isTerminated`, so the two 2 s waits should shrink to about 0.1 s per run.
+  Exit before the driver's own quit is now a `crash` finding
+  (`unexpected-termination`, or `launch-termination` during launch) and no
+  longer feeds the availability retry loop. New metadata: `quit-ms`,
+  `quit-forced`. Confirm with `make fuzz FUZZ_ARGS='--duration 1m'` (takes over
+  the screen): the gap between `durationMilliseconds` and workload plus
+  discovery should fall from about 5.2 s to about 1.2 s, no clean run should
+  report a crash, and killing the app mid-run should give `kind=crash`.
+- `fuzzfix/corpus-hygiene` (VR6, VT6; the dead `CoverageBuckets.bucket`). A
+  campaign now stops, naming the file, on a corpus, state, availability, or slow
+  report it cannot load (tried against the real VM and host artifacts). The
+  driver uses the tested bucket function. The corpus copy of an aborted run
+  drops the action that never ran; the finding keeps the full trace.
+- `fuzzfix/ranking-key` (VP3, VB7). Ranking depends on the fonts, both
+  trackings, the B/A size ratio, and the text, not on absolute size, so a new
+  `DifferenceInput` keys both the engine cache and the app's ranking key. Size
+  edits that keep the ratio no longer clear scores or show "Comparing glyphs".
+  Confirm in the running app that the strip stays populated on a linked size
+  step. Tracking edits still restart ranking, so that half of the aborts
+  remains.
+
+Follow-ups the branches surfaced:
+
+- Mutation: track whether font B exists (Match `Tracking`/`Weight` and Font B
+  requirements) and inspector visibility; `Zoom in`/`Zoom out` are disabled at
+  the zoom limits, so pressing them gives `AXPress -25200`, which is not
+  modelled; corpus entry `00000256` still contains Cmd-W and 35 of 10,600
+  mutated plans inherit it; revisit the "mode unknown after a canvas click or
+  drag" rule once mouse delivery works; update the requirement table if
+  accessibility names such as `Font A family` change. The acceptance scripts
+  (`.build/analysis/model.py`, `acceptance.py`) are untracked and worth moving
+  to `scripts/` if the check should be repeatable.
+- Liveness: `require()` polls for up to 2 s after the app dies mid-action, so
+  the resolver should check `ProcessLiveness.isAlive` in its polling loops;
+  `forceTerminate` failing to remove the process is not reported; four exit-gap
+  outliers (8-24 s) are unexplained; `waitForWorkbench` still waits up to 2 s
+  for an app that died after showing a window.
+- Left by the final review as decisions or unverified:
+  - A build that dies at startup now yields a `launch-termination` crash finding
+    per execution with no backoff (it used to back off 5-60 s through the
+    availability path), repeating every 1-3 s until interrupted. Count
+    consecutive launch terminations next to `CampaignBackoff` and abort after a
+    few.
+  - Crash detection samples `hasExited` once after a driver error. A crashed
+    process still held by ReportCrash keeps `kill(pid, 0)` succeeding, so it
+    would be recorded as an automation finding, and a pid that vanishes only
+    during the quit adds no crash finding. Plausible; a real crash under the
+    fuzzer would confirm it.
+  - The mutation model does not track inspector visibility or whether font B
+    exists (the `Font A family` enabler fails when the inspector is hidden;
+    after Font B is set to None, Match, Swap, and Lock are disabled), and it
+    assumes the Match sheet's `Apply` is always usable and `Weight` always
+    exists (`Apply` is disabled until a fit improves; `Weight` needs a variable
+    font B).
+  - Overlays opened or closed by controls the model does not know (menu-bar
+    items, the Sample pop-up, `Cancel matching`, picker row buttons, the Edit
+    menu's `Undo <name>`) leave sheet, popover, and lock state stale. Return is
+    modelled as closing the editor sheet, but in the multi-line editor after
+    `setValue` it may insert a newline.
+- Slow quit (VR9): 83.8% of runs with 20 or more actions that end with a sheet
+  open ignore the polite quit, against 5.3% with no sheet. Reproduce by hand
+  (Cmd-Q against the quit Apple event with a sheet open); then either dismiss
+  sheets before quitting or file an app bug. `quit-ms` and `quit-forced` now
+  supply the data.
+- Corpus: the 80 existing corpus entries with an unresolvable tail are not
+  touched (trim on load or migrate); `loadTraceOrReport` still skips the schema
+  version check; `fuzz-benchmark` with an empty or wrong `--corpus` now fails
+  loudly instead of benchmarking 0 traces.
+- Ranking: keep the "Comparing glyphs" indicator in the accessibility tree, or
+  wait for it, for the edits that legitimately restart ranking (tracking, font,
+  feature, text). The feature-preview half of VB7 rests on a false premise:
+  previews depend on tracking through shaping. `DifferenceInputTests` takes
+  about 10 s in debug. The engine now rounds the B/A ratio to 1e-9 (invisible,
+  and bit-identical for ratio 1).
+
+## Not started
+
+### Startup self-test (judgment finding)
+
+Run a short built-in suite before the campaign loop and abort loudly when an
+expectation fails: Cmd-2 gives glyph mode; Cmd-2 then a click on `Glyph canvas`
+gives text mode; Shift-Cmd-E, a value, and Apply make `textUTF16` equal the
+typed length; a killed dummy child is seen exiting within 100 ms. Use
+`precondition` or `try!` on executed lines. This would have caught three of the
+four blind spots in the first minute. It depends on the mouse, liveness, and
+custom-text fixes landing first.
+
+### Custom-text stress path (VP5, VB5)
+
+99.6% of snapshots (4,795 of 4,816) have `textUTF16 = 22191`. The generator
+emits `setValue` on `Custom specimen text` without opening the editor sheet, so
+none of the 100,000-unit texts ever land (58 attempts, 38 failed, none applied
+at 4,096 units or more). Make it one compound action kind (open editor, set
+value, press Apply) like `selectFont` (`AXDriver.swift`), so `mutate()`,
+`constrained()`, and `TraceReducer` cannot split it. `constrained()`
+(`Generation.swift:139-150`) must bound the new action or `--max-text-units` is
+bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the resolution
+session is editing, so wait for it.
+
+### Capture app output and crash reports (VB1, F2)
+
+`stdout.log` and `stderr.log` are empty in all 2,142 files: `launch()` uses
+`NSWorkspace.openApplication`, which cannot redirect. Redirect inside
+`FuzzDiagnostics.init` (behind `TYPEFACEOFF_FUZZING`) with `dup2`, and look up
+`~/Library/Logs/DiagnosticReports/TypefaceOff*-<pid>.ips` after an unexpected
+exit. Caveats: fuzz builds are release configurations, so debug-only SwiftUI
+runtime warnings may never appear (verify with a known-warning build), and
+whether `OS_ACTIVITY_DT_MODE=YES` routes `os_log` to stderr is untested.
+Warnings should become `.correctness` findings, not log lines. Also decide what
+to do with the dead `ExecutionReport.exitStatus` (constant nil): populate or
+delete.
+
+### Campaign event log, ledger, and provenance (B1, VR4, VI4, VI5, VI6, F7, F8, F11)
+
+- Append-only `campaign-events.jsonl` (process start with pid, seed, argv, build
+  id; desktop transitions; availability attempts; stop reason), written with
+  `try!` on a line that also runs normally. The overnight 2026-09-28 outage was
+  a 7.5-hour retry loop on execution 20 that no artifact records; the lock cause
+  is already closed by `d03d52f` and `91baf55`, the persistence is not.
+- Per-execution ledger (`executions.jsonl`) with timings, so questions about
+  coverage growth and waste need no re-run.
+- Provenance in every report: app commit, binary hash, font catalog identity,
+  macOS build, VM image, driver commit. Refuse to resume coverage state across
+  app builds.
+- `fuzz-replay` and `fuzz-minimize` give no verdict and silently drop or bypass
+  trace version checks; make them report reproduced or not, with a rate.
+- New `ExecutionReport` fields must be Optional because loading deletes reports
+  that fail to decode.
+
+### Slow-finding rework (B3, VR3, VP6, VP11, C5)
+
+The top-20 is a length filter: 19 of the 20 have 30 or more actions against
+15.8% of clean runs, ranked by `measuredMilliseconds` (workload minus pacing).
+The detail text is constant, so a finding carries no time, rank, or action.
+Heartbeat gaps over 800 ms (7 runs) all fall in cold-boot windows or the
+09:44-10:05 window when the host ran `make test` and a fuzz build, so latency
+samples are contaminated by host activity. Proposed: record per-action start
+uptime (Optional field), guest boot age and a host-busy flag in metadata; rank
+by per-action or normalized time and put the measurement in the detail; add a
+main-thread-stall criterion (largest heartbeat gap over about 400 ms, attributed
+to an action). Stall findings must not use kind `slow`, because
+`preserveFindings` skips it. Driver bookkeeping (rewriting `executed.json`,
+re-parsing telemetry after every action, on the host share in the VM) sits
+inside the timed workload; subtract or move it. Decision needed: changing the
+rank changes what the leaderboard means.
+
+### Signatures and failure diagnostics (VT7, VB4, VI11, A5)
+
+Signatures embed positional paths, so 85 distinct strings cover about 13
+clusters and 5 causes. Suggested: `unresolved:<lookup>:<role>:<kind>` plus a
+cause tag. The "Visible accessibility elements" list is the first 100 names in
+alphabetical order (30% `AXMenuItem`, never a text field, slider, or scroll
+area) and includes the Apple menu; host data listed recent file names from it.
+Replace it with a structured dump of the focused window. Finding files are 87.5
+MB, 88% of it duplicated coverage arrays.
+
+### State coverage and seed schedule (D2, VC5, VP12, VB6, VC12, D6)
+
+- Mutation starts at execution 37 and seeds 9-17 run at executions 19-35. Run
+  all 18 seeds first for short campaigns.
+- Widen state where behavior and latency are decided: fonts (`selectFont` in
+  exploration, a font zoo), samples (changed in 13 of 1,071 runs), calibrated
+  size links, variable-font axes, removing font B, and the missing-font state,
+  which the project rule says must be visible.
+- Corpus admission counts any new bucket; count bucket-only admissions in the
+  ledger (38% of admissions in the logged window) before changing
+  `Corpus.swift:7`.
+
+### Storage (VR7, VI7, B9)
+
+`coverage.profdata` is 75% of `runs/` (about 1.5 GB for 1,071 runs) and finding
+files are mostly coverage arrays; nothing prunes. Keep profdata only for runs
+that added coverage.
+
+### App performance (C2, VP4, C3, VP2, E11, VP8, VP9, VP10, C4, E12)
+
+Each size or tracking commit rebuilds both 22k-character specimens (six renders,
+about 168 ms), which matches the 170-380 ms tail on slider actions. The figures
+predate the startup-work merge; profile a release build before designing
+anything (adapt `scripts/profile-startup.sh`). Smaller items: `Comparison.text`
+rebuilds a 22,191-character string on every access (`Samples.swift:17`,
+`Comparison.swift:141`, 7-9 times per body pass) and `Differences.highlights`
+rebuilds a `Set` per call (`Differences.swift:123`), together worth about 47 ms;
+presenting the editor sheet with the full text blocks the main thread about 0.4
+s; `CharacterSearchIndex.shared` could be prewarmed at low priority; cap Match
+concurrency and lower its QoS. Keep scalar-exact keys and the per-side
+independent configuration.
+
+### Possible app bugs to triage by hand
+
+- The Comparison menu items were never selectable in about 160 openings (zero
+  actions under menu path `[1,5]`, while Edit and View yielded items). Check
+  whether they are disabled while an AX-driven menu is tracking (`@FocusedValue`
+  not published), which would be an app fix.
+- The app ignores a polite quit for 2 s in 13% of runs (141 of 1,071), more
+  often after a sheet was opened. Try Cmd-Q with the Match or editor sheet open
+  before calling it an app bug, then record `quit-ms` either way.
+- Three `AXPress failed: -25200` on `Match...`: the only automation failures
+  with a plausible product cause.
+- Shared size and Character fields commit only on Return, and out-of-range size
+  is silently clamped to 10-144 (`Comparison.swift:42`; `setValue "0"` produced
+  size 10 in finding 1). Commit-on-blur, a visible clamp, or rejection are
+  product decisions and existing tests pin the current behavior (E4).
+- Glyph navigation from a character absent from the list skips the first entry
+  (E14, VB11); font picker Return re-selects the current row while typing, which
+  breaks seed 8 (E13).
+
+### Infrastructure (VI3, VI10, F10, VI12, B11, F5, VI8, VP14, VP15, VB12)
+
+- A second guest doubles throughput (Apple allows two macOS guests; use
+  `tart clone typefaceoff-fuzz <name>` and `FUZZ_VM=<name>`).
+- Harden `scripts/fuzz-vm.sh`: liveness detection, bounded waits, stale-VM
+  adoption, IP-based ssh assumptions.
+- Host campaigns hold no keep-awake assertion, so display sleep and lock pause
+  them.
+- Discovery costs about 115 ms per pass at 7-12 AX round trips per element;
+  batch attribute reads and prune long lists. The completion check can declare
+  idle while the last key or shortcut is still queued.
+- README: document VM campaign behavior and limits.
+
+### Explorer budget and identity (VC9, VT5, VP13, VB8)
+
+Visit counts key on positional paths, so index drift fragments them and the map
+grows without bound. About 20% of exploration actions go to macOS-owned menu
+items (Apple, File, Window, Help). Discovery prefers identifiers over titles.
+Window-title-derived tab labels make recorded targets state-dependent.
+
+### Availability (B2)
+
+Availability retries are unbounded. Add attempt counters and `firstFailedAt` to
+the metadata of `availability.json` (not new report fields).
+
+## Decisions taken (2026-09-29)
+
+Delegated to judgment; revisit any of them with the evidence named.
+
+- Command-N stays in the explorer and mutator. Multiple windows are a real
+  feature and a crash or hang there is worth finding. After Command-N the
+  per-step failure rate is 4.5% against 3.2% (not significant); it matters only
+  through duplicate labels across windows (about 28 findings, 4.7%). The fix is
+  in resolution (scope to the focused window, wait for the new window's
+  workbench), which the resolution session owns.
+- Continuing past an unresolved step (VT8, A10) is acceptable only when each
+  skip is counted and surfaced, as the resolution session's `SkipLedger` does.
+  Until that lands, an unresolved step stays a finding.
+- Automation findings stay in `findings/` (B5, VR8). After the resolver lands,
+  measure the harness-invalid rate and add an abort above a threshold over a
+  window, chosen from that measurement, so a blind harness fails loudly.
+- Mouse delivery: try click state and window fields first (local, no cursor
+  movement, safe on the host and in the VM), verifying on macOS 26 as well
+  as 27. Real HID events only in the VM and behind an explicit flag. Do not
+  substitute `AXPress` for clicks.
+- The "Comparing glyphs" indicator: restarting ranking on edits that do not
+  change its input is fixed. For tracking, font, feature, and text edits,
+  re-measure after the resolver lands before changing the accessibility tree;
+  keeping the indicator permanently needs an AX dump and a VoiceOver check.
+- Slow ranking: keep the top-20 leaderboard, rank by time per action, and put
+  the measurement, rank, and slowest action in the detail; give stalls (a large
+  heartbeat gap) their own finding kind. Do this after the resolver lands, since
+  both touch `Runner.swift` and `Trace.swift`.
+- Size input: keep the clamp to 10-144 pt (the native range) and make it visible
+  later with help text or an announcement. Rejecting would change behavior that
+  existing tests pin and discards the value the user meant.
+- A launch that dies five executions in a row stops the campaign (wave 2).
+- Crash detection after a driver error stays as is until a real crash shows the
+  ReportCrash case.
+- The mutation model gaps (font B presence, inspector visibility, the Match
+  sheet's `Apply` and `Weight`) wait for the next campaign: Font A/B controls
+  fail about 2% of the time in the data.
+
+## Considered and set aside
+
+- "Character search is unreachable" (D7): an artifact of the 19-execution
+  window; the VM campaign covers 529 regions in `CharacterSearch*`. The
+  remaining gap is query variety.
+- A stop rule on coverage plateau (VR10): the tail is bursty and the longest gap
+  without a new region was 101 executions, so a useful threshold would never
+  fire. Spend effort on state coverage instead.
+- Attributing latency outliers to AppKit menus or app code (VP13): they coincide
+  with host activity and cold boot; replay on a quiet host first.
+- Dropping `.click` from controls that support `AXPress` as the mouse fix: it
+  loses the only accidental mouse coverage until delivery works.
+- Cmd-N as the main cause of stale paths: only about 28 findings; the dominant
+  cause (57% of findings) is index drift from the transient "Comparing glyphs"
+  indicator after size and tracking edits.

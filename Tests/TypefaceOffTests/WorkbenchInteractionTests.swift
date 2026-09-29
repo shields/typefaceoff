@@ -293,15 +293,33 @@ import TypefaceCore
           && $0.convert($0.bounds, to: host.view).maxX < 1194
       })
     host.submit("32,5", to: field)
-    try await host.settle { model.comparison.a.size == 32.5 }
+    try await host.settle(
+      until: { model.comparison.a.size == 32.5 },
+      describing: "after 32,5: size \(model.comparison.a.size); \(describe(field, in: host))")
     #expect(model.comparison.b?.size == 32.5)
     #expect(model.comparison.link?.sizeRatio == 1)
     host.submit("invalid", to: field)
-    try await host.settle { field.stringValue == "32,5" }
+    try await host.settle(
+      until: { field.stringValue == "32,5" },
+      describing: "after invalid: \(describe(field, in: host))")
     #expect(model.comparison.a.size == 32.5)
     host.setContent(
       WorkbenchView(model: model).environment(\.locale, Locale(identifier: "en_US")))
-    try await host.settle { field.stringValue == "32.5" }
+    try await host.settle(
+      until: { field.stringValue == "32.5" },
+      describing: "after en_US: \(describe(field, in: host))")
+  }
+
+  private func describe<Content>(_ field: NSTextField, in host: WorkbenchTestHost<Content>)
+    -> String
+  {
+    let sizes = host.subviews.compactMap { $0 as? NSTextField }.filter {
+      $0.placeholderString == "Size" || $0.placeholderString == "Mixed"
+    }.map { "\($0.stringValue.debugDescription)@\(Int($0.convert($0.bounds, to: host.view).minX))" }
+    let frame = field.convert(field.bounds, to: host.view)
+    return
+      "field \(field.stringValue.debugDescription) at \(frame), editing \(field.currentEditor() != nil), "
+      + "window \(host.window.frame), size fields \(sizes)"
   }
 
   @Test(arguments: [480.0, 900.0])
@@ -451,15 +469,16 @@ import TypefaceCore
     view.layoutSubtreeIfNeeded()
   }
 
-  func settle(until condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation)
-    async throws
-  {
+  func settle(
+    until condition: () -> Bool, describing state: @autoclosure () -> String = "",
+    sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws {
     let deadline = ContinuousClock.now + .seconds(10)
     try await settle()
     while !condition(), ContinuousClock.now < deadline {
       try await settle()
     }
-    #expect(condition(), sourceLocation: sourceLocation)
+    #expect(condition(), "\(state())", sourceLocation: sourceLocation)
   }
 
   func element(_ label: String) async throws -> AnyObject {

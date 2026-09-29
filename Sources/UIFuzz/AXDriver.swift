@@ -30,6 +30,7 @@ struct AXDriver {
     AXUIElementSetMessagingTimeout(application, 0.5)
     var ready = false
     for _ in 0..<200 {
+      if !ProcessLiveness.isAlive(processIdentifier) { break }
       try DesktopSession.current().requireAvailable()
       let windows = attribute(kAXWindowsAttribute, of: application) as? [AXUIElement] ?? []
       if windows.contains(where: { stringAttribute(kAXRoleAttribute, of: $0) == kAXWindowRole }) {

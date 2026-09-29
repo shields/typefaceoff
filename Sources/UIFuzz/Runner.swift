@@ -77,6 +77,18 @@ final class SequenceRunner {
     executed.actions = []
     var random = SplitMix64(seed: input.seed)
     let initialSession = DesktopSession.current()
+    var lastActionStartedAt: TimeInterval?
+    var quitMilliseconds: Double?
+    var quitForced = false
+    func unexpectedExit(_ phase: ExitPhase, note: String? = nil) -> ExecutionFinding {
+      let now = ProcessInfo.processInfo.systemUptime
+      return ProcessLiveness.unexpectedExitFinding(
+        phase: phase, actionsDispatched: executed.actions.count,
+        lastAction: executed.actions.last?.kind.rawValue,
+        secondsSinceLastAction: lastActionStartedAt.map { now - $0 },
+        secondsSinceHeartbeat: TelemetryState.read(telemetryURL).lastHeartbeat.map { now - $0 },
+        note: note)
+    }
 
     do {
       try initialSession.requireAvailable()
@@ -90,12 +102,15 @@ final class SequenceRunner {
       let driver = try AXDriver(processIdentifier: application.processIdentifier)
 
       let startupDeadline = ProcessInfo.processInfo.systemUptime + configuration.watchdogSeconds
-      while !application.isTerminated && ProcessInfo.processInfo.systemUptime < startupDeadline
+      while !application.hasExited && ProcessInfo.processInfo.systemUptime < startupDeadline
         && TelemetryState.read(telemetryURL).lastHeartbeat == nil
       {
         Thread.sleep(forTimeInterval: 0.05)
       }
-      if !application.isTerminated && TelemetryState.read(telemetryURL).lastHeartbeat == nil {
+      if application.hasExited {
+        automationFailed = true
+        findings.append(unexpectedExit(.launch))
+      } else if TelemetryState.read(telemetryURL).lastHeartbeat == nil {
         automationFailed = true
         findings.append(
           ExecutionFinding(
@@ -105,16 +120,13 @@ final class SequenceRunner {
           ))
       }
 
-      if !automationFailed && !application.isTerminated {
+      if !automationFailed && !application.hasExited {
         try driver.waitForWorkbench()
         workloadStartedAt = ProcessInfo.processInfo.systemUptime
       }
       for index in 0..<(input.actions.count + explorationActions) where !automationFailed {
-        guard !application.isTerminated else {
-          findings.append(
-            ExecutionFinding(
-              kind: .crash, signature: "unexpected-termination",
-              detail: "The app exited while dispatching action \(executed.actions.count)."))
+        guard !application.hasExited else {
+          findings.append(unexpectedExit(.beforeAction))
           break
         }
         let action: FuzzAction
@@ -128,11 +140,14 @@ final class SequenceRunner {
         executed.actions.append(action)
         try TraceIO.save(executed, to: runDirectory.appending(path: "executed.json"))
         let actionStart = ProcessInfo.processInfo.systemUptime
+        lastActionStartedAt = actionStart
         do {
           try driver.perform(action)
         } catch {
           automationFailed = true
-          if let unavailable = error as? AvailabilityError {
+          if application.hasExited {
+            findings.append(unexpectedExit(.duringAction, note: "Driver error: \(error)"))
+          } else if let unavailable = error as? AvailabilityError {
             findings.append(unavailable.finding)
           } else {
             let available = driver.snapshot().prefix(100).joined(separator: ", ")
@@ -151,7 +166,8 @@ final class SequenceRunner {
         }
         let telemetry = TelemetryState.read(telemetryURL)
         if let heartbeat = telemetry.lastHeartbeat,
-          ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds
+          ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds,
+          !application.hasExited
         {
           watchdog = true
           findings.append(
@@ -162,13 +178,14 @@ final class SequenceRunner {
         }
       }
 
-      if !application.isTerminated && !watchdog && !automationFailed {
+      if !application.hasExited && !watchdog && !automationFailed {
         let completionStart = ProcessInfo.processInfo.systemUptime
         var idleSince: TimeInterval?
         var reachedIdle = false
         while ProcessInfo.processInfo.systemUptime - completionStart
           < configuration.completionSeconds
         {
+          if application.hasExited { break }
           let telemetry = TelemetryState.read(telemetryURL)
           let hasFreshHeartbeat = telemetry.lastHeartbeat.map { $0 >= completionStart } ?? false
           if telemetry.pendingWork == 0 && hasFreshHeartbeat {
@@ -193,7 +210,7 @@ final class SequenceRunner {
           Thread.sleep(forTimeInterval: 0.05)
         }
         let telemetry = TelemetryState.read(telemetryURL)
-        if !reachedIdle && !watchdog {
+        if !reachedIdle && !watchdog && !application.hasExited {
           watchdog = true
           findings.append(
             ExecutionFinding(
@@ -213,14 +230,14 @@ final class SequenceRunner {
           (ProcessInfo.processInfo.systemUptime - workloadStartedAt) * 1000 - discoveryMilliseconds
       }
 
-      if application.isTerminated && !findings.contains(where: { $0.kind == .crash }) {
-        findings.append(
-          ExecutionFinding(
-            kind: .crash, signature: "unexpected-termination",
-            detail: "The app exited before the driver requested termination."))
+      if application.hasExited && !findings.contains(where: { $0.kind == .crash }) {
+        findings.append(unexpectedExit(.afterActions))
       }
     } catch {
-      if let unavailable = error as? AvailabilityError {
+      if launchedApplication?.hasExited == true {
+        findings.append(
+          unexpectedExit(workloadStartedAt == nil ? .launch : .beforeAction, note: "\(error)"))
+      } else if let unavailable = error as? AvailabilityError {
         findings.append(unavailable.finding)
       } else {
         findings.append(
@@ -232,7 +249,7 @@ final class SequenceRunner {
     }
 
     // Accessibility timeouts must not conceal an app that stopped pumping its main run loop.
-    if !watchdog, launchedApplication?.isTerminated == false,
+    if !watchdog, launchedApplication?.hasExited == false,
       let heartbeat = TelemetryState.read(telemetryURL).lastHeartbeat,
       ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds
     {
@@ -251,22 +268,23 @@ final class SequenceRunner {
     }
 
     if let application = launchedApplication {
-      if application.isTerminated && !findings.contains(where: { $0.kind == .crash }) {
-        findings.append(
-          ExecutionFinding(
-            kind: .crash, signature: "unexpected-termination",
-            detail: "The app exited before the driver requested termination."))
-      } else if !application.isTerminated {
+      let alreadyExited = application.hasExited
+      if alreadyExited && !findings.contains(where: { $0.kind == .crash }) {
+        findings.append(unexpectedExit(.afterActions))
+      } else if !alreadyExited {
+        let quitStart = ProcessInfo.processInfo.systemUptime
         if watchdog {
           kill(application.processIdentifier, SIGINT)
         } else {
           application.terminate()
         }
         waitForExit(application, seconds: 2)
-        if !application.isTerminated {
+        if !application.hasExited {
+          quitForced = true
           application.forceTerminate()
           waitForExit(application, seconds: 2)
         }
+        quitMilliseconds = (ProcessInfo.processInfo.systemUptime - quitStart) * 1000
       }
     }
 
@@ -327,6 +345,10 @@ final class SequenceRunner {
     metadata["maximum-heartbeat-gap-ms"] = String(telemetry.maximumHeartbeatGap * 1000)
     metadata["process-model"] = "fresh"
     metadata["discovery-ms"] = String(discoveryMilliseconds)
+    if let quitMilliseconds {
+      metadata["quit-ms"] = String(quitMilliseconds)
+      metadata["quit-forced"] = String(quitForced)
+    }
     if let snapshot = telemetry.latestSnapshot,
       let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys])
     {
@@ -373,10 +395,7 @@ final class SequenceRunner {
   }
 
   private func waitForExit(_ application: NSRunningApplication, seconds: TimeInterval) {
-    let deadline = ProcessInfo.processInfo.systemUptime + seconds
-    while !application.isTerminated && ProcessInfo.processInfo.systemUptime < deadline {
-      Thread.sleep(forTimeInterval: 0.02)
-    }
+    _ = ProcessLiveness.waitForExit(application.processIdentifier, timeout: seconds)
   }
 
   private func machineMetadata() -> [String: String] {

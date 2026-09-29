@@ -500,7 +500,9 @@ import TypefaceCore
   private var accessibilitySummary: String {
     var named = Set<String>()
     var unnamed: [String: Int] = [:]
-    for element in elements + hitElements {
+    var seen = Set<ObjectIdentifier>()
+    // hitElements returns an element once per sample point that lands on it.
+    for element in elements + hitElements where seen.insert(ObjectIdentifier(element)).inserted {
       let role = element.accessibilityRole?()?.rawValue ?? "no role"
       let names = [
         element.accessibilityIdentifier?(), element.accessibilityLabel?(),

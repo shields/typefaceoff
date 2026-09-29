@@ -127,9 +127,9 @@ struct Run: ParsableCommand {
       pendingTrace = nil
       let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
       let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
-      if delta.isInteresting {
-        corpus.append(report.trace)
-        try TraceIO.save(report.trace, to: corpusURL.appending(path: "\(identifier).json"))
+      if delta.isInteresting, let admitted = CorpusAdmission.trace(for: report) {
+        corpus.append(admitted)
+        try TraceIO.save(admitted, to: corpusURL.appending(path: "\(identifier).json"))
       }
       try preserveFindings(report, identifier: identifier, artifacts: artifactURL)
       slowest = try preserveSlowCandidate(

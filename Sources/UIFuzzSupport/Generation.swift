@@ -30,25 +30,38 @@ public struct TraceMutator: Sendable {
 
   public func mutate(_ input: FuzzTrace, seed: UInt64) -> FuzzTrace {
     var random = SplitMix64(seed: seed)
-    var actions = constrained(input).actions
-    let edits = 1 + Int(random.next() % 4)
-    for _ in 0..<edits {
-      switch random.next() % 4 {
-      case 0 where !actions.isEmpty:
-        actions.remove(at: Int(random.next() % UInt64(actions.count)))
-      case 1 where !actions.isEmpty && actions.count < maximumActions:
-        let index = Int(random.next() % UInt64(actions.count))
-        actions.insert(actions[index], at: index)
-      case 2 where !actions.isEmpty:
-        actions[Int(random.next() % UInt64(actions.count))] = action(using: &random)
-      default:
-        guard actions.count < maximumActions else { continue }
-        let index = Int(random.next() % UInt64(actions.count + 1))
-        actions.insert(action(using: &random), at: index)
-      }
+    let base = constrained(input).actions
+    var actions = base
+    var edits = 1 + Int(random.next() % 4)
+    var result: [FuzzAction]
+    var attempts = 0
+    // Edits can cancel each other, and executing the input again finds nothing new.
+    repeat {
+      for _ in 0..<edits { edit(&actions, using: &random) }
+      if actions.isEmpty { actions.append(action(using: &random)) }
+      result = repaired(actions)
+      edits = 1
+      attempts += 1
+    } while result == base && attempts < 8
+    return FuzzTrace(seed: seed, actions: result, origin: "mutation")
+  }
+
+  private func edit(_ actions: inout [FuzzAction], using random: inout SplitMix64) {
+    var choice = random.next() % 4
+    // A full plan replaces instead of growing, so the edit still changes it.
+    if actions.count >= maximumActions && choice != 0 { choice = 2 }
+    switch choice {
+    case 0 where !actions.isEmpty:
+      actions.remove(at: Int(random.next() % UInt64(actions.count)))
+    case 1 where !actions.isEmpty:
+      let index = Int(random.next() % UInt64(actions.count))
+      actions.insert(actions[index], at: index)
+    case 2 where !actions.isEmpty:
+      actions[Int(random.next() % UInt64(actions.count))] = action(using: &random)
+    default:
+      let index = Int(random.next() % UInt64(actions.count + 1))
+      actions.insert(action(using: &random), at: index)
     }
-    if actions.isEmpty { actions.append(action(using: &random)) }
-    return FuzzTrace(seed: seed, actions: actions, origin: "mutation")
   }
 
   public func initialCorpus(seed: UInt64) -> [FuzzTrace] {
@@ -192,7 +205,7 @@ public struct TraceMutator: Sendable {
         (19, (1 << 20) | (1 << 17)), (18, (1 << 20) | (1 << 19)),
         (19, (1 << 20) | (1 << 19)), (6, 1 << 20), (6, (1 << 20) | (1 << 17)),
         (1, (1 << 20) | (1 << 19)), (14, (1 << 20) | (1 << 17)), (45, 1 << 20),
-        (13, 1 << 20), (3, 1 << 20),
+        (46, (1 << 20) | (1 << 17)), (3, 1 << 20),
       ]
       let shortcut = shortcuts[Int(random.next() % UInt64(shortcuts.count))]
       return FuzzAction(

@@ -6,6 +6,51 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct SpecimenTooltipTests {
+  @Test func windowRefreshesTooltipsAfterScrollingResizingAndReplacingText() async throws {
+    let sample = Sample.reading
+    var config = FontConfiguration("HelveticaNeue")
+    let host = WorkbenchTestHost(
+      SpecimenText(config: config, text: sample.text, sample: sample), width: 400, height: 200)
+    defer { host.window.close() }
+    try await host.settle()
+    let view = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    try expectTrackedTooltip(for: #require(view.spans.first), in: view)
+
+    let last = try #require(view.spans.last)
+    view.scrollRangeToVisible(last.range)
+    try await host.settle()
+    #expect(view.visibleRect.minY > 0)
+    try expectTrackedTooltip(for: last, in: view)
+
+    host.window.setContentSize(NSSize(width: 600, height: 250))
+    try await host.settle()
+    try expectTrackedTooltip(for: last, in: view)
+
+    config.size = 40
+    host.setContent(SpecimenText(config: config, text: "a fi 🦄"))
+    try await host.settle()
+    try expectTrackedTooltip(for: #require(view.spans.first), in: view)
+    try expectTrackedTooltip(for: #require(view.spans.last), in: view)
+  }
+
+  private func expectTrackedTooltip(for span: SpecimenText.GlyphSpan, in view: SpecimenNSTextView)
+    throws
+  {
+    let layout = try #require(view.layoutManager)
+    let container = try #require(view.textContainer)
+    let glyphs = layout.glyphRange(forCharacterRange: span.range, actualCharacterRange: nil)
+    let rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+      .offsetBy(dx: view.textContainerOrigin.x, dy: view.textContainerOrigin.y)
+    let point = NSPoint(x: rect.midX, y: rect.midY)
+    #expect(view.visibleRect.contains(point))
+    // The test never asks the view to refresh its tracking areas itself.
+    let areas = view.trackingAreas.filter { !$0.options.contains(.inVisibleRect) }
+    #expect(areas.contains { $0.rect.contains(point) })
+    #expect(
+      view.view(view, stringForToolTip: 0, point: point, userData: nil)
+        == (span.supported ? "" : "Unavailable: ") + unicodeDescription(span.glyph))
+  }
+
   @Test func fullChapterTracksOnlyVisibleCharactersAndRefreshesAfterScrolling() throws {
     let sample = Sample.reading
     let content = SpecimenText.makeContent(

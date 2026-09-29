@@ -1,5 +1,6 @@
 #if TYPEFACEOFF_STARTUP_BENCHMARK
   import AppKit
+  import Synchronization
 
   /// Compiled only into the opt-in launch benchmark. Times share the driver's monotonic clock,
   /// so they include process creation and framework loading before App.init.
@@ -8,6 +9,14 @@
     private static var milestones: [String: Double] = [:]
     private static var drawnSpecimens: Set<String> = []
     private static var finishing = false
+    nonisolated private static let backgroundMilestones = Mutex<[String: Double]>([:])
+
+    nonisolated static func markBackground(_ name: String) {
+      let timestamp = ProcessInfo.processInfo.systemUptime
+      backgroundMilestones.withLock {
+        if $0[name] == nil { $0[name] = timestamp }
+      }
+    }
 
     static func mark(_ name: String) {
       guard milestones[name] == nil else { return }
@@ -38,9 +47,14 @@
           window.displayIfNeeded()
         }
         milestones["settled"] = ProcessInfo.processInfo.systemUptime
+        milestones.merge(backgroundMilestones.withLock { $0 }) { existing, _ in existing }
         let data = try! JSONSerialization.data(withJSONObject: milestones, options: [.sortedKeys])
-        print("TYPEFACEOFF_STARTUP " + String(decoding: data, as: UTF8.self))
-        NSApp.terminate(nil)
+        FileHandle.standardOutput.write(
+          Data(("TYPEFACEOFF_STARTUP " + String(decoding: data, as: UTF8.self) + "\n").utf8))
+        // The sampling driver owns this process and terminates it after collecting the profile.
+        if ProcessInfo.processInfo.environment["TYPEFACEOFF_STARTUP_PROFILE"] != "1" {
+          NSApp.terminate(nil)
+        }
       }
     }
   }

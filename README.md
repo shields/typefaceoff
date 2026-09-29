@@ -192,6 +192,13 @@ and font caches are not flushed, so this measures repeated launches, not the
 first launch after a reboot. Startup probes are compiled only into the dedicated
 benchmark configuration.
 
+`make profile-startup` samples one launch of the same optimized app at one
+millisecond intervals using macOS’s `sample` profiler. It attaches just after
+process creation, records two seconds, and closes its own app. The call stacks
+are saved to `.build/startup-profile.txt`, with phase timestamps in
+`.build/startup-profile.txt.launch.log`; set `STARTUP_PROFILE=…` to retain a
+profile. Use `make benchmark-startup` for timings without profiler overhead.
+
 `make benchmark` runs an opt-in release benchmark and writes
 `.build/similarity-benchmark/scores.json`, rendered specimens, and
 `review.html`. It compares the existing glyph IoU, signed distance fields,

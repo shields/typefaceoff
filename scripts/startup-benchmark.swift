@@ -36,6 +36,7 @@ func benchmark() throws {
     process.arguments = ["-ApplePersistenceIgnoreState", "YES"]
     var childEnvironment = environment
     childEnvironment.removeValue(forKey: "TYPEFACEOFF_TESTING")
+    childEnvironment.removeValue(forKey: "TYPEFACEOFF_STARTUP_PROFILE")
     process.environment = childEnvironment
     let pipe = Pipe()
     process.standardOutput = pipe

@@ -169,11 +169,15 @@ line coverage for every engine, app, and reusable fuzzing-support source file.
 Tests for Inter’s optional variable axes and character variants require that
 font to be installed.
 
-The app supports macOS 15, but Xcode 26.4 and later need macOS 26.2, so CI
-builds the tests once and runs them on macOS 15 and 26 without rebuilding.
-`make build-for-testing` packs the core and native test bundles into
-`.build/portable-tests.tar`, and `make test-without-building` unpacks and runs
-them with whatever Xcode is installed, saving results like `make test-app`.
+The app supports macOS 15, but Xcode 26.4 and later need macOS 26.2, so macOS 15
+runs at most Xcode 26.3. CI builds the test bundles once with Xcode 26 and runs
+them without rebuilding on macOS 15 and 26; the main job builds and tests
+separately on macOS 27 with Xcode 27. `make build-for-testing` packs the core
+and native test bundles, with the Testing runtime of the Xcode that built them,
+into `.build/portable-tests.tar`, and `make test-without-building` unpacks and
+runs them with the active Xcode, saving results like `make test-app`.
+`.github/workflows/ci.yml` explains why the older runners run bundles built by
+Xcode 26.
 
 `make review` renders native text, glyph, single-font, and character search
 windows into `.build/review` for visual inspection and records glyph redraw

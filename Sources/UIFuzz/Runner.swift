@@ -73,6 +73,7 @@ final class SequenceRunner {
     var watchdog = false
     var automationFailed = false
     var launchedApplication: NSRunningApplication?
+    var launchedProcessIdentifier: pid_t?
     var executed = input
     executed.actions = []
     var random = SplitMix64(seed: input.seed)
@@ -82,12 +83,19 @@ final class SequenceRunner {
     var quitForced = false
     func unexpectedExit(_ phase: ExitPhase, note: String? = nil) -> ExecutionFinding {
       let now = ProcessInfo.processInfo.systemUptime
+      var notes = note.map { [$0] } ?? []
+      if let pid = launchedProcessIdentifier {
+        notes.append(
+          CrashReports.capture(
+            pid: pid, processName: configuration.binary.lastPathComponent, since: startedAt,
+            into: runDirectory))
+      }
       return ProcessLiveness.unexpectedExitFinding(
         phase: phase, actionsDispatched: executed.actions.count,
         lastAction: executed.actions.last?.kind.rawValue,
         secondsSinceLastAction: lastActionStartedAt.map { now - $0 },
         secondsSinceHeartbeat: TelemetryState.read(telemetryURL).lastHeartbeat.map { now - $0 },
-        note: note)
+        note: notes.isEmpty ? nil : notes.joined(separator: " "))
     }
 
     do {
@@ -98,6 +106,7 @@ final class SequenceRunner {
         at: profileDirectory, withIntermediateDirectories: true)
       let application = try launch(runDirectory: runDirectory, profileDirectory: profileDirectory)
       launchedApplication = application
+      launchedProcessIdentifier = application.processIdentifier
       application.activate(options: [.activateAllWindows])
       let driver = try AXDriver(processIdentifier: application.processIdentifier)
 
@@ -376,10 +385,6 @@ final class SequenceRunner {
       "TYPEFACEOFF_FUZZ_DIR": runDirectory.path,
       "LLVM_PROFILE_FILE": profileDirectory.appending(path: "%p%c.profraw").path,
     ]
-    let standardOutput = runDirectory.appending(path: "stdout.log")
-    let standardError = runDirectory.appending(path: "stderr.log")
-    FileManager.default.createFile(atPath: standardOutput.path, contents: nil)
-    FileManager.default.createFile(atPath: standardError.path, contents: nil)
 
     let openConfiguration = NSWorkspace.OpenConfiguration()
     openConfiguration.activates = true

@@ -18,8 +18,12 @@ import TypefaceCore
         writer = nil
         return
       }
-      writer = FuzzEventWriter(
-        url: URL(fileURLWithPath: folder).appendingPathComponent("telemetry.jsonl"))
+      let directory = URL(fileURLWithPath: folder)
+      writer = FuzzEventWriter(url: directory.appendingPathComponent("telemetry.jsonl"))
+      try! StandardStreamRedirect.append(
+        stdout, to: directory.appendingPathComponent("stdout.log"), buffering: _IOLBF)
+      try! StandardStreamRedirect.append(
+        stderr, to: directory.appendingPathComponent("stderr.log"), buffering: _IONBF)
       emit(["event": "launch"])
       let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
         MainActor.assumeIsolated { FuzzDiagnostics.shared.heartbeat() }

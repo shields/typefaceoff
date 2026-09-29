@@ -317,15 +317,11 @@ private func parseDuration(_ value: String) throws -> TimeInterval {
 }
 
 private func loadCorpus(_ directory: URL) throws -> [FuzzTrace] {
-  guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
-  return try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-    .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
-    .compactMap { try? TraceIO.load($0) }
+  try ArtifactLoader.corpus(in: directory)
 }
 
 private func loadState(_ url: URL) throws -> CorpusState {
-  guard FileManager.default.fileExists(atPath: url.path) else { return CorpusState() }
-  return try JSONDecoder().decode(CorpusState.self, from: Data(contentsOf: url))
+  try ArtifactLoader.corpusState(at: url)
 }
 
 private func saveState(_ state: CorpusState, to url: URL) throws {
@@ -348,11 +344,7 @@ private func preserveFindings(_ report: ExecutionReport, identifier: String, art
 /// thousands of duplicate reports and raw profiles.
 private func preserveAvailability(_ report: ExecutionReport, artifacts: URL) throws {
   let output = artifacts.appending(path: "availability.json")
-  let decoder = JSONDecoder()
-  decoder.dateDecodingStrategy = .iso8601
-  let previous = (try? Data(contentsOf: output)).flatMap {
-    try? decoder.decode(ExecutionReport.self, from: $0)
-  }
+  let previous = try ArtifactLoader.existingReport(at: output)
   try TraceIO.save(report, to: output)
   if let previous, previous.needsAvailabilityRecovery,
     let run = previous.metadata["run"], UUID(uuidString: run) != nil,
@@ -391,30 +383,7 @@ private func preserveSlowCandidate(
 }
 
 private func loadSlowCandidates(_ artifacts: URL) throws -> [(Double, URL)] {
-  let directory = artifacts.appending(path: "findings/slow")
-  guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
-  let decoder = JSONDecoder()
-  decoder.dateDecodingStrategy = .iso8601
-  let urls = try FileManager.default.contentsOfDirectory(
-    at: directory, includingPropertiesForKeys: nil
-  ).filter { $0.pathExtension == "json" }
-  var candidates: [(Double, URL)] = []
-  for url in urls {
-    guard let data = try? Data(contentsOf: url),
-      let report = try? decoder.decode(ExecutionReport.self, from: data),
-      report.workloadDurationMilliseconds != nil,
-      report.findings.allSatisfy({ $0.kind == .slow })
-    else {
-      try FileManager.default.removeItem(at: url)
-      continue
-    }
-    candidates.append((report.measuredMilliseconds, url))
-  }
-  candidates.sort { $0.0 > $1.0 }
-  for (_, url) in candidates.dropFirst(20) {
-    try FileManager.default.removeItem(at: url)
-  }
-  return Array(candidates.prefix(20))
+  try ArtifactLoader.slowCandidates(in: artifacts.appending(path: "findings/slow"), keeping: 20)
 }
 
 private func loadTraceOrReport(_ url: URL) throws -> (trace: FuzzTrace, report: ExecutionReport?) {

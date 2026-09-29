@@ -388,12 +388,8 @@ struct WorkbenchView: View {
   private func navigate(_ direction: Int) {
     let glyphs =
       ranked.isEmpty ? Differences.candidates(sample: comparison.text) : ranked.map(\.glyph)
-    guard !glyphs.isEmpty else { return }
-    // A canonically equivalent spelling still navigates from its place in the list.
-    let index =
-      glyphs.firstIndex { comparison.matches($0) }
-      ?? glyphs.firstIndex(of: comparison.selectedGlyph) ?? 0
-    selectGlyph(glyphs[(index + direction + glyphs.count) % glyphs.count])
+    guard let glyph = comparison.neighbour(in: glyphs, direction: direction) else { return }
+    selectGlyph(glyph)
   }
 }
 

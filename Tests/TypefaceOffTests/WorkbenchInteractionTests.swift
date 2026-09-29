@@ -238,7 +238,11 @@ import TypefaceCore
     }
     try await host.settle()
     try await host.press("Next character")
-    #expect(model.comparison.selectedGlyph == "\"")
+    #expect(model.comparison.selectedGlyph == "!")
+    model.updatePresentation { $0.selectedGlyph = "🦄" }
+    try await host.settle()
+    try await host.press("Previous character")
+    #expect(model.comparison.selectedGlyph == "~")
   }
 
   @Test func modeSegmentsSwitchViewsThroughAccessibility() async throws {

@@ -293,18 +293,15 @@ import TypefaceCore
           && $0.convert($0.bounds, to: host.view).maxX < 1194
       })
     host.submit("32,5", to: field)
-    try await host.settle()
-    #expect(model.comparison.a.size == 32.5)
+    try await host.settle { model.comparison.a.size == 32.5 }
     #expect(model.comparison.b?.size == 32.5)
     #expect(model.comparison.link?.sizeRatio == 1)
     host.submit("invalid", to: field)
-    try await host.settle()
+    try await host.settle { field.stringValue == "32,5" }
     #expect(model.comparison.a.size == 32.5)
-    #expect(field.stringValue == "32,5")
     host.setContent(
       WorkbenchView(model: model).environment(\.locale, Locale(identifier: "en_US")))
-    try await host.settle()
-    #expect(field.stringValue == "32.5")
+    try await host.settle { field.stringValue == "32.5" }
   }
 
   @Test(arguments: [480.0, 900.0])

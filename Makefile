@@ -46,11 +46,12 @@ build-for-testing: project
 	rm -rf .build/portable/Build/Products
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing
 	# Test processes search the products directory first, so an older Xcode
-	# runs these bundles with the Swift Testing runtime and overlays they were
-	# built against. Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR
-	# when it's set.
+	# runs these bundles with the Swift Testing runtime, overlays, and XCTest
+	# support library they were built against. Like xcodebuild,
+	# `xcode-select -p` reports DEVELOPER_DIR when it's set.
 	ditto "$$(xcode-select -p)/../SharedFrameworks/Testing.framework" .build/portable/Build/Products/Debug/Testing.framework
 	ditto "$$(xcode-select -p)/../SharedFrameworks/lib_TestingInterop.dylib" .build/portable/Build/Products/Debug/lib_TestingInterop.dylib
+	ditto "$$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib" .build/portable/Build/Products/Debug/libXCTestSwiftSupport.dylib
 	for overlay in "$$(xcode-select -p)"/../SharedFrameworks/_Testing_*.framework; do \
 		ditto "$$overlay" ".build/portable/Build/Products/Debug/$$(basename "$$overlay")"; \
 	done

@@ -174,9 +174,10 @@ later need macOS 26.2, so macOS 15 runs at most Xcode 26.3. CI builds the test
 bundles with Xcode 27 and runs them without rebuilding on macOS 15 and 26, using
 the Xcode 26 those runners have; the main job builds and tests separately on
 macOS 27. `make build-for-testing` packs the core and native test bundles, with
-the Swift Testing runtime and overlays of the Xcode that built them, into
-`.build/portable-tests.tar`, and `make test-without-building` unpacks and runs
-them with the active Xcode, saving results like `make test-app`.
+the Swift Testing runtime, overlays, and XCTest support library of the Xcode
+that built them, into `.build/portable-tests.tar`, and
+`make test-without-building` unpacks and runs them with the active Xcode, saving
+results like `make test-app`.
 
 `make review` renders native text, glyph, single-font, and character search
 windows into `.build/review` for visual inspection and records glyph redraw

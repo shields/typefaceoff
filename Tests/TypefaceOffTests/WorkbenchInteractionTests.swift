@@ -466,6 +466,16 @@ import TypefaceCore
   }
 
   func element(_ label: String) async throws -> AnyObject {
+    let deadline = ContinuousClock.now + .seconds(10)
+    while true {
+      if let result = try await find(label) { return result }
+      guard ContinuousClock.now < deadline else { break }
+      try await settle()
+    }
+    throw MissingControl(label: label, available: accessibilitySummary)
+  }
+
+  private func find(_ label: String) async throws -> AnyObject? {
     if let result = visibleElement(label) { return result }
     // Older SwiftUI versions expose only the visible portion of a scroll view.
     for scroll in subviews.compactMap({ $0 as? NSScrollView }) {
@@ -484,15 +494,33 @@ import TypefaceCore
       scroll.reflectScrolledClipView(scroll.contentView)
       try await settle()
     }
-    let available = Set(
-      (elements + hitElements).flatMap { element in
-        [
-          element.accessibilityIdentifier?(), element.accessibilityLabel?(),
-          element.accessibilityTitle?(),
-        ].compactMap { $0 }.filter { !$0.isEmpty }
+    return nil
+  }
+
+  private var accessibilitySummary: String {
+    var named = Set<String>()
+    var unnamed: [String: Int] = [:]
+    for element in elements + hitElements {
+      let role = element.accessibilityRole?()?.rawValue ?? "no role"
+      let names = [
+        element.accessibilityIdentifier?(), element.accessibilityLabel?(),
+        element.accessibilityTitle?(),
+      ].compactMap { $0 }.filter { !$0.isEmpty }
+      if names.isEmpty {
+        unnamed[role, default: 0] += 1
+      } else {
+        named.insert("\(role) \(names.joined(separator: "/"))")
       }
-    ).sorted().joined(separator: ", ")
-    throw MissingControl(label: label, available: available)
+    }
+    let unnamedCounts = unnamed.sorted { $0.key < $1.key }.map { "\($0.key) x\($0.value)" }
+    let scrolls = subviews.compactMap { $0 as? NSScrollView }.map {
+      let bounds = $0.contentView.bounds
+      return "document \($0.documentView?.frame.height ?? 0), viewport \(bounds.height), "
+        + "offset \(bounds.origin.y)"
+    }
+    return
+      "\(named.sorted().joined(separator: ", ")). Unnamed: \(unnamedCounts.joined(separator: ", ")). "
+      + "Scroll views: \(scrolls.joined(separator: "; "))"
   }
 
   private func visibleElement(_ label: String) -> AnyObject? {

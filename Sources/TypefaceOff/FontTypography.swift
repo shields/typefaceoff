@@ -38,6 +38,7 @@ struct FontTypography: View {
           edit("Reset typography") { $0[side]?.features = [:] }
         }
         .labelStyle(.iconOnly).buttonStyle(.borderless)
+        .accessibilityIdentifier("\(side.fontName) Reset typography")
         .help("Restore this font’s default typography settings")
       }
       ForEach(FontFeature.Group.allCases, id: \.self) { group in
@@ -90,6 +91,7 @@ struct FontTypography: View {
               set: { selection.wrappedValue = feature.options[$0 ? 1 : 0].value }
             )
           ).toggleStyle(.checkbox).font(.system(size: 12))
+            .accessibilityIdentifier("\(side.fontName) feature \(feature.id)")
         } else {
           Text(verbatim: feature.name).font(.system(size: 12))
         }
@@ -104,7 +106,7 @@ struct FontTypography: View {
       if !feature.isAutomatic && !binary {
         Picker(feature.name, selection: selection) {
           ForEach(feature.options, id: \.value) { Text(verbatim: $0.name).tag($0.value) }
-        }.labelsHidden()
+        }.labelsHidden().accessibilityIdentifier("\(side.fontName) feature \(feature.id)")
       }
       if !feature.isAutomatic {
         featurePreview(feature)

@@ -239,7 +239,7 @@ struct WorkbenchView: View {
                 .accessibilityAddTraits(isInspected(item.glyph) ? .isSelected : [])
                 .help(stripHelp(item))
             }
-          }.padding(1)
+          }.padding(1).scrollAreaIdentifier("Differences strip scroll area")
         }.scrollIndicators(.hidden).frame(height: 84)
           .onChange(of: comparison.selectedScalars) {
             proxy.scrollTo(comparison.selectedScalars, anchor: .center)

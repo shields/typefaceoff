@@ -20,6 +20,7 @@ final class GlyphScrollView: NSScrollView {
     minMagnification = 1
     maxMagnification = 8
     documentView = canvas
+    setAccessibilityIdentifier("Glyph canvas scroll area")
   }
 
   override func tile() {

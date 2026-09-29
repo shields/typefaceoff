@@ -32,7 +32,7 @@ struct FontInspector: View {
             Spacer(minLength: 4)
             Image(systemName: "chevron.down").font(.caption)
           }.contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityLabel("Font \(side.rawValue.uppercased()) family")
+        }.buttonStyle(.plain).accessibilityLabel("\(side.fontName) family")
           .popover(isPresented: $choosingFamily) { familyPicker }
         if let config, FontRenderer.isAvailable(config) {
           Picker(
@@ -50,7 +50,7 @@ struct FontInspector: View {
               Text(verbatim: $0.style).tag($0.id)
             }
           }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("Font \(side.rawValue.uppercased()) style")
+            .accessibilityIdentifier("\(side.fontName) style")
         }
       }.padding(18)
       Divider()
@@ -62,7 +62,7 @@ struct FontInspector: View {
               Spacer()
               Button("Reset appearance", systemImage: "arrow.counterclockwise") {
                 resetAppearance()
-              }.labelStyle(.iconOnly)
+              }.labelStyle(.iconOnly).accessibilityIdentifier("\(side.fontName) Reset appearance")
                 .help("Reset appearance settings for this font and any linked settings")
               Button(
                 model.comparison.appearanceLocked ? "Unlock appearance" : "Lock appearance",
@@ -73,6 +73,7 @@ struct FontInspector: View {
                   $0.calibrate()
                 }
               }.labelStyle(.iconOnly).disabled(model.comparison.b == nil)
+                .accessibilityIdentifier("\(side.fontName) Appearance lock")
                 .help(
                   model.comparison.appearanceLocked
                     ? "Unlock appearance to adjust each font independently"
@@ -101,7 +102,7 @@ struct FontInspector: View {
             Divider()
             FontTypography(
               model: model, side: side, config: config, collapsedGroups: $collapsedGroups)
-          }.padding(18)
+          }.padding(18).scrollAreaIdentifier("\(side.fontName) inspector scroll area")
         }
         Divider()
         VStack(spacing: 7) {
@@ -154,10 +155,12 @@ struct FontInspector: View {
         .labelStyle(.iconOnly).buttonStyle(.borderless).font(.caption).disabled(
           value == defaultValue
         )
+        .accessibilityIdentifier("\(side.fontName) Reset \(title.lowercased())")
         .help("Reset \(title.lowercased()) to its default value")
         Spacer(minLength: 0)
         TextField(title, value: binding, format: .number.precision(.fractionLength(0...3)))
           .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 62)
+          .accessibilityIdentifier("\(side.fontName) \(title) field")
         if !unit.isEmpty { Text(verbatim: unit).font(.caption).foregroundStyle(.secondary) }
       }
       Slider(
@@ -173,8 +176,8 @@ struct FontInspector: View {
             model.endContinuousEdit(undoManager: undoManager)
           }
         }
-      ).accessibilityLabel("Font \(side.rawValue.uppercased()) \(title)")
-        .accessibilityIdentifier("Font \(side.rawValue.uppercased()) \(title)")
+      ).accessibilityLabel("\(side.fontName) \(title)")
+        .accessibilityIdentifier("\(side.fontName) \(title)")
     }.font(.system(size: 12))
   }
 

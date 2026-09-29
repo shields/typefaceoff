@@ -86,6 +86,7 @@ struct Run: ParsableCommand {
     // first desktop outage.
     _ = try ArtifactLoader.existingReport(at: artifactURL.appending(path: "availability.json"))
     var backoff = CampaignBackoff()
+    var launchFailures = LaunchFailureStreak()
     var desktopUnavailableReason: String?
     var pendingTrace: FuzzTrace?
     outputLine(
@@ -146,6 +147,8 @@ struct Run: ParsableCommand {
           + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
           + " inputs=\(inputs)"
           + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
+      try launchFailures.record(
+        report, findingFile: artifactURL.appending(path: "findings/crash/\(identifier).json").path)
     }
     outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")
   }

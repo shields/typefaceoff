@@ -9,6 +9,8 @@ public enum ExitPhase: Sendable {
 }
 
 public enum ProcessLiveness {
+  public static let launchTerminationSignature = "launch-termination"
+
   // NSRunningApplication.isTerminated only changes when the main run loop turns, which the
   // driver never does after launch. EPERM means the process exists but belongs to someone else.
   public static func isAlive(_ pid: pid_t) -> Bool {
@@ -59,7 +61,8 @@ public enum ProcessLiveness {
     }
     if let note { detail += " \(note)" }
     return ExecutionFinding(
-      kind: .crash, signature: phase == .launch ? "launch-termination" : "unexpected-termination",
+      kind: .crash,
+      signature: phase == .launch ? launchTerminationSignature : "unexpected-termination",
       detail: detail)
   }
 

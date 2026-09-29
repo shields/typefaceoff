@@ -140,11 +140,18 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
 
 public enum TraceIO {
   public static func load(_ url: URL) throws -> FuzzTrace {
-    let trace = try JSONDecoder().decode(FuzzTrace.self, from: Data(contentsOf: url))
-    guard trace.version == FuzzTrace.schemaVersion else {
-      throw TraceError.unsupportedVersion(trace.version)
+    // The version is decoded alone so a trace of another schema reports it even when the rest of
+    // the file does not decode.
+    struct Header: Decodable {
+      let version: Int
     }
-    return trace
+    let data = try Data(contentsOf: url)
+    let decoder = JSONDecoder()
+    let version = try decoder.decode(Header.self, from: data).version
+    guard version == FuzzTrace.schemaVersion else {
+      throw TraceError.unsupportedVersion(version)
+    }
+    return try decoder.decode(FuzzTrace.self, from: data)
   }
 
   public static func save(_ trace: FuzzTrace, to url: URL) throws {

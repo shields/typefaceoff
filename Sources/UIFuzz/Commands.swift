@@ -72,16 +72,19 @@ struct Run: ParsableCommand {
     let artifactURL = URL(fileURLWithPath: common.artifacts)
     let corpusURL = artifactURL.appending(path: "corpus")
     try FileManager.default.createDirectory(at: corpusURL, withIntermediateDirectories: true)
-    var corpus = try loadCorpus(corpusURL).map(mutator.constrained)
+    var corpus = try ArtifactLoader.corpus(in: corpusURL).map(mutator.constrained)
     if corpus.isEmpty {
       corpus = mutator.initialCorpus(seed: campaignSeed)
       for (index, trace) in corpus.enumerated() {
         try TraceIO.save(trace, to: corpusURL.appending(path: "seed-\(index).json"))
       }
     }
-    var state = try loadState(artifactURL.appending(path: "campaign.json"))
+    var state = try ArtifactLoader.corpusState(at: artifactURL.appending(path: "campaign.json"))
     let runner = SequenceRunner(configuration: common.runnerConfiguration, mutator: mutator)
     var slowest = try loadSlowCandidates(artifactURL)
+    // An availability report that cannot be decoded would otherwise stop the campaign at its
+    // first desktop outage.
+    _ = try ArtifactLoader.existingReport(at: artifactURL.appending(path: "availability.json"))
     var backoff = CampaignBackoff()
     var desktopUnavailableReason: String?
     var pendingTrace: FuzzTrace?
@@ -211,7 +214,8 @@ struct Benchmark: ParsableCommand {
     var configuration = common.runnerConfiguration
     configuration.collectCoverage = false
     let runner = SequenceRunner(configuration: configuration)
-    let traces = try loadCorpus(URL(fileURLWithPath: corpus))
+    let traces = try ArtifactLoader.corpus(in: URL(fileURLWithPath: corpus))
+    guard !traces.isEmpty else { throw ValidationError("No traces in \(corpus).") }
     var results: [[String: Any]] = []
     var failedSamples = 0
     for trace in traces {
@@ -316,14 +320,6 @@ private func parseDuration(_ value: String) throws -> TimeInterval {
   return result * multiplier
 }
 
-private func loadCorpus(_ directory: URL) throws -> [FuzzTrace] {
-  try ArtifactLoader.corpus(in: directory)
-}
-
-private func loadState(_ url: URL) throws -> CorpusState {
-  try ArtifactLoader.corpusState(at: url)
-}
-
 private func saveState(_ state: CorpusState, to url: URL) throws {
   try FileManager.default.createDirectory(
     at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -357,33 +353,34 @@ private func preserveAvailability(_ report: ExecutionReport, artifacts: URL) thr
   }
 }
 
+private let slowCandidateLimit = 20
+
 private func preserveSlowCandidate(
   _ report: ExecutionReport, identifier: String, artifacts: URL, current: [(Double, URL)]
 ) throws -> [(Double, URL)] {
   var next = current
-  guard report.workloadDurationMilliseconds != nil,
-    report.isBenchmarkSample
+  guard report.isBenchmarkSample else { return next }
+  guard
+    next.count < slowCandidateLimit || report.measuredMilliseconds > (next.map(\.0).min() ?? 0)
   else { return next }
-  guard next.count < 20 || report.measuredMilliseconds > (next.map(\.0).min() ?? 0) else {
-    return next
-  }
   var slow = report
   slow.findings.append(
     ExecutionFinding(
       kind: .slow, signature: "campaign-tail",
-      detail: "One of the 20 slowest sequences observed in this campaign."))
+      detail: "One of the \(slowCandidateLimit) slowest sequences observed in this campaign."))
   let output = artifacts.appending(path: "findings/slow/\(identifier).json")
   try TraceIO.save(slow, to: output)
   next.append((report.measuredMilliseconds, output))
   next.sort { $0.0 > $1.0 }
-  for (_, url) in next.dropFirst(20) {
+  for (_, url) in next.dropFirst(slowCandidateLimit) {
     try FileManager.default.removeItem(at: url)
   }
-  return Array(next.prefix(20))
+  return Array(next.prefix(slowCandidateLimit))
 }
 
 private func loadSlowCandidates(_ artifacts: URL) throws -> [(Double, URL)] {
-  try ArtifactLoader.slowCandidates(in: artifacts.appending(path: "findings/slow"), keeping: 20)
+  try ArtifactLoader.slowCandidates(
+    in: artifacts.appending(path: "findings/slow"), keeping: slowCandidateLimit)
 }
 
 private func loadTraceOrReport(_ url: URL) throws -> (trace: FuzzTrace, report: ExecutionReport?) {

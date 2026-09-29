@@ -26,7 +26,6 @@ struct WorkbenchState: Equatable, Sendable {
   private static let shift = UInt64(1 << 17)
   private static let escape = FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400)
 
-  /// A control that exists only while the workbench is in some state, keyed by its label.
   static func requirement(of action: FuzzAction) -> Requirement? {
     guard let target = action.target else { return nil }
     switch target {
@@ -57,17 +56,17 @@ struct WorkbenchState: Equatable, Sendable {
     guard let locked = appearanceLocked,
       action.target == "Lock appearance" || action.target == "Unlock appearance"
     else { return action }
+    let label = locked ? "Unlock appearance" : "Lock appearance"
+    guard action.target != label else { return action }
     var result = action
-    result.target = locked ? "Unlock appearance" : "Lock appearance"
+    result.target = label
     result.targetPath = nil
     result.targetRole = nil
     return result
   }
 
-  /// Actions that establish the requirement from any state, applying them to this state.
-  ///
-  /// Menu shortcuts are disabled while a sheet is up, and a popover can swallow them, so
-  /// overlays are dismissed first. Every enabler sets its state rather than toggling it.
+  /// Menu shortcuts are disabled while a sheet is up, so overlays are dismissed first and every
+  /// enabler starts from a known state. Every enabler sets its state rather than toggling it.
   mutating func enable(_ requirement: Requirement) -> [FuzzAction] {
     var actions: [FuzzAction] = []
     func run(_ action: FuzzAction) {
@@ -110,6 +109,8 @@ struct WorkbenchState: Equatable, Sendable {
     case .selectFont: popover = .closed
     case .increment, .decrement, .scroll, .pause, .showMenu: break
     }
+    // The character search popover closes when the view leaves glyph mode.
+    if popover == .characters && mode != .glyph { popover = mode == nil ? nil : .closed }
   }
 
   private mutating func applyShortcut(_ keyCode: UInt16?, modifiers: UInt64?) {
@@ -140,7 +141,14 @@ struct WorkbenchState: Equatable, Sendable {
   private mutating func applyKey(_ keyCode: UInt16?) {
     switch keyCode {
     case 53:
-      if popover == .closed { sheet = .closed } else { popover = .closed }
+      switch popover {
+      case .closed: sheet = .closed
+      case nil:
+        // Escape closes an open popover before it closes a sheet, and the popover may be closed.
+        popover = .closed
+        if sheet != .closed { sheet = nil }
+      default: popover = .closed
+      }
     case 36:
       if popover != .closed {
         popover = nil
@@ -165,11 +173,13 @@ struct WorkbenchState: Equatable, Sendable {
     case "Search characters":
       mode = .glyph
       popover = .characters
+    case "Font A specimen", "Font B specimen":
+      // A mouse click that lands on a character enters glyph mode; an AXPress does not.
+      if action.kind != .press { mode = nil }
     case "Font A family", "Font B family":
-      // Pressing the button of an open popover dismisses it.
-      switch popover {
-      case .closed: popover = .fonts
-      case .fonts: popover = .closed
+      // An AXPress runs the button's action, which opens the popover and never dismisses one.
+      switch (popover, action.kind) {
+      case (.closed, _), (.fonts, .press): popover = .fonts
       default: popover = nil
       }
     case "Unlock appearance": appearanceLocked = false
@@ -182,8 +192,6 @@ struct WorkbenchState: Equatable, Sendable {
 }
 
 extension TraceMutator {
-  /// Precede each label-addressed control with whatever makes it exist, within `maximumActions`.
-  ///
   /// A step that cannot fit its enablers becomes a pause, so the plan keeps its length.
   func repaired(_ actions: [FuzzAction]) -> [FuzzAction] {
     var state = WorkbenchState.launch

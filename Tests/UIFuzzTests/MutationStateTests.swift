@@ -85,11 +85,42 @@ import Testing
       ),
       (
         [press("Font A family"), press("Font A family"), fontSearch],
-        [press("Font A family"), press("Font A family"), press("Font A family"), fontSearch]
+        [press("Font A family"), press("Font A family"), fontSearch]
+      ),
+      (
+        [press("Font A family"), FuzzAction(kind: .click, target: "Font A family"), fontSearch],
+        [
+          press("Font A family"), FuzzAction(kind: .click, target: "Font A family"), escape,
+          press("Font A family"), fontSearch,
+        ]
+      ),
+      (
+        [press("Search characters"), press("Font A family"), fontSearch],
+        [
+          glyphMode, press("Search characters"), press("Font A family"), escape,
+          press("Font A family"), fontSearch,
+        ]
+      ),
+      (
+        [characterSearch, press("Font A family"), fontSearch],
+        [
+          findCharacter, characterSearch, press("Font A family"), escape, press("Font A family"),
+          fontSearch,
+        ]
       ),
       (
         [glyphMode, press("Font B specimen")],
         [glyphMode, textMode, press("Font B specimen")]
+      ),
+      (
+        [
+          FuzzAction(kind: .click, target: "Font A specimen"),
+          FuzzAction(kind: .scroll, target: "Font B specimen"),
+        ],
+        [
+          FuzzAction(kind: .click, target: "Font A specimen"), textMode,
+          FuzzAction(kind: .scroll, target: "Font B specimen"),
+        ]
       ),
       (
         [glyphMode, canvasPress, zoomIn],
@@ -102,6 +133,10 @@ import Testing
       (
         [openEditor, key(36), editorText],
         [openEditor, key(36), openEditor, editorText]
+      ),
+      (
+        [press("Font A family"), fontSearch, openEditor, escape, editorText],
+        [press("Font A family"), fontSearch, openEditor, escape, escape, openEditor, editorText]
       ),
       (
         [press("Match…"), key(36), press("Tracking")],
@@ -128,6 +163,21 @@ import Testing
         [
           findCharacter, characterSearch, escape, findCharacter,
           set("Search Unicode characters", commit: false),
+        ]
+      ),
+      (
+        [findCharacter, textMode, characterSearch],
+        [findCharacter, textMode, findCharacter, characterSearch]
+      ),
+      (
+        [press("Search characters"), canvasPress, characterSearch],
+        [glyphMode, press("Search characters"), canvasPress, findCharacter, characterSearch]
+      ),
+      (
+        [findCharacter, FuzzAction(kind: .click, target: "Glyph canvas"), characterSearch],
+        [
+          findCharacter, FuzzAction(kind: .click, target: "Glyph canvas"), escape, findCharacter,
+          characterSearch,
         ]
       ),
       (
@@ -160,6 +210,9 @@ import Testing
       kind: .press, target: "Lock appearance", targetPath: [1, 2], targetRole: "AXButton")
     let flipped = Self.repaired([lock])
     #expect(flipped == [FuzzAction(kind: .press, target: "Unlock appearance")])
+    let unlock = FuzzAction(
+      kind: .press, target: "Unlock appearance", targetPath: [1, 2], targetRole: "AXButton")
+    #expect(Self.repaired([unlock]) == [unlock])
     #expect(
       Self.repaired([Self.press("Unlock appearance"), Self.press("Unlock appearance")])
         .compactMap(\.target) == ["Unlock appearance", "Lock appearance"])

@@ -20,16 +20,6 @@ import Testing
       findings: [ExecutionFinding(kind: kind, signature: "campaign-tail", detail: "slow")])
   }
 
-  private func loadFailure(_ body: () throws -> Void) throws -> ArtifactLoadError {
-    var caught: ArtifactLoadError?
-    do {
-      try body()
-    } catch let error as ArtifactLoadError {
-      caught = error
-    }
-    return try #require(caught)
-  }
-
   @Test func corpusLoadsTracesInNameOrderAndIgnoresOtherEntries() throws {
     let folder = try makeFolder()
     let second = FuzzTrace(seed: 2, actions: [FuzzAction(kind: .press, target: "Two")])
@@ -45,7 +35,9 @@ import Testing
 
   @Test func corpusRejectsAMissingDirectory() throws {
     let folder = try makeFolder().appending(path: "absent")
-    let failure = try loadFailure { _ = try ArtifactLoader.corpus(in: folder) }
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.corpus(in: folder)
+    }
     #expect(failure.file == folder)
     #expect(failure.description.contains(folder.path))
     #expect(failure.errorDescription == failure.description)
@@ -60,7 +52,9 @@ import Testing
       FuzzTrace(seed: 2, actions: [FuzzAction(kind: .press, target: "Text")]), to: truncated)
     let text = try Data(contentsOf: truncated)
     try text.prefix(text.count / 2).write(to: truncated)
-    let failure = try loadFailure { _ = try ArtifactLoader.corpus(in: folder) }
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.corpus(in: folder)
+    }
     #expect(failure.file.lastPathComponent == "b.json")
     #expect(
       failure.description.hasPrefix("Cannot load ") && failure.description.contains("/b.json: "))
@@ -74,11 +68,27 @@ import Testing
     other.version = FuzzTrace.schemaVersion + 1
     let url = folder.appending(path: "future.json")
     try JSONEncoder().encode(other).write(to: url)
-    let failure = try loadFailure { _ = try ArtifactLoader.corpus(in: folder) }
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.corpus(in: folder)
+    }
     #expect(failure.file.lastPathComponent == "future.json")
     #expect(
       failure.reason
         == "trace schema version \(other.version), but this build reads version \(FuzzTrace.schemaVersion)"
+    )
+  }
+
+  @Test func corpusNamesAFileOfAnotherSchemaVersionWhoseShapeDoesNotDecode() throws {
+    let folder = try makeFolder()
+    let version = FuzzTrace.schemaVersion + 1
+    try Data(#"{"version": \#(version)}"#.utf8).write(to: folder.appending(path: "reshaped.json"))
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.corpus(in: folder)
+    }
+    #expect(failure.file.lastPathComponent == "reshaped.json")
+    #expect(
+      failure.reason
+        == "trace schema version \(version), but this build reads version \(FuzzTrace.schemaVersion)"
     )
   }
 
@@ -91,7 +101,9 @@ import Testing
     try JSONEncoder().encode(state).write(to: url)
     #expect(try ArtifactLoader.corpusState(at: url) == state)
     try Data("{".utf8).write(to: url)
-    let failure = try loadFailure { _ = try ArtifactLoader.corpusState(at: url) }
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.corpusState(at: url)
+    }
     #expect(failure.file == url)
   }
 
@@ -103,7 +115,9 @@ import Testing
     try TraceIO.save(report, to: url)
     #expect(try ArtifactLoader.existingReport(at: url) == report)
     try Data("[]".utf8).write(to: url)
-    let failure = try loadFailure { _ = try ArtifactLoader.existingReport(at: url) }
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.existingReport(at: url)
+    }
     #expect(failure.file == url)
   }
 
@@ -135,13 +149,16 @@ import Testing
       let folder = try makeFolder()
       let stray = folder.appending(path: "\(name).json")
       try contents.write(to: stray)
-      try TraceIO.save(slowReport(workload: 1), to: folder.appending(path: "z.json"))
-      let failure = try loadFailure {
+      // Both reports sort before the stray file, and only one of them fits within `keeping`.
+      try TraceIO.save(slowReport(workload: 1), to: folder.appending(path: "a.json"))
+      try TraceIO.save(slowReport(workload: 2), to: folder.appending(path: "b.json"))
+      let failure = try #require(throws: ArtifactLoadError.self) {
         _ = try ArtifactLoader.slowCandidates(in: folder, keeping: 1)
       }
       #expect(failure.file.lastPathComponent == stray.lastPathComponent)
-      #expect(FileManager.default.fileExists(atPath: stray.path))
-      #expect(FileManager.default.fileExists(atPath: folder.appending(path: "z.json").path))
+      for kept in [stray.lastPathComponent, "a.json", "b.json"] {
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: kept).path))
+      }
     }
   }
 

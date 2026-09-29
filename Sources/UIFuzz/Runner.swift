@@ -268,21 +268,28 @@ final class SequenceRunner {
     }
 
     if let application = launchedApplication {
-      let alreadyExited = application.hasExited
+      // Signalling a pid of 0 or -1 would reach whole process groups, so the pid that passed the
+      // liveness check is the one signalled.
+      let pid = application.processIdentifier
+      let alreadyExited = !ProcessLiveness.isAlive(pid)
       if alreadyExited && !findings.contains(where: { $0.kind == .crash }) {
         findings.append(unexpectedExit(.afterActions))
       } else if !alreadyExited {
         let quitStart = ProcessInfo.processInfo.systemUptime
         if watchdog {
-          kill(application.processIdentifier, SIGINT)
+          kill(pid, SIGINT)
         } else {
           application.terminate()
         }
-        waitForExit(application, seconds: 2)
-        if !application.hasExited {
+        if !ProcessLiveness.waitForExit(pid, timeout: 2) {
           quitForced = true
           application.forceTerminate()
-          waitForExit(application, seconds: 2)
+          if !ProcessLiveness.waitForExit(pid, timeout: 2) {
+            findings.append(
+              ExecutionFinding(
+                kind: .automation, signature: "quit-failed",
+                detail: "The app was still running 2 seconds after forceTerminate()."))
+          }
         }
         quitMilliseconds = (ProcessInfo.processInfo.systemUptime - quitStart) * 1000
       }
@@ -324,10 +331,11 @@ final class SequenceRunner {
     }
 
     let telemetry = TelemetryState.read(telemetryURL)
-    if telemetry.events == 0 && launchedApplication != nil
-      && !findings.contains(where: { $0.kind == .automation && $0.signature == "startup-telemetry" }
-      )
-    {
+    let explainedStartupFailure = findings.contains {
+      ($0.kind == .automation && $0.signature == "startup-telemetry")
+        || ($0.kind == .crash && $0.signature == "launch-termination")
+    }
+    if telemetry.events == 0 && launchedApplication != nil && !explainedStartupFailure {
       findings.append(
         ExecutionFinding(
           kind: .automation, signature: "missing-telemetry",
@@ -392,10 +400,6 @@ final class SequenceRunner {
     }
     guard let launchResult = result.read() else { throw RunnerError.launchTimedOut }
     return try launchResult.get()
-  }
-
-  private func waitForExit(_ application: NSRunningApplication, seconds: TimeInterval) {
-    _ = ProcessLiveness.waitForExit(application.processIdentifier, timeout: seconds)
   }
 
   private func machineMetadata() -> [String: String] {

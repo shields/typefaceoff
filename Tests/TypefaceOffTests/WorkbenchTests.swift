@@ -291,6 +291,14 @@ import TypefaceCore
     edits.append(Comparison(a: base.a, b: nil))
     for edit in edits { #expect(RankingKey(edit) != key) }
 
+    var angstrom = base
+    angstrom.sample = .custom
+    angstrom.customText = "\u{212B}"
+    var letterA = angstrom
+    letterA.customText = "\u{C5}"
+    #expect(angstrom.customText == letterA.customText)
+    #expect(RankingKey(angstrom) != RankingKey(letterA))
+
     var alone = Comparison(b: nil)
     let aloneKey = RankingKey(alone)
     alone.a.size = 40

@@ -92,6 +92,12 @@ struct RankingKey: Equatable {
     input = comparison.b.map { DifferenceInput(a: comparison.a, b: $0) }
     text = comparison.text
   }
+
+  // String equality is canonical equivalence, which would keep the scores of a sample whose
+  // characters were replaced by canonically equivalent but distinct scalars.
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.input == rhs.input && lhs.text.unicodeScalars.elementsEqual(rhs.text.unicodeScalars)
+  }
 }
 
 @MainActor

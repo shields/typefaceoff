@@ -31,6 +31,7 @@ public struct TraceMutator: Sendable {
   public func mutate(_ input: FuzzTrace, seed: UInt64) -> FuzzTrace {
     var random = SplitMix64(seed: seed)
     let base = constrained(input).actions
+    let unchanged = repaired(base)
     var actions = base
     var edits = 1 + Int(random.next() % 4)
     var result: [FuzzAction]
@@ -42,7 +43,7 @@ public struct TraceMutator: Sendable {
       result = repaired(actions)
       edits = 1
       attempts += 1
-    } while result == base && attempts < 8
+    } while result == unchanged && attempts < 8
     return FuzzTrace(seed: seed, actions: result, origin: "mutation")
   }
 
@@ -200,13 +201,7 @@ public struct TraceMutator: Sendable {
         kind: .setValue, target: "Custom specimen text", value: text(using: &random),
         delayMilliseconds: delay)
     case 5:
-      let shortcuts: [(UInt16, UInt64)] = [
-        (18, 1 << 20), (19, 1 << 20), (18, (1 << 20) | (1 << 17)),
-        (19, (1 << 20) | (1 << 17)), (18, (1 << 20) | (1 << 19)),
-        (19, (1 << 20) | (1 << 19)), (6, 1 << 20), (6, (1 << 20) | (1 << 17)),
-        (1, (1 << 20) | (1 << 19)), (14, (1 << 20) | (1 << 17)), (45, 1 << 20),
-        (46, (1 << 20) | (1 << 17)), (3, 1 << 20),
-      ]
+      let shortcuts = ActionExplorer.shortcuts
       let shortcut = shortcuts[Int(random.next() % UInt64(shortcuts.count))]
       return FuzzAction(
         kind: .shortcut, keyCode: shortcut.0, modifiers: shortcut.1,

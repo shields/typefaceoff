@@ -144,4 +144,12 @@ import Testing
     }
     #expect(drifted > 0)
   }
+
+  @Test func cachedScoresKeepTheScalarsOfTheirSample() async throws {
+    let comparison = Self.base()
+    let engine = DifferenceEngine()
+    _ = try await engine.scores(a: comparison.a, b: comparison.b!, sample: "\u{212B}")
+    let scores = try await engine.scores(a: comparison.a, b: comparison.b!, sample: "\u{C5}")
+    #expect(scores.contains { $0.id == ["\u{C5}"] })
+  }
 }

@@ -1,11 +1,10 @@
 import Foundation
 
 public enum CorpusAdmission {
-  /// The trace to keep in the corpus for an interesting run, or `nil` when nothing of it is worth
-  /// keeping. The runner records an action before performing it, so a run that stopped because
-  /// the driver could not perform its last action ends with an action that never ran; the corpus
-  /// copy omits it. A crash, hang, or correctness finding keeps the whole trace, as the last
-  /// action may have caused it.
+  /// The runner records an action before performing it, so a run that stopped because the driver
+  /// could not perform its last action ends with an action that never ran; the corpus copy omits
+  /// it. A crash, hang, or correctness finding keeps the whole trace, as the last action may have
+  /// caused it.
   public static func trace(for report: ExecutionReport) -> FuzzTrace? {
     let kinds = Set(report.findings.map(\.kind))
     guard report.actionMilliseconds.count < report.trace.actions.count,

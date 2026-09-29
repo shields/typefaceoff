@@ -154,7 +154,8 @@ public struct DifferenceInput: Hashable, Sendable {
 public actor DifferenceEngine {
   private struct Key: Hashable {
     let input: DifferenceInput
-    let candidates: [String]
+    // Scalars, because String equality is canonical equivalence.
+    let candidates: [[Unicode.Scalar]]
   }
   private var cache: [Key: [GlyphDifference]] = [:]
   public init() {}
@@ -164,7 +165,7 @@ public actor DifferenceEngine {
   {
     let input = DifferenceInput(a: a, b: b)
     let candidates = Differences.candidates(sample: sample)
-    let key = Key(input: input, candidates: candidates)
+    let key = Key(input: input, candidates: candidates.map { Array($0.unicodeScalars) })
     if let cached = cache[key] { return cached }
     var result: [GlyphDifference] = []
     for glyph in candidates {

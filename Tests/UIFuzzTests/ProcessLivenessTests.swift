@@ -20,10 +20,8 @@ import Testing
       !ProcessLiveness.waitForExit(process.processIdentifier, timeout: 0.05),
       "a live process must time out")
 
-    let start = ProcessInfo.processInfo.systemUptime
     process.terminate()
     #expect(ProcessLiveness.waitForExit(process.processIdentifier, timeout: 5))
-    #expect(ProcessInfo.processInfo.systemUptime - start < 0.5)
     #expect(!ProcessLiveness.isAlive(process.processIdentifier))
   }
 

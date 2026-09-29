@@ -55,20 +55,23 @@ public struct ActionExplorer {
     return action
   }
 
+  static let shortcuts: [(UInt16, UInt64)] = {
+    let command: UInt64 = 1 << 20
+    let shift: UInt64 = 1 << 17
+    let option: UInt64 = 1 << 19
+    return [
+      (18, command), (19, command), (18, command | shift), (19, command | shift),
+      (18, command | option), (19, command | option), (6, command), (6, command | shift),
+      (1, command | option), (14, command | shift), (45, command), (46, command | shift),
+      (3, command),
+    ]
+  }()
+
   public static func keyboardActions(includeShortcuts: Bool) -> [FuzzAction] {
     var result: [FuzzAction] = [36, 48, 53, 123, 124, 125, 126].map {
       FuzzAction(kind: .key, keyCode: $0)
     }
     if includeShortcuts {
-      let command: UInt64 = 1 << 20
-      let shift: UInt64 = 1 << 17
-      let option: UInt64 = 1 << 19
-      let shortcuts: [(UInt16, UInt64)] = [
-        (18, command), (19, command), (18, command | shift), (19, command | shift),
-        (18, command | option), (19, command | option), (6, command), (6, command | shift),
-        (1, command | option), (14, command | shift), (46, command | shift), (45, command),
-        (3, command),
-      ]
       result += shortcuts.map { FuzzAction(kind: .shortcut, keyCode: $0.0, modifiers: $0.1) }
     }
     return result

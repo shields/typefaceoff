@@ -1,7 +1,5 @@
 import Foundation
 
-/// A campaign artifact that exists but cannot be used. The campaign stops on it rather than
-/// continuing with less data than its directory holds.
 public struct ArtifactLoadError: Error, LocalizedError, CustomStringConvertible, Equatable {
   public let file: URL
   public let reason: String
@@ -16,8 +14,6 @@ public struct ArtifactLoadError: Error, LocalizedError, CustomStringConvertible,
 }
 
 public enum ArtifactLoader {
-  /// The regular `*.json` files of a directory in name order. Other entries, such as `.DS_Store`
-  /// or a subdirectory, are not artifacts.
   public static func jsonFiles(in directory: URL) throws -> [URL] {
     do {
       return try FileManager.default.contentsOfDirectory(
@@ -31,8 +27,6 @@ public enum ArtifactLoader {
     }
   }
 
-  /// Every trace in the corpus directory. One that cannot be read, decoded, or is of another
-  /// schema version throws.
   public static func corpus(in directory: URL) throws -> [FuzzTrace] {
     try jsonFiles(in: directory).map { file in
       do {
@@ -49,18 +43,16 @@ public enum ArtifactLoader {
     }
   }
 
-  /// The saved campaign state, or an empty one when none has been saved.
   public static func corpusState(at url: URL) throws -> CorpusState {
     try decodeIfPresent(CorpusState.self, at: url, decoder: JSONDecoder()) ?? CorpusState()
   }
 
-  /// The execution report at `url`, or `nil` when there is none.
   public static func existingReport(at url: URL) throws -> ExecutionReport? {
     try decodeIfPresent(ExecutionReport.self, at: url, decoder: reportDecoder())
   }
 
-  /// The slow reports of a directory, slowest first. Reports that rank below `keeping` are
-  /// deleted; a file that is not a slow report throws and is left in place.
+  /// Reports that rank below `keeping` are deleted; a file that is not a slow report throws and is
+  /// left in place.
   public static func slowCandidates(in directory: URL, keeping limit: Int) throws -> [(
     Double, URL
   )] {

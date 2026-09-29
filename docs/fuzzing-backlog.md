@@ -121,6 +121,38 @@ Follow-ups the branches surfaced:
   about 10 s in debug. The engine now rounds the B/A ratio to 1e-9 (invisible,
   and bit-identical for ratio 1).
 
+## Merged to main: wave 2
+
+- `fuzzfix/launch-loop-guard`. Five consecutive executions that end in a
+  `launch-termination` crash finding stop the campaign with an error naming the
+  streak and the last finding file (fail-fast; the evidence is written first).
+  Not covered, and still able to loop without progress: `launchFailed` (an
+  `openApplication` error, the likeliest real form of a bad signature),
+  `launchTimedOut`, and `startup-telemetry` are automation findings with
+  free-form signatures. Give the runner stable signatures for them and count
+  them in the same streak, after the runner rewrite lands. Separately,
+  `preserveFindings` writes one file per finding per execution with no
+  de-duplication, so a campaign that hits the same crash repeatedly grows
+  `findings/crash` and `runs/` without bound.
+- `fuzzfix/output-capture`. In fuzz builds the app appends stdout and stderr to
+  the run directory's `stdout.log` and `stderr.log` (`dup2`, stdout
+  line-buffered, stderr unbuffered so a trap still leaves its message). After an
+  unexpected exit the driver waits up to 10 s for the ReportCrash `.ips` file,
+  matched by pid and process name (the file name has no pid), copies it into the
+  run directory, and adds the exception type, signal, and termination reason to
+  the crash finding. Checked against a real crash of a throwaway binary (the
+  report appeared about 1 s later). Not confirmed: that the live app's
+  `procName` is `TypefaceOff` and that guest reports land in the same directory;
+  that stdio is captured inside the LaunchServices-launched app; the 10 s wait
+  for an app that exits without a report. `StandardStreamRedirect` is compiled
+  in every configuration so it can be tested (about 15 lines in Release).
+- `fuzzfix/glyph-navigation`. Next from a glyph that is not in the list now
+  selects the first entry and Previous the last, as `CharacterSearchPicker.move`
+  does (it used to start at index 0, so Next skipped the first entry). One test
+  that pinned the old outcome
+  (`glyphButtonsAndCharacterEntrySelectTheRequestedGlyph` expected U+0022 after
+  a candidate list that starts at U+0021) was changed.
+
 ## Not started
 
 ### Startup self-test (judgment finding)
@@ -145,18 +177,53 @@ value, press Apply) like `selectFont` (`AXDriver.swift`), so `mutate()`,
 bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the resolution
 session is editing, so wait for it.
 
-### Capture app output and crash reports (VB1, F2)
+### Runtime warnings and the dead exit status (VB1, F2, remainder)
 
-`stdout.log` and `stderr.log` are empty in all 2,142 files: `launch()` uses
-`NSWorkspace.openApplication`, which cannot redirect. Redirect inside
-`FuzzDiagnostics.init` (behind `TYPEFACEOFF_FUZZING`) with `dup2`, and look up
-`~/Library/Logs/DiagnosticReports/TypefaceOff*-<pid>.ips` after an unexpected
-exit. Caveats: fuzz builds are release configurations, so debug-only SwiftUI
-runtime warnings may never appear (verify with a known-warning build), and
-whether `OS_ACTIVITY_DT_MODE=YES` routes `os_log` to stderr is untested.
-Warnings should become `.correctness` findings, not log lines. Also decide what
-to do with the dead `ExecutionReport.exitStatus` (constant nil): populate or
-delete.
+App stdout/stderr and crash reports are captured (see wave 2 above). What
+remains: fuzz builds are release configurations, so debug-only SwiftUI runtime
+warnings may never appear (verify with a known-warning build), and whether
+`OS_ACTIVITY_DT_MODE=YES` routes `os_log` to stderr is untested; a post-run
+`log show --predicate 'subsystem == "com.apple.runtime-issues"'` is the
+fallback. Warnings should become `.correctness` findings, not log lines. Scan
+`stderr.log` for `Fatal error` and runtime-issue text after each run. Output
+written before `FuzzDiagnostics.shared` is first touched is not captured; touch
+it early in `TypefaceOffApp.init`. The dead `ExecutionReport.exitStatus`
+(constant nil, never encoded) should be dropped or filled from the crash
+report's termination code; that touches `Trace.swift`, which the resolution
+session edits.
+
+### The explorer is blind behind sheets (investigation, wave 2)
+
+146 of 536 exploration runs opened the Match sheet or the custom-text editor
+(Shift-Cmd-M, Shift-Cmd-E, or a press on `Match...` or `Edit text`). Between
+that opener and the next Escape, Cmd-N, or closer, 1,664 actions were menu, key,
+or shortcut actions and only about 300 were window controls, against a baseline
+of about 82% window controls. Across all 536 exploration runs there is exactly
+one action inside a sheet (a `setValue` on `Custom specimen text`) and no press
+of `Apply`, `Cancel`, `Refine`, or `Stop`. Shortcuts are offered only when no
+modal is detected, and 315 were offered while a sheet was up, so the sheet is
+not detected as modal.
+
+Suspected cause (unverified): `AXDiscovery.visibleElements` skips any
+`AXStandardWindow` that is not `kAXFocusedWindow`, and while a sheet is up the
+focused window may be the sheet, so the workbench window and the sheet it owns
+are both dropped. Minimal fix: treat a focused `AXSheet` as belonging to its
+parent window, and skip a standard window only when it is neither the focused
+window nor the parent of the focused sheet. Fold this into the resolution
+session's `WindowScope`. Also dump each menu item's `AXEnabled` and `AXFrame`
+when a menu is detected but nothing is offered, and add a FuzzDiagnostics
+`sheet` event (kind, open or closed) so analysis needs no reconstruction.
+
+Consequence for the menu: every menu-bar press in exploration happened with a
+sheet up, and the app deliberately disables all workbench commands then
+(`WorkbenchView.swift:118`, `focusedSceneValue` is nil while
+`showMatch || showEditor`). That is why no app-defined menu item was ever
+offered. The commands work without a sheet (Cmd-Opt-S swapped fonts in 73 runs
+that no other route explains). Once the explorer can see sheets, add seeds that
+press `Comparison` then `Match fonts...`, `Swap fonts`, and
+`Edit sample text...` with no sheet, and keep `click` on a menu-bar item from
+being counted as an opener (it never opens a menu; that is the mouse-delivery
+problem).
 
 ### Campaign event log, ledger, and provenance (B1, VR4, VI4, VI5, VI6, F7, F8, F11)
 
@@ -234,24 +301,50 @@ s; `CharacterSearchIndex.shared` could be prewarmed at low priority; cap Match
 concurrency and lower its QoS. Keep scalar-exact keys and the per-side
 independent configuration.
 
-### Possible app bugs to triage by hand
+### App oddities: what the investigation found
 
-- The Comparison menu items were never selectable in about 160 openings (zero
-  actions under menu path `[1,5]`, while Edit and View yielded items). Check
-  whether they are disabled while an AX-driven menu is tracking (`@FocusedValue`
-  not published), which would be an app fix.
-- The app ignores a polite quit for 2 s in 13% of runs (141 of 1,071), more
-  often after a sheet was opened. Try Cmd-Q with the Match or editor sheet open
-  before calling it an app bug, then record `quit-ms` either way.
-- Three `AXPress failed: -25200` on `Match...`: the only automation failures
-  with a plausible product cause.
+- The Comparison menu items "never selectable in about 160 openings" are not an
+  app bug: see the previous section. The sheet disables them on purpose.
+- The polite quit is ignored for 2 s in 141 of 1,071 runs, and it is
+  deterministic: 56 of 56 runs whose last sheet opener was never closed ignored
+  it (editor 26, Match 30), against 0 of 17 where a `Cancel`, `Apply`, or
+  `Cancel matching` followed, and 15 of 845 (1.8%) with no opener. Nothing in
+  the app implements `applicationShouldTerminate` or a confirmation, so the
+  cause is AppKit or SwiftUI window-modal sheet behavior. Unverified whether a
+  user can quit with a sheet open. By hand: open the editor (Shift-Cmd-E), press
+  Cmd-Q, and also run
+  `osascript -e 'tell application id "<bundle id>" to quit'`; if only the Apple
+  event is ignored it is a driver artifact, and if both are ignored it is
+  standard sheet behavior and arguably not a defect. Either way the driver
+  should press Escape (or skip the polite quit and force-terminate) when a sheet
+  may be open, which recovers about 2 s on 13% of runs; coverage survives the
+  forced exit (`coverage.profdata` was written in all 141 forced runs).
+- The three `AXPress failed: -25200` on `Match...` are a harness artifact: the
+  button was enabled (fonts available), the sheet was presented (its controls
+  are in all three failure snapshots), and the SwiftUI accessibility proxy
+  reported failure after dispatching the action, as
+  `WorkbenchInteractionTests.swift` documents ("Callers verify the resulting
+  model or view state"). 3 of 26 presses with no prior sheet failed. A driver
+  fix would read `AXEnabled` on `-25200` and report a distinct finding without
+  aborting the run; it changes fail-fast semantics for 0.3% of runs, so it stays
+  low priority. `Zoom in`/`Zoom out` at the limits are the other cause: those
+  buttons really are disabled.
 - Shared size and Character fields commit only on Return, and out-of-range size
   is silently clamped to 10-144 (`Comparison.swift:42`; `setValue "0"` produced
   size 10 in finding 1). Commit-on-blur, a visible clamp, or rejection are
   product decisions and existing tests pin the current behavior (E4).
-- Glyph navigation from a character absent from the list skips the first entry
-  (E14, VB11); font picker Return re-selects the current row while typing, which
-  breaks seed 8 (E13).
+- Glyph navigation from a character absent from the list skipped the first entry
+  (E14): fixed in wave 2. The second half of VB11 is open: while
+  `RankingModel.update` has cleared scores (the first 130-330 ms after an edit
+  with a second font), navigation follows the alphabetical candidate list, not
+  the rank order. Options: keep the previous ranking for navigation until the
+  new one arrives (stale after a font or sample change), ignore navigation while
+  comparing, or keep the old scores visible until replaced.
+- The font picker's Return re-selects the current row while typing, which breaks
+  seed 8 (E13).
+- `GlyphNavigationTests.focusFeedbackFollowsTheCanvasAndWindow()` can report a
+  QoS priority-inversion runtime warning, which makes `scripts/test-app.sh` exit
+  1 when that whole suite runs. Check whether it is flaky or new on Xcode 27.
 
 ### Infrastructure (VI3, VI10, F10, VI12, B11, F5, VI8, VP14, VP15, VB12)
 

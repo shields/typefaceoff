@@ -323,42 +323,64 @@ merge, so clicks were still inert. Artifacts were in the worktree's
   open; it is 0.0% with tags and 2.7% (the axis and feature toggles) with the
   tag withheld.
 
-To verify in the first live run after this (mouse routing is also new, so clicks
-now deliver):
+Still to verify in a live run (the smoke test of `50cdf05` below settled the
+rest): the editor sheet's `sheet` tag and `Custom specimen text`;
+`AXPress failed` automation findings on `Cancel`, `Apply`, and
+`Cancel matching`, which no run has pressed yet; and `unavailable` findings with
+signature `activation` on otherwise clean runs (a key posted at quit calls
+`activateIfNeeded`).
 
-- `discover` events with a sheet open: `modalRole` `AXSheet`, `focusLocation`
-  `scopeWindow` or `applicationChild`, `unlocated` false, and `sheet` `match` or
-  `editor` (`unidentified` means the sheet's fixed control names changed, so no
-  tag reaches the traces); count the `unlocated` discovers and read them with
-  `scope` and `windows`.
-- `executed.json` actions recorded inside the Match sheet carry
-  `"sheet": "match"`, inside the editor `"sheet": "editor"`. If not, check the
-  Match close button's identifier and description and the sheet root's role in
-  the log.
-- A run that ends with a sheet open shows `quit-overlays-dismissed` 1 (or 2-3
-  when Escape first clears a search field), `quit-overlay-remaining` false,
-  `quit-forced` false, `quit-ms` under about 200 ms, and `quit-dismiss-ms`
-  250-700. A run with no overlay shows 0, false, false, and a `quit-dismiss-ms`
-  of 40-200. The old signature, `quit-forced` true with `quit-ms` about 2,000,
-  should disappear; `quit-forced` true with `quit-overlays-dismissed` 0 and
-  `quit-overlay-remaining` false means the capture missed an open sheet, and
-  `quit-overlays-dismissed` 3 with `quit-overlay-remaining` true means Escape
-  did not reach it (unmeasured for menus that are tracking).
-- `AXPress failed` automation findings on `Cancel`, `Apply`, and
-  `Cancel matching`, and `unavailable` findings with signature `activation` on
-  otherwise clean runs (a key posted at quit calls `activateIfNeeded`).
+## Smoke test of main at 50cdf05 (host, one minute, 2026-09-30)
 
-Follow-ups found in review: workbench controls with no requirement in the table
-(Swap fonts, Font A Size) can still run while a mutated-in opener has a sheet up
-(they usually still resolve, so the harm is small; a `sheet closed` requirement
-would fix it); menu-item actions such as `Match fonts…` need their menu open,
-which the model does not track, so deleting the preceding `Comparison` press
-strands them like a sheet opener; `resolveRecordedSlot` never skips a recorded
-action that cannot resolve (right for replays; `repaired` should drop such
-actions if mutants keep producing them); `Apply` and `Refine` depend on fit
-state and `Stop` exists only while a fit runs, none of which the model tracks;
-`TreeDump` does not record `unlocated` or the modal root, only the per-entry
-`offered` flags; `driver.jsonl` records nothing about the pre-quit checks.
+Seven executions (four exploration, three seed), the first with mouse delivery
+merged. Artifacts were in the worktree's `.build/smoke3-ui-fuzz`.
+
+- The accessibility shape is settled. With the Match sheet open every `discover`
+  event reports scope `overlay`, `focusLocation` `scopeWindow`, `focusedRole`
+  `AXSheet`, `modalRole` `AXSheet` at depth 2, and `sheet` `match`, and
+  `unlocated` was false in all of them. `AXFocusedWindow` is the sheet and the
+  tree nests it inside the scope window. A context menu opened in the sheet is
+  an `AXMenu` at depth 6 or 8, nested under the text area that opened it; the
+  font popover is an `AXPopover` at depth 4 while the window keeps focus.
+- The explorer now works inside sheets: 23-25 elements offered, and it pressed
+  `Stop`, clicked `Refine`, scrolled the sheet's specimen areas, and opened
+  context menus on its text areas. Seven actions carry `"sheet": "match"`. No
+  run pressed `Cancel`, `Apply`, or `Cancel matching`, and the editor sheet did
+  not come up.
+- Quit: no forced quit in seven runs (two of four before), `quit-ms` 28-75 ms.
+  The two runs that ended inside the sheet, one with a menu open in it, sent two
+  Escapes (`quit-overlay-remaining` false) and spent about 1.1 s in the
+  preparation: after the first Escape closes the menu the loop waits out its
+  whole 0.5 s window, because the sheet is still open, before it sends the
+  second. Runs with no overlay spent 66-123 ms. Waiting only until the overlay
+  changes would save most of that.
+- Two of four exploration runs ended in `locate click target failed: -25212`, a
+  click on a context-menu item inside the sheet (`Start Speaking`,
+  `Substitutions`). The tree nests that menu in the scroll area of the text that
+  opened it, and `AXDriver.center(of:)` clipped the item by that scroll area,
+  which is empty where the menu is. It stops at an `AXMenu` or `AXPopover` now,
+  as `VisibilityRules` does. It was invisible before mouse delivery, because
+  clicks were inert.
+- The resolver is healthy: no skip, no retry, every resolve by path, no failure
+  in the skip ledger.
+- Timing: a discover takes 118 ms median with no overlay and 187 ms (72-320)
+  with a sheet, because discovery walks the whole window; one popover discover
+  took 1.1 s. Idle waits are 150 ms median. Together they are about 8 s of a
+  15-20 s exploration run.
+
+Follow-ups from wave 4 and this smoke test: workbench controls with no
+requirement in the table (Swap fonts, Font A Size) can still run while a
+mutated-in opener has a sheet up (they usually still resolve, so the harm is
+small; a `sheet closed` requirement would fix it); menu-item actions such as
+`Match fonts…` need their menu open, which the model does not track, so deleting
+the preceding `Comparison` press strands them like a sheet opener;
+`resolveRecordedSlot` never skips a recorded action that cannot resolve (right
+for replays; `repaired` should drop such actions if mutants keep producing
+them); `Apply` and `Refine` depend on fit state and `Stop` exists only while a
+fit runs, none of which the model tracks; `TreeDump` does not record `unlocated`
+or the modal root, only the per-entry `offered` flags; `driver.jsonl` records
+nothing about the pre-quit checks; the pre-quit loop could send its next Escape
+as soon as the open overlay changes instead of waiting out the window.
 
 ## Not started
 

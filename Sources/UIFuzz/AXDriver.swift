@@ -354,14 +354,14 @@ struct AXDriver {
   /// far outside the display, so the point is the middle of the part its scroll areas show.
   private func center(of element: AXUIElement) -> CGPoint? {
     let reads = AXReads()
-    guard var visible = AXNode(element, reads: reads).frame else { return nil }
-    var ancestor = element
+    var node = AXNode(element, reads: reads)
+    guard var visible = node.frame else { return nil }
     for _ in 0..<8 {
-      guard let value = attribute(kAXParentAttribute, of: ancestor),
+      if VisibilityRules.unclippedRoles.contains(node.role) { break }
+      guard let value = attribute(kAXParentAttribute, of: node.element),
         CFGetTypeID(value) == AXUIElementGetTypeID()
       else { break }
-      ancestor = value as! AXUIElement
-      let node = AXNode(ancestor, reads: reads)
+      node = AXNode(value as! AXUIElement, reads: reads)
       if node.role == kAXScrollAreaRole, let area = node.frame {
         visible = visible.intersection(area)
       }

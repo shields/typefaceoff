@@ -21,7 +21,9 @@ public enum VisibilityRules {
   private static let framedRoles: Set<String> = [
     "AXWindow", "AXSheet", "AXPopover", "AXMenu", "AXScrollArea",
   ]
-  private static let unclippedRoles: Set<String> = ["AXMenu", "AXPopover"]
+  /// They are windows of their own, so nothing above them in the tree clips what they hold, even
+  /// when the tree nests a context menu inside the scroll area that opened it.
+  public static let unclippedRoles: Set<String> = ["AXMenu", "AXPopover"]
 
   public static func disposition(_ input: VisibilityInput, parentClip: CGRect?) -> Disposition {
     if input.isHidden == true { return .prune(.hidden) }

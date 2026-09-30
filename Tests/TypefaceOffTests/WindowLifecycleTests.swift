@@ -25,7 +25,7 @@ import Testing
     #expect(!first.isRestorable)
     let undo = try #require(first.undoManager)
     submit("44", to: firstSize)
-    try await settle(first)
+    try await settle(first) { undo.canUndo }
     first.makeFirstResponder(nil)
     #expect(firstSize.stringValue == "44")
     #expect(undo.canUndo)
@@ -37,15 +37,15 @@ import Testing
     #expect(secondSize.stringValue == "22")
     #expect(second.undoManager !== undo)
     try editCommand(modifiers: .command, window: first)
-    try await settle(first)
+    try await settle(first) { firstSize.stringValue == "22" }
     #expect(firstSize.stringValue == "22")
     try editCommand(modifiers: [.command, .shift], window: first)
-    try await settle(first)
+    try await settle(first) { firstSize.stringValue == "44" }
     #expect(firstSize.stringValue == "44")
     #expect(secondSize.stringValue == "22")
 
     first.performClose(nil)
-    try await settle(first)
+    try await settle(first) { !first.isVisible && first.sheets.isEmpty }
     #expect(first.sheets.isEmpty)
     #expect(!first.isVisible)
     let fresh = try await newWindow(fileMenu)
@@ -111,5 +111,17 @@ import Testing
   private func settle(_ window: NSWindow) async throws {
     try await Task.sleep(for: .milliseconds(250))
     window.contentView?.layoutSubtreeIfNeeded()
+  }
+
+  private func settle(
+    _ window: NSWindow, until condition: () -> Bool,
+    sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws {
+    let deadline = ContinuousClock.now + .seconds(10)
+    try await settle(window)
+    while !condition(), ContinuousClock.now < deadline {
+      try await settle(window)
+    }
+    #expect(condition(), "Timed out after 10 seconds.", sourceLocation: sourceLocation)
   }
 }

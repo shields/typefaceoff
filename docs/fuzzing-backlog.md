@@ -170,22 +170,35 @@ Follow-ups the branches surfaced:
   warning is SwiftUI's own `List` on macOS 27, not app code: the app has no
   NSTableView delegate (`FontFamilyPicker.swift` and
   `CharacterSearchPicker.swift` use `List(..., selection:)`), and a bare `List`
-  of `Text` rows with no selection or accessibility reproduces it. It fires when
-  a list is first populated with about 300 or more rows, and when a short list
-  grows past the viewport; shrinking and reordering never warn, and a
-  `ScrollView` with `LazyVStack` did not warn on presentation. In the fuzz run,
-  opening the roughly 700-family picker was warning one and the search field's
-  cancel button regrowing the emptied list was warning two. Nothing app-side can
-  be fixed short of replacing `List` in both pickers, which would be a large
-  change: the tests find the table through `host.subviews` and the fuzzer
-  targets the picker as an `AXOutline`.
+  of `Text` rows with no selection or accessibility reproduces it. The trigger
+  is creating a `List` with about 300 or more rows: in a standalone app, a newly
+  created `List` logged the warning once at 300, 700, and 3000 rows and not at
+  20, 100, or 200. A `List` already on screen that grew from 1 to 700 rows
+  (three times) did not warn; an earlier claim that growth warns came from the
+  test-host probes and does not reproduce standalone. Shrinking and reordering
+  never warned, and a `ScrollView` with `LazyVStack` did not warn on
+  presentation. In the fuzz run both warnings were creations of the roughly
+  700-family `List`: opening the picker, and clearing a query that matched
+  nothing, because `FontFamilyPicker.swift:86-90` replaces the `List` with an
+  empty-state view when no family matches and builds a new one when the query
+  clears. Nothing app-side can be fixed short of replacing `List` in both
+  pickers, which would be a large change: the tests find the table through
+  `host.subviews` and the fuzzer targets the picker as an `AXOutline`.
+  - Possible mitigation, unverified and a UI behavior change: creation is what
+    warns and growth does not, so keeping the `List` mounted (an empty-state
+    overlay instead of swapping views) would avoid the second warning, and
+    creating it with a first slice of rows and adding the rest a run-loop turn
+    later might avoid the first. Not done.
   - Decision: accept it for now, and allowlist that exact line in `StderrScan`
     so runs that open a picker do not each produce a finding for something the
     app cannot act on. New stderr text is still a finding, and if the warning
     becomes an assert the resulting crash is a crash finding.
-  - Report it to Apple with Feedback Assistant: a 700-row SwiftUI `List` in a
-    popover or a plain window that toggles between one row and many rows
-    reproduces it with no selection, `ScrollViewReader`, or accessibility.
+  - Report it to Apple with Feedback Assistant. A standalone Xcode project
+    reproduces it (one window, one `List`, `--rows N`), verified on macOS 27.0
+    (26A428) with Xcode 27.0 RC in the matrix above; it is not in the repo and
+    the report has not been filed. It was built in the session worktree under
+    `.build/feedback/ListReentrancyRepro` (with a zip beside it); rebuild it
+    from the description above if that directory is gone.
   - Re-run the probe on each new Xcode or macOS release. If it becomes an
     assert, both pickers crash on first open with a large family list, and
     replacing `List` becomes necessary; keep a stderr-capture regression test

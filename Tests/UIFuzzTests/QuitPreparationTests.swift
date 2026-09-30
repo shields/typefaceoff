@@ -29,13 +29,24 @@ import Testing
       closesAt = open ? .infinity : 0
     }
 
+    /// A loop that ignores its bounds ends in a recorded issue instead of stalling the run.
+    static let runaway = 1000
+
     func isOpen() -> Bool {
       checks += 1
+      if checks > Self.runaway {
+        Issue.record("The preparation kept checking the tree.")
+        return false
+      }
       if checkSeconds > 0 { clock.advance(checkSeconds) }
       return clock.now < closesAt
     }
 
     func dismiss() throws {
+      if escapes >= Self.runaway {
+        Issue.record("The preparation kept sending Escape.")
+        throw KeyNotSent()
+      }
       if failingEscape == escapes + 1 { throw KeyNotSent() }
       escapes += 1
       if escapes == closingEscape { closesAt = clock.now + closeDelay }
@@ -119,6 +130,12 @@ import Testing
     #expect(overlay.checks == 3)
     #expect(outcome.milliseconds == 1250)
     #expect(outcome.overlayRemaining)
+  }
+
+  @Test func theDurationIsMeasuredFromTheStartOfThePreparation() {
+    let overlay = FakeOverlay(closeDelay: 0.25)
+    overlay.clock.advance(1000)
+    #expect(overlay.prepare().milliseconds == 250)
   }
 
   @Test func theLastSleepStopsAtTheEndOfTheWindow() {

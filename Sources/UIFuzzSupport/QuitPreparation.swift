@@ -4,14 +4,14 @@ import Foundation
 /// the driver closes what a run leaves open before it asks the app to quit.
 public enum QuitPreparation {
   public static let maximumEscapes = 3
-  /// A sheet takes 0.2 to 0.4 s to close after the key that dismisses it.
+  /// A sheet needs a moment to close after the key that dismisses it, and a quit sent before it
+  /// has gone is dropped.
   public static let settleSeconds: TimeInterval = 0.5
   public static let pollInterval: TimeInterval = 0.05
 
   public struct Outcome {
     /// Escapes that were sent; one that could not be sent is not counted.
     public var escapes: Int
-    /// Whether the last check found an overlay still open.
     public var overlayRemaining: Bool
     public var milliseconds: Double
     /// Why an Escape could not be sent. The caller reports it and quits anyway.

@@ -63,11 +63,9 @@ public struct WindowScope<Identity: Hashable> {
 /// records it so a run shows whether the accessibility tree nests a sheet inside its window
 /// (`scopeWindow`) or lists it beside the windows (`applicationChild`).
 public enum FocusLocation: String, Codable, Sendable {
-  /// The focused window is a standard window, which is the scope window.
   case standardWindow
   /// A non-standard overlay listed beside the windows.
   case applicationChild
-  /// Inside the scope window.
   case scopeWindow
   /// Inside a non-standard top-level child, such as a floating window.
   case otherChild
@@ -121,9 +119,6 @@ public enum ModalScope {
   /// not a modal. The holder is looked up among every traversed node, because an overlay that has
   /// focus is modal even when discovery would not offer the overlay itself. Role-based candidates
   /// come from offered nodes only, so a disabled sheet that holds no focus is not modal.
-  ///
-  /// An overlay that has focus but is neither found nor backed by an offered sheet, popover, or
-  /// menu leaves the selection `unlocated`.
   static func selection<Identity: Hashable>(
     scope: WindowScope<Identity>, focused: Identity?, traversed: [ModalCandidate<Identity>]
   ) -> ModalSelection {

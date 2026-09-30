@@ -506,17 +506,17 @@ final class SequenceRunner {
         alreadyExited = !ProcessLiveness.isAlive(pid)
         if alreadyExited {
           exitNote =
-            "It exited while the driver dismissed an overlay."
+            (preparation.escapes > 0
+              ? "It exited while the driver dismissed an overlay."
+              : "It exited while the driver checked for an open overlay.")
             + (preparation.failure.map { " Driver error: \($0)" } ?? "")
         } else if let failure = preparation.failure {
-          if let unavailable = failure as? AvailabilityError {
-            findings.append(unavailable.finding)
-          } else {
-            findings.append(
-              ExecutionFinding(
-                kind: .automation, signature: "quit-dismiss",
-                detail: "The driver could not dismiss an open overlay before quitting: \(failure)"))
-          }
+          // Not an unavailable finding: that would make the campaign discard and rerun a run whose
+          // actions all completed.
+          findings.append(
+            ExecutionFinding(
+              kind: .automation, signature: "quit-dismiss",
+              detail: "The driver could not dismiss an open overlay before quitting: \(failure)"))
         }
       }
       if alreadyExited && !findings.contains(where: { $0.kind == .crash }) {

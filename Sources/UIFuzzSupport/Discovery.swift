@@ -14,7 +14,6 @@ public struct DiscoveryCapture<Node: AccessibilityNode> {
   /// In traversal order.
   public var elements: [DiscoveredElement<Node>]
 
-  /// An overlay has focus but cannot be located, so `elements` is empty.
   public var unlocated: Bool { modal.unlocated }
 
   /// Menu shortcuts reach the workbench, so they are offered only when nothing modal is open and

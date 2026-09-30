@@ -153,13 +153,14 @@ struct WorkbenchState: Equatable, Sendable {
       default: popover = .closed
       }
     case 36:
-      // Return presses the sheet's default button, Apply, which is disabled until a fit improves,
-      // and the editor's text view may take the key. Whether the sheet closes is unknown. The
-      // menu shortcut that reopens a sheet does nothing while one is up, but a sheet control has
-      // nothing to act on once the sheet is gone, so the sheet counts as closed.
+      // Return presses the Match sheet's default button, Apply, which is disabled until a fit
+      // improves, so whether that sheet closes is unknown and the next requirement dismisses it
+      // first. The editor sheet counts as closed.
       if popover != .closed {
         popover = nil
-      } else if sheet == .editor || sheet == .match {
+      } else if sheet == .match {
+        sheet = nil
+      } else if sheet == .editor {
         sheet = .closed
       }
     default: break

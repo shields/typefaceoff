@@ -107,15 +107,14 @@ Follow-ups the branches surfaced:
     exists (`Apply` is disabled until a fit improves; `Weight` needs a variable
     font B).
   - Overlays opened or closed by controls the model does not know (menu-bar
-    items, the Sample pop-up, `Cancel matching`, picker row buttons, the Edit
-    menu's `Undo <name>`) leave sheet, popover, and lock state stale. Return is
-    modelled as closing the editor sheet, but in the multi-line editor after
-    `setValue` it may insert a newline.
+    items, the Sample pop-up, picker row buttons, the Edit menu's `Undo <name>`)
+    leave sheet, popover, and lock state stale; wave 4 models `Cancel matching`
+    and the sheet controls. Return is modelled as closing the editor sheet, but
+    in the multi-line editor after `setValue` it may insert a newline.
 - Slow quit (VR9): 83.8% of runs with 20 or more actions that end with a sheet
-  open ignore the polite quit, against 5.3% with no sheet. Reproduce by hand
-  (Cmd-Q against the quit Apple event with a sheet open); then either dismiss
-  sheets before quitting or file an app bug. `quit-ms` and `quit-forced` now
-  supply the data.
+  open ignore the polite quit, against 5.3% with no sheet. Explained by a probe
+  and handled in wave 4 (see "Merged to main: wave 4"); `quit-ms` and
+  `quit-forced` keep supplying the data.
 - Corpus: the 80 existing corpus entries with an unresolvable tail are not
   touched (trim on load or migrate); `loadTraceOrReport` still skips the schema
   version check; `fuzz-benchmark` with an empty or wrong `--corpus` now fails
@@ -248,6 +247,116 @@ Nine executions (five exploration, four seed). Artifacts were in the worktree's
   `TypefaceOff` with `-SEGV` mid-run) and the mutation model (mutation starts at
   execution 37).
 
+## Smoke test of main at 4425485 (host, one minute, 2026-09-29)
+
+Seven executions (four exploration, three seed), run before the mouse-delivery
+merge, so clicks were still inert. Artifacts were in the worktree's
+`.build/smoke2-ui-fuzz`.
+
+- The resolver works. No automation finding (one of nine before). All four
+  exploration runs completed 32 of 32 actions, every resolve succeeded on the
+  first path attempt (0 retries, 0 skips), and the skip ledger has no failure.
+- No crash. `stdout.log` and `stderr.log` exist in every run; `stderr` is empty
+  in all seven, so the SwiftUI `List` warning did not fire and its allowlist was
+  not exercised.
+- Timing: seed runs take 1.7 s (1.4 s before). Exploration takes 15-16 s in
+  total: about 7 s of actions, 1.2-4.7 s of discovery (130-175 ms per discover
+  with 144-149 elements), 2.9-3.9 s of idle waits (about 100 ms each).
+  `ax-read-errors` is 14-86 per exploration run, about 2-3 per discover.
+- Blind behind sheets: not fixed by the merged `WindowScope` (see the section
+  below). Two of four exploration runs opened the Match sheet and spent 22 and
+  25 of 32 actions in the menu bar.
+- Forced quits: two of four exploration runs (`quit-ms` 2026-2039), both with
+  the Match sheet open at the end; three of five before.
+- A probe explains the quit (`.build/probes/quit-with-sheet` in the worktree,
+  untracked, macOS 27.0.1). A quit request sent while any sheet is open is
+  dropped, not deferred: `applicationShouldTerminate` is never called, and a
+  request sent before the sheet closes is not rescued when it does. A fresh
+  request after the sheet is gone exits in 10-40 ms. A minimal SwiftUI app with
+  a `.sheet`, an AppKit `beginSheet` panel, and an `NSApp.runModal` panel all do
+  it, through the quit Apple event, `NSApp.terminate`, and posted Cmd-Q. The
+  real app with the Match sheet open never quit in 8 of 8 valid runs; without a
+  sheet it quits in 24-115 ms. An open menu only delays the quit (0.03-3.8 s).
+  The app has no delegate or termination code of its own. The platform knobs are
+  `.presentationPreventsAppTermination(false)` (macOS 15.4 and later; the
+  deployment target is 15.0, so it needs an availability check) and
+  `NSWindow.preventsApplicationTerminationWhenModal = false`; with either the
+  quit exits in about 40 ms. Left alone: a user's Cmd-Q with a sheet open does
+  nothing, which is the platform default that protects sheet edits. Whether to
+  change it is a product decision. The driver dismisses overlays instead.
+
+## Merged to main: wave 4
+
+- Sheet scope (`Discovery.swift`, `WindowScope.swift`, `TreeDump.swift`): see
+  "The explorer is blind behind sheets". Followed by fail-closed discovery when
+  an overlay has focus but is not found, `unlocated` in the driver log, and the
+  `standardWindow` focus location. Two tests were pinned by mutation checks (the
+  `if live` guard in `TreeDump.capture` and the offered-only rule for role
+  candidates).
+- Quit hygiene (`QuitPreparation.swift`, `Runner.swift`): before the quit the
+  driver presses Escape while `Discovery` reports an open or unlocated overlay,
+  at most three times, polling up to 0.5 s after each. It quits regardless and
+  reports it. Metadata: `quit-overlays-dismissed` (the number of Escapes sent),
+  `quit-overlay-remaining`, and `quit-dismiss-ms`; `quit-ms` and `quit-forced`
+  keep their meaning, and all three keys are absent when the preparation is
+  skipped (watchdog, app already exited, desktop unavailable). One `Discovery`
+  capture per run costs 40-200 ms. A failure to send the key is an `automation`
+  finding with signature `quit-dismiss`, not an availability finding, so the
+  campaign does not discard a run whose actions all completed. Limits: a
+  timed-out accessibility read looks like no overlay (read errors are common, so
+  they are not treated as an open overlay), the heartbeat is not rechecked after
+  the Escapes, and the startup-telemetry failure path still runs the preparation
+  against a hung app.
+- Sheet-aware mutation (`MutationState.swift`, `Trace.swift`,
+  `Discovery.swift`): discovery tags each action it offers inside a sheet with
+  the new optional `FuzzAction.sheet` (`match` or `editor`), told apart by
+  `Cancel matching` or `xmark.circle.fill` for the Match sheet and
+  `Custom specimen text` for the editor. A tagged action requires its sheet, so
+  `repaired` inserts the opener for font-dependent axis and feature names too;
+  untagged actions fall back to a name table of the fixed Match controls. The
+  model knows the closers `Cancel matching` and `xmark.circle.fill`, and the
+  openers `Match fonts…` and `Edit sample text…`. Return in the Match sheet
+  leaves the sheet state unknown because `Apply` is disabled until a fit
+  improves, so the next requirement presses Escape first. On synthetic 32-action
+  explorer traces, 12.9% of 3,000 mutants used a sheet control with no sheet
+  open; it is 0.0% with tags and 2.7% (the axis and feature toggles) with the
+  tag withheld.
+
+To verify in the first live run after this (mouse routing is also new, so clicks
+now deliver):
+
+- `discover` events with a sheet open: `modalRole` `AXSheet`, `focusLocation`
+  `scopeWindow` or `applicationChild`, `unlocated` false; count the `unlocated`
+  discovers and read them with `scope` and `windows`.
+- `executed.json` actions recorded inside the Match sheet carry
+  `"sheet": "match"`, inside the editor `"sheet": "editor"`. If not, check the
+  Match close button's identifier and description and the sheet root's role in
+  the log.
+- A run that ends with a sheet open shows `quit-overlays-dismissed` 1 (or 2-3
+  when Escape first clears a search field), `quit-overlay-remaining` false,
+  `quit-forced` false, `quit-ms` under about 200 ms, and `quit-dismiss-ms`
+  250-700. A run with no overlay shows 0, false, false, and a `quit-dismiss-ms`
+  of 40-200. The old signature, `quit-forced` true with `quit-ms` about 2,000,
+  should disappear; `quit-forced` true with `quit-overlays-dismissed` 0 and
+  `quit-overlay-remaining` false means the capture missed an open sheet, and
+  `quit-overlays-dismissed` 3 with `quit-overlay-remaining` true means Escape
+  did not reach it (unmeasured for menus that are tracking).
+- `AXPress failed` automation findings on `Cancel`, `Apply`, and
+  `Cancel matching`, and `unavailable` findings with signature `activation` on
+  otherwise clean runs (a key posted at quit calls `activateIfNeeded`).
+
+Follow-ups found in review: workbench controls with no requirement in the table
+(Swap fonts, Font A Size) can still run while a mutated-in opener has a sheet up
+(they usually still resolve, so the harm is small; a `sheet closed` requirement
+would fix it); menu-item actions such as `Match fonts…` need their menu open,
+which the model does not track, so deleting the preceding `Comparison` press
+strands them like a sheet opener; `resolveRecordedSlot` never skips a recorded
+action that cannot resolve (right for replays; `repaired` should drop such
+actions if mutants keep producing them); `Apply` and `Refine` depend on fit
+state and `Stop` exists only while a fit runs, none of which the model tracks;
+`TreeDump` does not record `unlocated` or the modal root, only the per-entry
+`offered` flags; `driver.jsonl` records nothing about the pre-quit checks.
+
 ## Not started
 
 ### Startup self-test (judgment finding)
@@ -329,7 +438,9 @@ Known limits:
 
 - The scope window is `standard.first`, the first standard window in
   `AXChildren` order. A sheet on a non-front window, for instance after Cmd-N,
-  is not found. Reviewers flagged run `5d51a6cd`, which shows `windows=2`.
+  is not found, so that state is `unlocated` and the explorer presses plain keys
+  until Escape closes the sheet. Run `5d51a6cd` shows `windows=2`, so expect
+  `unlocated` discovers after Cmd-N; they are this limit, not a discovery bug.
 - Modal precedence is by path depth, a proxy for z-order, not by z-order.
 - `Resolver.isOffered` ignores modal scope, so a same-named control behind the
   sheet can make a stale live pick ambiguous.

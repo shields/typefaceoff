@@ -17,12 +17,12 @@ struct DiscoveryStats {
 }
 
 extension AXDriver {
-  /// A sheet, popover, or menu is open, by the same test that narrows what discovery offers.
+  /// A focused overlay that discovery cannot locate counts as open: the app still drops a quit.
   func hasOpenOverlay() -> Bool {
     let application = AXNode(self.application, reads: AXReads())
-    return Discovery.capture(
-      application: application, focusedWindow: { application.focusedWindow() }
-    ).modal.root != nil
+    let capture = Discovery.capture(
+      application: application, focusedWindow: { application.focusedWindow() })
+    return capture.modal.root != nil || capture.unlocated
   }
 
   func availableActions(observe: (DiscoveryStats) -> Void) -> [FuzzAction] {

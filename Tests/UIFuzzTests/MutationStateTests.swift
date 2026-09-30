@@ -140,7 +140,7 @@ import Testing
       ),
       (
         [press("Match…"), key(36), press("Tracking")],
-        [press("Match…"), key(36), openMatch, press("Tracking")]
+        [press("Match…"), key(36), escape, openMatch, press("Tracking")]
       ),
       (
         [press("Edit text"), press("Match…"), press("Tracking")],
@@ -149,6 +149,10 @@ import Testing
       (
         [openEditor, glyphMode, zoomIn],
         [openEditor, glyphMode, escape, glyphMode, zoomIn]
+      ),
+      (
+        [openMatch, key(36), zoomIn],
+        [openMatch, key(36), escape, glyphMode, zoomIn]
       ),
       (
         [press("Inspect U+0041 LATIN CAPITAL LETTER A"), zoomIn],
@@ -225,13 +229,20 @@ import Testing
   @Test(
     arguments: [
       press("Cancel"), press("Apply"), press("Cancel matching"), press("xmark.circle.fill"),
-      FuzzAction(kind: .click, target: "Cancel matching"), escape, key(36),
+      FuzzAction(kind: .click, target: "Cancel matching"), escape,
     ])
   func everyCloserEndsTheMatchSheet(closer: FuzzAction) {
     let size = Self.press("Size")
     #expect(
       Self.repaired([Self.openMatch, closer, size]).map(Self.describe)
         == Self.expected([Self.openMatch, closer, Self.openMatch, size]))
+  }
+
+  @Test func returnMayLeaveTheMatchSheetOpenSoTheNextRequirementDismissesItFirst() {
+    let size = Self.press("Size")
+    #expect(
+      Self.repaired([Self.openMatch, Self.key(36), size]).map(Self.describe)
+        == Self.expected([Self.openMatch, Self.key(36), Self.escape, Self.openMatch, size]))
   }
 
   @Test(arguments: [press("Cancel"), press("Apply"), escape, key(36)])
@@ -511,7 +522,12 @@ import Testing
     var checked = 0
     var violations: [String] = []
     for (index, exploration) in Self.explorations.enumerated() {
-      #expect(mutator.repaired(exploration.actions) == exploration.actions)
+      // Return may leave the Match sheet open, so repair can add an Escape after it.
+      var remaining = exploration.actions[...]
+      for action in mutator.repaired(exploration.actions) where action == remaining.first {
+        remaining.removeFirst()
+      }
+      #expect(remaining.isEmpty)
       for seed in 0..<3000 {
         let trace = mutator.mutate(
           FuzzTrace(seed: 0, actions: exploration.actions), seed: UInt64(index * 10_000 + seed))

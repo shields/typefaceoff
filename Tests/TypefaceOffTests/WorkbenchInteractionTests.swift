@@ -226,10 +226,10 @@ import TypefaceCore
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "a")
     let field = try #require(characterField(host))
-    host.submit("@", to: field)
+    try await host.submit("@", to: field)
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "@")
-    host.submit("", to: field)
+    try await host.submit("", to: field)
     try await host.settle()
     #expect(model.comparison.selectedGlyph == "@")
     #expect(field.stringValue == "@")
@@ -292,13 +292,13 @@ import TypefaceCore
         $0.placeholderString == "Size" && $0.convert($0.bounds, to: host.view).minX > 246
           && $0.convert($0.bounds, to: host.view).maxX < 1194
       })
-    host.submit("32,5", to: field)
+    try await host.submit("32,5", to: field)
     try await host.settle(
       until: { model.comparison.a.size == 32.5 },
       describing: "after 32,5: size \(model.comparison.a.size); \(describe(field, in: host))")
     #expect(model.comparison.b?.size == 32.5)
     #expect(model.comparison.link?.sizeRatio == 1)
-    host.submit("invalid", to: field)
+    try await host.submit("invalid", to: field)
     try await host.settle(
       until: { field.stringValue == "32,5" },
       describing: "after invalid: \(describe(field, in: host))")
@@ -653,8 +653,9 @@ import TypefaceCore
     (field.currentEditor() as? NSTextView)?.didChangeText()
   }
 
-  func submit(_ value: String, to field: NSTextField) {
+  func submit(_ value: String, to field: NSTextField) async throws {
     enter(value, in: field)
+    try await settle()
     field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
   }
 

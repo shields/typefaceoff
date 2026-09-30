@@ -145,14 +145,10 @@ extension TreeDump {
     }
     var pending: [(node: Node, path: [Int], clip: CGRect?, live: Bool)] = roots.indices.reversed()
       .filter { topLevel[$0].inScope }
-      .map {
-        (
-          roots[$0], [$0], nil,
-          scope.discoveryIncludes(index: $0, child: children[$0])
-        )
-      }
+      .map { (roots[$0], [$0], nil, true) }
     var seen = Set<Node.Identity>()
     var entries: [Entry] = []
+    var traversed: [ModalCandidate<Node.Identity>] = []
     var truncatedReason: String?
     while let item = pending.popLast() {
       if entries.count >= entryLimit {
@@ -174,6 +170,11 @@ extension TreeDump {
       case .keep(let emits, let next):
         clip = next
         offered = emits && live
+        if live {
+          traversed.append(
+            ModalCandidate(
+              identity: item.node.identity, path: item.path, role: input.role, offered: emits))
+        }
       }
       entries.append(
         Entry(
@@ -186,7 +187,10 @@ extension TreeDump {
         pending.append((child, item.path + [index], clip, live))
       }
     }
-    Self.applyModalScope(to: &entries)
+    let modal = ModalScope.selection(scope: scope, focused: focused, traversed: traversed)
+    for index in entries.indices where !modal.contains(entries[index].path) {
+      entries[index].offered = false
+    }
     return TreeDump(
       action: context.action,
       request: Request(
@@ -209,18 +213,6 @@ extension TreeDump {
         }),
       readErrors: application.readErrors, truncated: truncatedReason != nil,
       truncatedReason: truncatedReason, entries: entries)
-  }
-
-  /// Discovery offers only what is inside the deepest sheet, popover, or open menu.
-  private static func applyModalScope(to entries: inout [Entry]) {
-    let offered = entries.indices.filter { entries[$0].offered }
-    let kept = Set(
-      ModalScope.retained(
-        paths: offered.map { entries[$0].path }, roles: offered.map { entries[$0].role }
-      ).indices)
-    for (position, index) in offered.enumerated() where !kept.contains(position) {
-      entries[index].offered = false
-    }
   }
 
   private static func array(_ frame: CGRect) -> [Double] {

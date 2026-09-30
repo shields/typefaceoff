@@ -26,13 +26,22 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
   public var elements: Int?
   public var elapsedMs: Double?
   public var skipped: Bool?
+  /// Role of the window that has focus, on `discover` events; nil when no window has focus.
+  public var focusedRole: String?
+  public var focusedSubrole: String?
+  public var focusLocation: FocusLocation?
+  /// The overlay whose subtree discovery offered, and its depth below the application element.
+  public var modalRole: String?
+  public var modalDepth: Int?
 
   public init(
     uptime: TimeInterval, event: Kind, action: Int? = nil, control: String? = nil,
     step: ResolutionStep? = nil, attempts: Int? = nil, waitedMs: Double? = nil,
     timedOut: Bool? = nil, pendingWork: Int? = nil, openWork: [String: Int]? = nil,
     windows: Int? = nil, scope: WindowScopeSource? = nil, elements: Int? = nil,
-    elapsedMs: Double? = nil, skipped: Bool? = nil
+    elapsedMs: Double? = nil, skipped: Bool? = nil, focusedRole: String? = nil,
+    focusedSubrole: String? = nil, focusLocation: FocusLocation? = nil,
+    modalRole: String? = nil, modalDepth: Int? = nil
   ) {
     self.uptime = uptime
     self.event = event
@@ -49,6 +58,11 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     self.elements = elements
     self.elapsedMs = elapsedMs
     self.skipped = skipped
+    self.focusedRole = focusedRole
+    self.focusedSubrole = focusedSubrole
+    self.focusLocation = focusLocation
+    self.modalRole = modalRole
+    self.modalDepth = modalDepth
   }
 
   /// A skipped wait read no telemetry, so it carries none of the wait's figures.

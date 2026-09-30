@@ -313,7 +313,8 @@ import Testing
       uptime: 100.25, event: .resolve, action: 3, control: "AXButton Reset",
       step: .uniqueName, attempts: 2, waitedMs: 30, timedOut: false, pendingWork: 1,
       openWork: ["ranking": 1], windows: 2, scope: .overlay, elements: 40, elapsedMs: 12.5,
-      skipped: true)
+      skipped: true, focusedRole: "AXSheet", focusedSubrole: "AXSystemDialog",
+      focusLocation: .scopeWindow, modalRole: "AXSheet", modalDepth: 2)
     let line = try DriverLog.line(event)
     #expect(!line.contains("\n"))
     let object = try #require(
@@ -322,7 +323,13 @@ import Testing
       Set(object.keys) == [
         "uptime", "event", "action", "control", "step", "attempts", "waitedMs", "timedOut",
         "pendingWork", "openWork", "windows", "scope", "elements", "elapsedMs", "skipped",
+        "focusedRole", "focusedSubrole", "focusLocation", "modalRole", "modalDepth",
       ])
+    #expect(object["focusedRole"] as? String == "AXSheet")
+    #expect(object["focusedSubrole"] as? String == "AXSystemDialog")
+    #expect(object["focusLocation"] as? String == "scopeWindow")
+    #expect(object["modalRole"] as? String == "AXSheet")
+    #expect(object["modalDepth"] as? Int == 2)
     #expect(object["event"] as? String == "resolve")
     #expect(object["step"] as? String == "uniqueName")
     #expect(object["scope"] as? String == "overlay")
@@ -330,6 +337,15 @@ import Testing
     #expect(object["timedOut"] as? Bool == false)
     #expect(object["elapsedMs"] as? Double == 12.5)
     #expect(object["skipped"] as? Bool == true)
+  }
+
+  @Test func aDiscoverEventWithoutFocusOrModalOmitsThoseFields() throws {
+    let line = try DriverLog.line(
+      DriverEvent(uptime: 3, event: .discover, windows: 1, scope: .frontmost, elements: 144))
+    #expect(
+      line
+        == "{\"elements\":144,\"event\":\"discover\",\"scope\":\"frontmost\",\"uptime\":3,\"windows\":1}"
+    )
   }
 
   @Test func anIdleEventCarriesTheWaitOrOnlyThatItWasSkipped() throws {

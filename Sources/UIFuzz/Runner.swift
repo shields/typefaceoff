@@ -274,7 +274,9 @@ final class SequenceRunner {
                   DriverEvent(
                     uptime: clock.now, event: .discover, action: executed.actions.count + 1,
                     windows: stats?.windows, scope: stats?.scope, elements: stats?.elements,
-                    elapsedMs: discovered))
+                    elapsedMs: discovered, focusedRole: stats?.focusedRole,
+                    focusedSubrole: stats?.focusedSubrole, focusLocation: stats?.focusLocation,
+                    modalRole: stats?.modalRole, modalDepth: stats?.modalDepth))
                 return action
               }, begin: begin, resolve: resolveControl,
               didSkip: { skipped, failure in

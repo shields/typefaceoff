@@ -500,7 +500,7 @@ final class SequenceRunner {
         let driver = launchedDriver
       {
         let preparation = QuitPreparation.run(
-          clock: clock, isOverlayOpen: { driver.hasOpenOverlay() },
+          clock: clock, openOverlay: { driver.openOverlay() },
           dismiss: { try driver.dismissOverlay() })
         quitPreparation = preparation
         alreadyExited = !ProcessLiveness.isAlive(pid)

@@ -65,7 +65,7 @@ build-for-testing: project
 	tar -cf $(PORTABLE_RUNTIME) -C .build portable-runtime
 
 # Stages the running Xcode's XCTest support library and XCTestCore. An older
-# Xcode's support library needs Testing symbols that this Xcode's Testing lacks,
+# Xcode's support library needs Testing symbols that the bundles' Testing lacks,
 # and a newer one needs an XCTestCore that the older Xcode lacks, so a job with
 # the older Xcode runs the bundles with RUNTIME=support and these from a newer
 # Xcode.
@@ -78,8 +78,6 @@ stage-support:
 	ditto "$$developer/../SharedFrameworks/XCTestCore.framework" .build/support/XCTestCore.framework
 	tar -cf $(PORTABLE_SUPPORT) -C .build support
 
-# RUNTIME is none (the running Xcode's), testing (the bundles' Testing), or
-# support (that and the staged XCTest support library and XCTestCore).
 test-without-building:
 	rm -rf .build/portable-run
 	mkdir -p .build/portable-run

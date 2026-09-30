@@ -10,8 +10,10 @@ if test "$status" -ne 0 && test -d "$result"; then
 fi
 if test "$status" -eq 0; then
     # A test runner that cannot load the Swift Testing tests runs none and still succeeds.
-    total=$(xcrun xcresulttool get test-results summary --path "$result" | jq -r '.totalTestCount')
-    if test "$total" -eq 0; then
+    # Captured on its own so that set -e stops when xcresulttool fails; in a pipeline only jq's
+    # status counts.
+    summary=$(xcrun xcresulttool get test-results summary --path "$result")
+    if ! printf '%s' "$summary" | jq -e '.totalTestCount > 0' >/dev/null; then
         echo "No tests ran." >&2
         status=1
     fi

@@ -58,21 +58,35 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  stage-support:
+    name: Stage the Xcode 26.6 XCTest support library
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Stage the library
+        run: make stage-support
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: xctest-support-26
+          path: .build/support/libXCTestSwiftSupport.dylib
+          if-no-files-found: error
+          retention-days: 1
+
   test-older-macos:
     name: Test on macOS ${{ matrix.macos }} with ${{ matrix.runtime }} runtime
-    needs: build-tests
+    needs: [build-tests, stage-support]
     runs-on: macos-${{ matrix.macos }}
     strategy:
       fail-fast: false
       matrix:
-        macos: [15, 26]
-        runtime: [none, testing, xctest]
         include:
           # Xcode 26.4 and later need macOS 26.2, so macOS 15 runs Xcode 26.3.
-          - macos: 15
-            xcode: "26.3"
-          - macos: 26
-            xcode: "26.6"
+          - { macos: 15, xcode: "26.3", runtime: xc266 }
+          - { macos: 26, xcode: "26.6", runtime: testing }
     env:
       # The runners lack Xcode 27, so they run its bundles with their own Xcode 26.
       DEVELOPER_DIR:
@@ -86,5 +100,9 @@ jobs:
         with:
           name: portable-tests
           path: .build
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: xctest-support-26
+          path: .build/support
       - name: Test
         run: make test-without-building

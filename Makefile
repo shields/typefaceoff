@@ -23,7 +23,7 @@ STARTUP_RUNS ?= 7
 STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
 
-.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
+.PHONY: build project run test test-app build-for-testing stage-support test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 
 project:
 	xcodegen generate --spec project.yml
@@ -48,40 +48,43 @@ build-for-testing: project
 	rm -rf .build/portable/Build/Products .build/portable-runtime
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing
 	tar -cf $(PORTABLE_TESTS) -C .build/portable/Build Products
-	# The Xcode that built the bundles also stages its own test runtime, in two
-	# sizes. Test processes search the products directory first, so
-	# test-without-building can run the bundles with that runtime instead of the
-	# older Xcode's. Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR
-	# when it's set.
-	mkdir -p .build/portable-runtime/testing .build/portable-runtime/xctest
-	# XCTest and XCUIAutomation are both in the platform's Library/Frameworks.
+	# The Xcode that built the bundles also stages its Swift Testing runtime.
+	# Test processes search the products directory first, so
+	# test-without-building can run the bundles against it instead of the older
+	# Xcode's. Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR when it's
+	# set.
+	mkdir -p .build/portable-runtime/testing
 	set -e; \
-	developer="$$(xcode-select -p)"; \
-	shared="$$developer/../SharedFrameworks"; \
-	platform="$$developer/Platforms/MacOSX.platform/Developer"; \
+	shared="$$(xcode-select -p)/../SharedFrameworks"; \
 	ditto "$$shared/Testing.framework" .build/portable-runtime/testing/Testing.framework; \
 	ditto "$$shared/lib_TestingInterop.dylib" .build/portable-runtime/testing/lib_TestingInterop.dylib; \
 	for overlay in "$$shared"/_Testing_*.framework; do \
 		ditto "$$overlay" ".build/portable-runtime/testing/$$(basename "$$overlay")"; \
-	done; \
-	ditto .build/portable-runtime/testing .build/portable-runtime/xctest; \
-	for framework in "$$shared/XCTestCore.framework" "$$shared/XCTAutomationSupport.framework" \
-		"$$platform/Library/Frameworks/XCTest.framework" \
-		"$$platform/Library/Frameworks/XCUIAutomation.framework"; do \
-		ditto "$$framework" ".build/portable-runtime/xctest/$$(basename "$$framework")"; \
-	done; \
-	ditto "$$platform/usr/lib/libXCTestSwiftSupport.dylib" .build/portable-runtime/xctest/libXCTestSwiftSupport.dylib
+	done
 	tar -cf $(PORTABLE_RUNTIME) -C .build portable-runtime
 
-# RUNTIME is none (the running Xcode's), testing, or xctest.
+# Stages the running Xcode's XCTest support library, for RUNTIME=xc266 in a job
+# whose Xcode lacks a library that matches the bundles' Testing runtime.
+stage-support:
+	mkdir -p .build/support
+	ditto "$$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib" .build/support/libXCTestSwiftSupport.dylib
+
+# RUNTIME is none (the running Xcode's), testing, or xc266.
 test-without-building:
 	rm -rf .build/portable-run
 	mkdir -p .build/portable-run
 	tar -xf $(PORTABLE_TESTS) -C .build/portable-run
-	if [ "$(RUNTIME)" != none ]; then \
-		tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
-		ditto ".build/portable-run/portable-runtime/$(RUNTIME)" .build/portable-run/Products/Debug; \
-	fi
+	set -e; \
+	case "$(RUNTIME)" in \
+		none) ;; \
+		xc266) \
+			tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
+			ditto .build/portable-run/portable-runtime/testing .build/portable-run/Products/Debug; \
+			ditto .build/support/libXCTestSwiftSupport.dylib .build/portable-run/Products/Debug/libXCTestSwiftSupport.dylib ;; \
+		*) \
+			tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
+			ditto ".build/portable-run/portable-runtime/$(RUNTIME)" .build/portable-run/Products/Debug ;; \
+	esac
 	./scripts/test-app.sh -quiet -destination 'platform=macOS' -parallel-testing-enabled NO -xctestrun .build/portable-run/Products/*.xctestrun test-without-building
 
 coverage: test

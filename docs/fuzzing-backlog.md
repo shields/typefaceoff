@@ -195,10 +195,11 @@ Follow-ups the branches surfaced:
     becomes an assert the resulting crash is a crash finding.
   - Report it to Apple with Feedback Assistant. A standalone Xcode project
     reproduces it (one window, one `List`, `--rows N`), verified on macOS 27.0
-    (26A428) with Xcode 27.0 RC in the matrix above; it is not in the repo and
-    the report has not been filed. It was built in the session worktree under
-    `.build/feedback/ListReentrancyRepro` (with a zip beside it); rebuild it
-    from the description above if that directory is gone.
+    (26A428) with Xcode 27.0 RC in the matrix above; it is not in the repo.
+    Filed on 2026-09-29 as FB24998057 with the project attached. It was built in
+    the session worktree under `.build/feedback/ListReentrancyRepro` (with a zip
+    beside it); rebuild it from the description above if that directory is gone.
+    Check the report's status when re-probing on new releases.
   - Re-run the probe on each new Xcode or macOS release. If it becomes an
     assert, both pickers crash on first open with a large family list, and
     replacing `List` becomes necessary; keep a stderr-capture regression test

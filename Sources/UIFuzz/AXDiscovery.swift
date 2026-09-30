@@ -112,7 +112,7 @@ extension AXDriver {
     return result
   }
 
-  private func frame(of element: AXUIElement) -> CGRect? {
+  func frame(of element: AXUIElement) -> CGRect? {
     guard let position = attribute(kAXPositionAttribute, of: element),
       let size = attribute(kAXSizeAttribute, of: element),
       CFGetTypeID(position) == AXValueGetTypeID(), CFGetTypeID(size) == AXValueGetTypeID()

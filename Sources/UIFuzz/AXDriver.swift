@@ -9,6 +9,7 @@ enum DriverError: Error, CustomStringConvertible {
   case applicationDidNotLaunch
   case controlMissing(String)
   case actionFailed(String, AXError)
+  case mouseNotDelivered(String)
 
   var description: String {
     switch self {
@@ -16,6 +17,7 @@ enum DriverError: Error, CustomStringConvertible {
     case .controlMissing(let target): "Control not found: \(target)"
     case .actionFailed(let action, let error):
       "Accessibility action \(action) failed: \(error.rawValue)"
+    case .mouseNotDelivered(let reason): "The mouse event would not reach the app: \(reason)"
     }
   }
 }
@@ -155,7 +157,8 @@ struct AXDriver {
           wheel1: Int32(action.deltaY ?? 0), wheel2: Int32(action.deltaX ?? 0), wheel3: 0)
       else { throw DriverError.actionFailed("create scroll", .failure) }
       event.location = point
-      event.postToPid(processIdentifier)
+      try prepareMouse(at: point)
+      event.post(tap: .cgSessionEventTap)
     case .pause:
       break
     case .selectFont:
@@ -170,12 +173,14 @@ struct AXDriver {
     case .click:
       let point = try center(of: require(action)).unwrap(
         DriverError.actionFailed("locate click target", .noValue))
+      try prepareMouse(at: point)
       try postMouse(.leftMouseDown, at: point)
       try postMouse(.leftMouseUp, at: point)
     case .drag:
       let start = try center(of: require(action)).unwrap(
         DriverError.actionFailed("locate drag target", .noValue))
       let end = CGPoint(x: start.x + (action.deltaX ?? 0), y: start.y + (action.deltaY ?? 0))
+      try prepareMouse(at: start)
       try postMouse(.leftMouseDown, at: start)
       for step in 1...5 {
         let fraction = Double(step) / 5
@@ -265,9 +270,9 @@ struct AXDriver {
     guard result == .success else { throw DriverError.actionFailed("focus", result) }
   }
 
-  private func postKey(code: UInt16, modifiers: UInt64) throws {
+  private func activateIfNeeded() throws {
     // Setting AXFrontmost can time out while AppKit is tracking a menu. Avoid
-    // that synchronous accessibility write when delivering keys into menus or sheets.
+    // that synchronous accessibility write when delivering input into menus or sheets.
     if attribute(kAXFrontmostAttribute, of: application) as? Bool != true {
       guard NSRunningApplication(processIdentifier: processIdentifier)?.activate() == true else {
         try DesktopSession.current().requireAvailable()
@@ -276,6 +281,10 @@ struct AXDriver {
           detail: "The diagnostic app could not activate in the current desktop session.")
       }
     }
+  }
+
+  private func postKey(code: UInt16, modifiers: UInt64) throws {
+    try activateIfNeeded()
     let source = CGEventSource(stateID: .combinedSessionState)
     guard
       let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true),
@@ -294,7 +303,43 @@ struct AXDriver {
       let event = CGEvent(
         mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
     else { throw DriverError.actionFailed("create mouse event", .failure) }
-    event.postToPid(processIdentifier)
+    event.post(tap: .cgSessionEventTap)
+  }
+
+  /// Mouse events go through the session tap, so they land on whatever is under the pointer.
+  /// `postToPid` delivers them without a window, and AppKit drops them without any error.
+  /// The hit test can find another process under the point: AppKit raises the app's windows a
+  /// moment after AXFrontmost turns true, and the Dock covers part of a small display.
+  private func prepareMouse(at point: CGPoint) throws {
+    try activateIfNeeded()
+    // A timeout on the system-wide element applies to the whole process, so the default is
+    // restored afterwards; otherwise every other Accessibility call would give up after 0.5 s.
+    let systemWide = AXUIElementCreateSystemWide()
+    AXUIElementSetMessagingTimeout(systemWide, 0.5)
+    defer { AXUIElementSetMessagingTimeout(systemWide, 0) }
+    let deadline = ProcessInfo.processInfo.systemUptime + 1.5
+    while true {
+      let current = routing(at: point, using: systemWide)
+      if current == .target { return }
+      guard current.mayResolve, ProcessInfo.processInfo.systemUptime < deadline else {
+        throw DriverError.mouseNotDelivered(current.reason)
+      }
+      Thread.sleep(forTimeInterval: 0.02)
+    }
+  }
+
+  private func routing(at point: CGPoint, using systemWide: AXUIElement) -> MouseRouting {
+    var element: AXUIElement?
+    let result = AXUIElementCopyElementAtPosition(
+      systemWide, Float(point.x), Float(point.y), &element)
+    if result == .cannotComplete { return .unanswered }
+    var process: pid_t = 0
+    // The hit test fails with kAXErrorFailure off every display and returns kAXErrorNoValue in a
+    // gap on one; either way nothing can receive the event.
+    guard result == .success, let element, AXUIElementGetPid(element, &process) == .success else {
+      return .nothing
+    }
+    return MouseRouting(hitProcess: process, target: processIdentifier)
   }
 
   private func descendants(of root: AXUIElement) -> [AXUIElement] {
@@ -331,18 +376,23 @@ struct AXDriver {
         .compactMap { stringAttribute($0, of: element) }.filter { !$0.isEmpty })
   }
 
+  /// A document view such as the specimen text reports its whole content as its frame, most of it
+  /// far outside the display, so the point is the middle of the part its scroll areas show.
   private func center(of element: AXUIElement) -> CGPoint? {
-    guard let positionValue = attribute(kAXPositionAttribute, of: element),
-      let sizeValue = attribute(kAXSizeAttribute, of: element),
-      CFGetTypeID(positionValue) == AXValueGetTypeID(),
-      CFGetTypeID(sizeValue) == AXValueGetTypeID()
-    else { return nil }
-    var position = CGPoint.zero
-    var size = CGSize.zero
-    guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &position),
-      AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
-    else { return nil }
-    return CGPoint(x: position.x + size.width / 2, y: position.y + size.height / 2)
+    guard var visible = frame(of: element) else { return nil }
+    var ancestor = element
+    for _ in 0..<8 {
+      guard let value = attribute(kAXParentAttribute, of: ancestor),
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+      else { break }
+      ancestor = value as! AXUIElement
+      if stringAttribute(kAXRoleAttribute, of: ancestor) == kAXScrollAreaRole,
+        let area = frame(of: ancestor)
+      {
+        visible = visible.intersection(area)
+      }
+    }
+    return visible.isNull ? nil : CGPoint(x: visible.midX, y: visible.midY)
   }
 
   private func stringAttribute(_ name: String, of element: AXUIElement) -> String? {

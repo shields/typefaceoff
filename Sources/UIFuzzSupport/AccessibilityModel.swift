@@ -4,18 +4,21 @@ import Foundation
 public struct VisibilityInput: Equatable, Sendable {
   public var role: String
   public var subrole: String
-  /// Filled by adapters only for `AXMenuBarItem`.
+  /// Filled by adapters only for `AXMenuItem`.
+  public var identifier: String
+  /// Filled by adapters only for `AXMenuBarItem` and `AXMenuItem`.
   public var title: String
   public var frame: CGRect?
   public var isEnabled: Bool?
   public var isHidden: Bool?
 
   public init(
-    role: String = "", subrole: String = "", title: String = "", frame: CGRect? = nil,
-    isEnabled: Bool? = nil, isHidden: Bool? = nil
+    role: String = "", subrole: String = "", identifier: String = "", title: String = "",
+    frame: CGRect? = nil, isEnabled: Bool? = nil, isHidden: Bool? = nil
   ) {
     self.role = role
     self.subrole = subrole
+    self.identifier = identifier
     self.title = title
     self.frame = frame
     self.isEnabled = isEnabled

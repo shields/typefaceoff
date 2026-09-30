@@ -47,7 +47,8 @@ final class AXNode: AccessibilityNode {
     identifier: identifier, title: title, description: descriptionText, help: help)
 
   lazy var visibilityInput = VisibilityInput(
-    role: role, subrole: subrole, title: role == "AXMenuBarItem" ? title : "", frame: frame,
+    role: role, subrole: subrole, identifier: role == "AXMenuItem" ? identifier : "",
+    title: role == "AXMenuBarItem" || role == "AXMenuItem" ? title : "", frame: frame,
     isEnabled: read(kAXEnabledAttribute) as? Bool, isHidden: read("AXHidden") as? Bool)
 
   lazy var children: [AXNode] = (read(kAXChildrenAttribute) as? [AXUIElement] ?? []).map {

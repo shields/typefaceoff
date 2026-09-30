@@ -104,8 +104,9 @@ import Testing
 
   @Test func focusLocationsAreStableStrings() throws {
     #expect(
-      [FocusLocation.applicationChild, .scopeWindow, .otherChild, .notFound].map(\.rawValue)
-        == ["applicationChild", "scopeWindow", "otherChild", "notFound"])
+      [FocusLocation.standardWindow, .applicationChild, .scopeWindow, .otherChild, .notFound]
+        .map(\.rawValue)
+        == ["standardWindow", "applicationChild", "scopeWindow", "otherChild", "notFound"])
     let encoded = try JSONEncoder().encode([FocusLocation.scopeWindow])
     #expect(try JSONDecoder().decode([FocusLocation].self, from: encoded) == [.scopeWindow])
   }
@@ -198,5 +199,102 @@ import Testing
       let selection = ModalSelection(root: modal)
       #expect(paths.indices.filter { selection.contains(paths[$0]) } == row.retained, "\(row)")
     }
+  }
+
+  typealias Candidate = ModalCandidate<Int>
+
+  static func candidate(_ identity: Int, _ path: [Int], _ role: String, offered: Bool = true)
+    -> Candidate
+  {
+    Candidate(identity: identity, path: path, role: role, offered: offered)
+  }
+
+  static let modalRoles = ["AXSheet", "AXPopover", "AXMenu"]
+
+  @Test func onlyAnOfferedSheetPopoverOrMenuIsModalByRole() {
+    let scope = WindowScope(children: [Self.standard(1)], focused: 1)
+    for role in Self.modalRoles {
+      let window = Self.candidate(1, [0], "AXWindow")
+      let disabled = ModalScope.selection(
+        scope: scope, focused: 1,
+        traversed: [window, Self.candidate(2, [0, 1], role, offered: false)])
+      #expect(disabled.root == nil, "\(role)")
+      #expect(disabled.rootRole == nil, "\(role)")
+      #expect(!disabled.unlocated, "\(role)")
+      #expect(disabled.contains([0, 1, 0]), "\(role)")
+      let offered = ModalScope.selection(
+        scope: scope, focused: 1, traversed: [window, Self.candidate(2, [0, 1], role)])
+      #expect(offered.root == [0, 1], "\(role)")
+      #expect(offered.rootRole == role, "\(role)")
+      #expect(!offered.contains([0, 0]), "\(role)")
+    }
+  }
+
+  @Test func aSheetThatIsNotOfferedDoesNotRescueAnUnlocatedFocus() {
+    let scope = WindowScope(children: [Self.standard(1), Self.popover(2)], focused: 2)
+    for role in Self.modalRoles {
+      let selection = ModalScope.selection(
+        scope: scope, focused: 3,
+        traversed: [
+          Self.candidate(1, [0], "AXWindow"), Self.candidate(4, [0, 1], role, offered: false),
+        ])
+      #expect(selection.unlocated, "\(role)")
+      #expect(selection.root == nil, "\(role)")
+    }
+  }
+
+  @Test func anOverlayThatHasFocusButIsNotFoundIsUnlockedOnlyByAnOfferedModalRole() {
+    let scope = WindowScope(children: [Self.standard(1), Self.popover(2)], focused: 9)
+    #expect(scope.source == .overlay)
+    let window = Self.candidate(1, [0], "AXWindow")
+    let none = ModalScope.selection(scope: scope, focused: 9, traversed: [window])
+    #expect(none.unlocated)
+    #expect(none.focus == .notFound)
+    #expect(none.root == nil)
+    #expect(!none.contains([0]))
+    #expect(!none.contains([1, 0]))
+    let byRole = ModalScope.selection(
+      scope: scope, focused: 9, traversed: [window, Self.candidate(3, [0, 2], "AXSheet")])
+    #expect(!byRole.unlocated)
+    #expect(byRole.root == [0, 2])
+    #expect(byRole.focus == .notFound)
+    let found = ModalScope.selection(
+      scope: scope, focused: 3, traversed: [window, Self.candidate(3, [1], "AXGroup")])
+    #expect(!found.unlocated)
+    #expect(found.root == [1])
+    #expect(found.focus == .applicationChild)
+  }
+
+  @Test func onlyAnOverlayThatHasFocusCanBeUnlocated() {
+    let window = Self.candidate(1, [0], "AXWindow")
+    let standard = WindowScope(children: [Self.standard(1)], focused: 1)
+    let focusedWindow = ModalScope.selection(scope: standard, focused: 1, traversed: [window])
+    #expect(!focusedWindow.unlocated)
+    #expect(focusedWindow.focus == .standardWindow)
+    let missingWindow = ModalScope.selection(scope: standard, focused: 1, traversed: [])
+    #expect(!missingWindow.unlocated)
+    #expect(missingWindow.focus == .notFound)
+    let unfocused = WindowScope(children: [Self.standard(1)], focused: nil)
+    let noFocus = ModalScope.selection(scope: unfocused, focused: nil, traversed: [window])
+    #expect(!noFocus.unlocated)
+    #expect(noFocus.focus == nil)
+    let empty = WindowScope<Int>(children: [], focused: nil)
+    #expect(!ModalScope.selection(scope: empty, focused: nil, traversed: []).unlocated)
+  }
+
+  @Test func aFocusedOverlayHolderIsLocatedByWhereItSits() {
+    let scope = WindowScope(
+      children: [Self.standard(1), Self.floating(2), Self.menuBar(3)], focused: 5)
+    let traversed = [
+      Self.candidate(1, [0], "AXWindow"), Self.candidate(4, [0, 1], "AXSheet"),
+      Self.candidate(2, [1], "AXWindow"), Self.candidate(5, [1, 0], "AXSheet"),
+    ]
+    func location(of identity: Int) -> FocusLocation? {
+      ModalScope.selection(scope: scope, focused: identity, traversed: traversed).focus
+    }
+    #expect(location(of: 4) == .scopeWindow)
+    #expect(location(of: 5) == .otherChild)
+    #expect(location(of: 2) == .applicationChild)
+    #expect(location(of: 99) == .notFound)
   }
 }

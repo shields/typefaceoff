@@ -69,6 +69,7 @@ import Testing
     var focus: FocusLocation?
     var root: [Int]?
     var rootRole: String?
+    var unlocated = false
     var offered: [String]
     var description: String { name }
   }
@@ -175,11 +176,11 @@ import Testing
     let hidden = sheet(hidden: true)
     result.append(
       Scenario(
-        name: "a hidden focused sheet is not found and narrows nothing",
+        name: "a hidden focused sheet is not found, so nothing is offered",
         application: world.application([
           world.window(name: "Workbench", children: [workbench(), hidden]), menuBar(),
         ]), focused: hidden, source: .overlay, focus: .notFound, root: nil, rootRole: nil,
-        offered: ["Workbench", "Font A Size", "Font B Size", "Edit", "View"]))
+        unlocated: true, offered: []))
 
     let window = world.window(name: "Workbench", children: [workbench()])
     let unfocused = panel(role: "AXWindow", subrole: "AXFloatingWindow", children: [])
@@ -187,7 +188,7 @@ import Testing
     result.append(
       Scenario(
         name: "an unfocused overlay that is not a sheet, popover, or menu narrows nothing",
-        application: plain, focused: window, source: .focused, focus: .applicationChild,
+        application: plain, focused: window, source: .focused, focus: .standardWindow,
         root: nil, rootRole: nil, offered: Self.everything))
     result.append(
       Scenario(
@@ -196,9 +197,9 @@ import Testing
         rootRole: nil, offered: Self.everything))
     result.append(
       Scenario(
-        name: "a focus that is not in the tree offers everything",
+        name: "a focus that is not in the tree and no modal by role offers nothing",
         application: plain, focused: world.node("AXSheet"), source: .overlay,
-        focus: .notFound, root: nil, rootRole: nil, offered: Self.everything))
+        focus: .notFound, root: nil, rootRole: nil, unlocated: true, offered: []))
 
     let byRole = sheet()
     result.append(
@@ -215,7 +216,7 @@ import Testing
       Scenario(
         name: "a sheet that does not hold focus is found by role",
         application: world.application([scopeWindow, menuBar()]), focused: scopeWindow,
-        source: .focused, focus: .applicationChild, root: [0, 1], rootRole: "AXSheet",
+        source: .focused, focus: .standardWindow, root: [0, 1], rootRole: "AXSheet",
         offered: Self.sheetControls))
 
     let openMenuWindow = world.window(name: "Workbench", children: [workbench()])
@@ -223,8 +224,49 @@ import Testing
       Scenario(
         name: "an open menu is found by role while the window has focus",
         application: world.application([openMenuWindow, menuBar(open: "Edit")]),
-        focused: openMenuWindow, source: .focused, focus: .applicationChild, root: [1, 0, 0],
+        focused: openMenuWindow, source: .focused, focus: .standardWindow, root: [1, 0, 0],
         rootRole: "AXMenu", offered: ["Edit menu", "Edit item"]))
+
+    let disabledBehind = sheet(enabled: false)
+    let disabledWindow = world.window(name: "Workbench", children: [workbench(), disabledBehind])
+    result.append(
+      Scenario(
+        name: "an unfocused sheet that is not offered itself is not the modal",
+        application: world.application([disabledWindow, menuBar()]), focused: disabledWindow,
+        source: .focused, focus: .standardWindow, root: nil, rootRole: nil,
+        offered: [
+          "Workbench", "Font A Size", "Font B Size", "Apply", "Cancel", "Edit", "View",
+        ]))
+
+    let disabledUnknown = world.window(
+      name: "Workbench", children: [workbench(), sheet(enabled: false)])
+    result.append(
+      Scenario(
+        name: "an unlocated focus is not rescued by a sheet that is not offered itself",
+        application: world.application([disabledUnknown, menuBar()]),
+        focused: world.node("AXSheet"), source: .overlay, focus: .notFound, root: nil,
+        rootRole: nil, unlocated: true, offered: []))
+
+    let buried = world.node(
+      "AXGroup", frame: nil, hidden: true, children: [sheet()])
+    let prunedWindow = world.window(name: "Workbench", children: [workbench(), buried])
+    result.append(
+      Scenario(
+        name: "a sheet inside a pruned subtree is never walked and narrows nothing",
+        application: world.application([prunedWindow, menuBar()]), focused: prunedWindow,
+        source: .focused, focus: .standardWindow, root: nil, rootRole: nil,
+        offered: ["Workbench", "Font A Size", "Font B Size", "Edit", "View"]))
+
+    let holder = world.node("AXGroup", frame: nil, children: [button("Buried")])
+    let holderWindow = world.window(
+      name: "Workbench",
+      children: [world.node("AXGroup", frame: nil, hidden: true, children: [holder]), sheet()])
+    result.append(
+      Scenario(
+        name: "a focus holder inside a pruned subtree is not found, and the sheet by role wins",
+        application: world.application([holderWindow, menuBar()]), focused: holder,
+        source: .overlay, focus: .notFound, root: [0, 1], rootRole: "AXSheet",
+        offered: Self.sheetControls))
 
     return result
   }
@@ -236,9 +278,25 @@ import Testing
       #expect(capture.modal.focus == scenario.focus, "\(scenario)")
       #expect(capture.modal.root == scenario.root, "\(scenario)")
       #expect(capture.modal.rootRole == scenario.rootRole, "\(scenario)")
+      #expect(capture.unlocated == scenario.unlocated, "\(scenario)")
       #expect(names(capture) == scenario.offered, "\(scenario)")
-      #expect(capture.offersShortcuts == (scenario.root == nil), "\(scenario)")
+      #expect(
+        capture.offersShortcuts == (scenario.root == nil && !scenario.unlocated), "\(scenario)")
     }
+  }
+
+  @Test func anUnlocatedOverlayLeavesOnlyPlainKeysIncludingEscape() {
+    let hidden = sheet(hidden: true)
+    let application = world.application([
+      world.window(name: "Workbench", children: [workbench(), hidden]), menuBar(),
+    ])
+    let capture = discover(application, focused: hidden)
+    #expect(capture.unlocated)
+    #expect(capture.elements.isEmpty)
+    #expect(!capture.offersShortcuts)
+    let keys = ActionExplorer.keyboardActions(includeShortcuts: capture.offersShortcuts)
+    #expect(keys.allSatisfy { $0.kind == .key })
+    #expect(keys.contains { $0.keyCode == 53 })
   }
 
   @Test func treeDumpsOfferExactlyWhatDiscoveryOffers() {

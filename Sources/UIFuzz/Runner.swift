@@ -276,7 +276,8 @@ final class SequenceRunner {
                     windows: stats?.windows, scope: stats?.scope, elements: stats?.elements,
                     elapsedMs: discovered, focusedRole: stats?.focusedRole,
                     focusedSubrole: stats?.focusedSubrole, focusLocation: stats?.focusLocation,
-                    modalRole: stats?.modalRole, modalDepth: stats?.modalDepth))
+                    modalRole: stats?.modalRole, modalDepth: stats?.modalDepth,
+                    unlocated: stats?.unlocated))
                 return action
               }, begin: begin, resolve: resolveControl,
               didSkip: { skipped, failure in

@@ -170,6 +170,7 @@ extension TreeDump {
       case .keep(let emits, let next):
         clip = next
         offered = emits && live
+        // Discovery never walks a pruned subtree, so nothing under one is a modal candidate.
         if live {
           traversed.append(
             ModalCandidate(

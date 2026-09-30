@@ -13,6 +13,7 @@ struct DiscoveryStats {
   var focusLocation: FocusLocation?
   var modalRole: String?
   var modalDepth: Int?
+  var unlocated: Bool
 }
 
 extension AXDriver {
@@ -75,7 +76,8 @@ extension AXDriver {
         elements: capture.elements.count, windows: capture.scope.standardWindowCount,
         scope: capture.scope.source, readErrors: reads.errors, focusedRole: focusedNode?.role,
         focusedSubrole: focusedNode?.subrole, focusLocation: capture.modal.focus,
-        modalRole: capture.modal.rootRole, modalDepth: capture.modal.root?.count))
+        modalRole: capture.modal.rootRole, modalDepth: capture.modal.root?.count,
+        unlocated: capture.unlocated))
     return result
   }
 }

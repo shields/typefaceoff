@@ -14,15 +14,17 @@ public struct DiscoveryCapture<Node: AccessibilityNode> {
   /// In traversal order.
   public var elements: [DiscoveredElement<Node>]
 
-  /// Menu shortcuts reach the workbench, so they are offered only when nothing modal is open.
-  public var offersShortcuts: Bool { modal.root == nil }
+  /// An overlay has focus but cannot be located, so `elements` is empty.
+  public var unlocated: Bool { modal.unlocated }
+
+  /// Menu shortcuts reach the workbench, so they are offered only when nothing modal is open and
+  /// no overlay is unaccounted for.
+  public var offersShortcuts: Bool { modal.root == nil && !modal.unlocated }
 }
 
 public enum Discovery {
   public static let nodeLimit = 10_000
 
-  /// Walks the scope window and every non-standard top-level child. Offers the modal root's
-  /// subtree when a modal is open, and every visible control otherwise.
   public static func capture<Node: AccessibilityNode>(
     application: Node, focusedWindow: () -> Node.Identity?, nodeLimit: Int = Discovery.nodeLimit
   ) -> DiscoveryCapture<Node> {

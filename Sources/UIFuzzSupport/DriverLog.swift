@@ -33,6 +33,8 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
   /// The overlay whose subtree discovery offered, and its depth below the application element.
   public var modalRole: String?
   public var modalDepth: Int?
+  /// True when an overlay had focus but could not be located, so discovery offered only plain keys.
+  public var unlocated: Bool?
 
   public init(
     uptime: TimeInterval, event: Kind, action: Int? = nil, control: String? = nil,
@@ -41,7 +43,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     windows: Int? = nil, scope: WindowScopeSource? = nil, elements: Int? = nil,
     elapsedMs: Double? = nil, skipped: Bool? = nil, focusedRole: String? = nil,
     focusedSubrole: String? = nil, focusLocation: FocusLocation? = nil,
-    modalRole: String? = nil, modalDepth: Int? = nil
+    modalRole: String? = nil, modalDepth: Int? = nil, unlocated: Bool? = nil
   ) {
     self.uptime = uptime
     self.event = event
@@ -63,6 +65,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     self.focusLocation = focusLocation
     self.modalRole = modalRole
     self.modalDepth = modalDepth
+    self.unlocated = unlocated
   }
 
   /// A skipped wait read no telemetry, so it carries none of the wait's figures.

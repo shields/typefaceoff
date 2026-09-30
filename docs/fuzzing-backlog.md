@@ -291,29 +291,53 @@ dropped or filled from the crash report's termination code; that touches
 
 ### The explorer is blind behind sheets (investigation, wave 2)
 
-Status: fixed in code, not yet seen in a live run. The merged `WindowScope` did
-not fix it. In the one-minute host smoke test of `4425485` (2026-09-29,
-`.build/smoke2-ui-fuzz`), every `discover` event with the Match sheet open
-reported scope `overlay` with 1-12 elements, all menu-bar items and their menu
-items, and no action targeted a sheet control (25 of 32 actions in run
-`3bf4737e`, 22 of 32 in `5d51a6cd`). The cause, read from the code because the
-live tree has not been dumped, was `WindowScope.discoveryIncludes`: with a sheet
-up `AXFocusedWindow` is evidently not a standard top-level child, so discovery
-dropped the standard window, and the sheet nested inside it, and kept only the
-menu bar. Discovery now walks the scope window and every non-standard top-level
-child. When the focused overlay is found in that walk, its subtree is the modal
-root, whether the tree nests it in the window or lists it beside it. A sheet,
-popover, or open menu that does not hold focus still narrows by role; the
-deepest candidate wins and the focused one wins ties. Only the modal root's
-controls are offered, plus plain keys (Escape included) and no shortcuts.
-Discovery and `TreeDump` share `ModalScope.selection`, and resolution shares
-`WindowScope`. Each `discover` event in `driver.jsonl` now records
-`focusedRole`, `focusedSubrole`, `focusLocation`, `modalRole`, and `modalDepth`,
-so the next live run shows the real shape. Check on it that actions land inside
-sheets (presses of `Apply`, `Cancel`, `Refine`, `Stop`, and values in the editor
-field), which were zero in 536 exploration runs before. Discovery under a sheet
-now walks the whole window, which took 90-110 ms in the smoke test's discovers
-with no sheet, where it took 5-17 ms.
+Status: believed fixed in code, verified only by unit tests; not yet seen in a
+live run. The merged `WindowScope` did not fix it. In the one-minute host smoke
+test of `4425485` (2026-09-29, `.build/smoke2-ui-fuzz`), every `discover` event
+with the Match sheet open reported scope `overlay` with 1-12 elements, all
+menu-bar items and their menu items, and no action targeted a sheet control (25
+of 32 actions in run `3bf4737e`, 22 of 32 in `5d51a6cd`). The cause, read from
+the code because the live tree has not been dumped, was
+`WindowScope.discoveryIncludes`: with a sheet up `AXFocusedWindow` is evidently
+not a standard top-level child, so discovery dropped the standard window, and
+the sheet nested inside it, and kept only the menu bar. Discovery now walks the
+scope window and every non-standard top-level child. When the focused overlay is
+found in that walk, its subtree is the modal root, whether the tree nests it in
+the window or lists it beside it. A sheet, popover, or open menu that does not
+hold focus still narrows by role; the deepest candidate wins and the focused one
+wins ties. Only the modal root's controls are offered, plus plain keys (Escape
+included) and no shortcuts. When an overlay has focus but is not found in the
+walk and no offered sheet, popover, or menu backs it up, discovery fails closed:
+it offers only the plain keys, no elements and no shortcuts, because anything
+else could act on controls the user cannot reach behind a modal. Discovery and
+`TreeDump` share `ModalScope.selection`, so the dump's `offered` flags agree,
+and resolution shares `WindowScope`. Each `discover` event in `driver.jsonl` now
+records `focusedRole`, `focusedSubrole`, `focusLocation`, `modalRole`,
+`modalDepth`, and `unlocated` (true for the fail-closed state), so the next live
+run shows the real shape. `focusLocation` is `standardWindow` for an ordinary
+focused window, `applicationChild` for a non-standard overlay listed beside the
+windows, `scopeWindow` or `otherChild` for one nested in the scope window or
+another top-level child, and `notFound` when discovery did not traverse the
+holder. Check on the next live run that actions land inside sheets (presses of
+`Apply`, `Cancel`, `Refine`, `Stop`, and values in the editor field), which were
+zero in 536 exploration runs before, and count the `discover` events with
+`unlocated`. Discovery under a sheet now walks the whole window. Non-sheet
+discovers in the smoke test took 90-237 ms; sheet-state discovers before this
+change took 4-62 ms, because they walked only the menu bar.
+
+Known limits:
+
+- The scope window is `standard.first`, the first standard window in
+  `AXChildren` order. A sheet on a non-front window, for instance after Cmd-N,
+  is not found. Reviewers flagged run `5d51a6cd`, which shows `windows=2`.
+- Modal precedence is by path depth, a proxy for z-order, not by z-order.
+- `Resolver.isOffered` ignores modal scope, so a same-named control behind the
+  sheet can make a stale live pick ambiguous.
+- A press that closes a sheet may report `AXPress` -25200 and end the run as an
+  automation finding. Watch the next live run for `AXPress failed` on `Cancel`,
+  `Apply`, and `Cancel matching` before trusting the abort rate.
+- Discovery under a sheet walks the whole window, which took 90-237 ms in the
+  smoke test's discovers without a sheet.
 
 146 of 536 exploration runs opened the Match sheet or the custom-text editor
 (Shift-Cmd-M, Shift-Cmd-E, or a press on `Match...` or `Edit text`). Between

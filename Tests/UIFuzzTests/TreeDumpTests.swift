@@ -160,6 +160,56 @@ import Testing
     #expect(dump.entries.filter(\.offered).count == 2)
   }
 
+  @Test func aSheetInsideAPrunedSubtreeDoesNotNarrowTheDump() throws {
+    let fixture = Fixture()
+    let world = fixture.world
+    let sheet = world.node(
+      "AXSheet", frame: FakeWorld.windowFrame,
+      children: [world.node("AXButton", name: "Buried")])
+    let window = world.window(
+      name: "Pruned",
+      children: [
+        world.node("AXButton", name: "Front"),
+        world.node("AXGroup", frame: nil, hidden: true, children: [sheet]),
+      ])
+    let dump = fixture.capture(focused: window, application: world.application([window]))
+    #expect(try entry(dump, "Front").offered)
+    #expect(try entry(dump, "Pruned").offered)
+    #expect(!(try entry(dump, "Buried").offered))
+    #expect(dump.entries.contains { $0.role == "AXSheet" })
+  }
+
+  @Test func aFocusHolderInsideAPrunedSubtreeIsNotTheModal() throws {
+    let fixture = Fixture()
+    let world = fixture.world
+    let holder = world.node(
+      "AXGroup", frame: nil, children: [world.node("AXButton", name: "Buried")])
+    let sheet = world.node(
+      "AXSheet", frame: FakeWorld.windowFrame,
+      children: [world.node("AXButton", name: "On sheet")])
+    let window = world.window(
+      name: "Pruned",
+      children: [world.node("AXGroup", frame: nil, hidden: true, children: [holder]), sheet])
+    let dump = fixture.capture(focused: holder, application: world.application([window]))
+    #expect(dump.scope.source == .overlay)
+    #expect(try entry(dump, "On sheet").offered)
+    #expect(!(try entry(dump, "Buried").offered))
+  }
+
+  @Test func anOverlayThatCannotBeLocatedOffersNothing() throws {
+    let fixture = Fixture()
+    let world = fixture.world
+    let hidden = world.node(
+      "AXSheet", frame: FakeWorld.windowFrame, hidden: true,
+      children: [world.node("AXButton", name: "Inside")])
+    let window = world.window(
+      name: "Workbench", children: [world.node("AXButton", name: "Behind"), hidden])
+    let dump = fixture.capture(focused: hidden, application: world.application([window]))
+    #expect(dump.scope.source == .overlay)
+    #expect(dump.entries.contains { $0.identifier == "Behind" })
+    #expect(dump.entries.filter(\.offered).isEmpty)
+  }
+
   @Test func aNodeReachedTwiceIsListedOnce() {
     let fixture = Fixture()
     let world = fixture.world
@@ -314,7 +364,7 @@ import Testing
       step: .uniqueName, attempts: 2, waitedMs: 30, timedOut: false, pendingWork: 1,
       openWork: ["ranking": 1], windows: 2, scope: .overlay, elements: 40, elapsedMs: 12.5,
       skipped: true, focusedRole: "AXSheet", focusedSubrole: "AXSystemDialog",
-      focusLocation: .scopeWindow, modalRole: "AXSheet", modalDepth: 2)
+      focusLocation: .scopeWindow, modalRole: "AXSheet", modalDepth: 2, unlocated: true)
     let line = try DriverLog.line(event)
     #expect(!line.contains("\n"))
     let object = try #require(
@@ -323,13 +373,14 @@ import Testing
       Set(object.keys) == [
         "uptime", "event", "action", "control", "step", "attempts", "waitedMs", "timedOut",
         "pendingWork", "openWork", "windows", "scope", "elements", "elapsedMs", "skipped",
-        "focusedRole", "focusedSubrole", "focusLocation", "modalRole", "modalDepth",
+        "focusedRole", "focusedSubrole", "focusLocation", "modalRole", "modalDepth", "unlocated",
       ])
     #expect(object["focusedRole"] as? String == "AXSheet")
     #expect(object["focusedSubrole"] as? String == "AXSystemDialog")
     #expect(object["focusLocation"] as? String == "scopeWindow")
     #expect(object["modalRole"] as? String == "AXSheet")
     #expect(object["modalDepth"] as? Int == 2)
+    #expect(object["unlocated"] as? Bool == true)
     #expect(object["event"] as? String == "resolve")
     #expect(object["step"] as? String == "uniqueName")
     #expect(object["scope"] as? String == "overlay")

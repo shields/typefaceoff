@@ -63,19 +63,21 @@ public struct WindowScope<Identity: Hashable> {
 /// records it so a run shows whether the accessibility tree nests a sheet inside its window
 /// (`scopeWindow`) or lists it beside the windows (`applicationChild`).
 public enum FocusLocation: String, Codable, Sendable {
+  /// The focused window is a standard window, which is the scope window.
+  case standardWindow
+  /// A non-standard overlay listed beside the windows.
   case applicationChild
+  /// Inside the scope window.
   case scopeWindow
   /// Inside a non-standard top-level child, such as a floating window.
   case otherChild
   case notFound
 }
 
-/// A node that discovery traversed and did not prune.
 struct ModalCandidate<Identity: Hashable> {
   var identity: Identity
   var path: [Int]
   var role: String
-  /// Whether discovery offers the node itself.
   var offered: Bool
 }
 
@@ -85,8 +87,13 @@ public struct ModalSelection: Equatable, Sendable {
   /// The path of the overlay whose subtree discovery offers, or nil when nothing is modal.
   public var root: [Int]?
   public var rootRole: String?
+  /// An overlay has focus but nothing locates it, so the controls it covers cannot be told from
+  /// the ones a user can reach. Nothing is offered.
+  public var unlocated = false
 
-  public func contains(_ path: [Int]) -> Bool { root.map { path.starts(with: $0) } ?? true }
+  public func contains(_ path: [Int]) -> Bool {
+    !unlocated && (root.map { path.starts(with: $0) } ?? true)
+  }
 }
 
 /// Sheets, popovers, and open menus receive input before the workbench behind them.
@@ -112,25 +119,32 @@ public enum ModalScope {
   /// The one rule that discovery and tree dumps share. Only a focused overlay, which is not a
   /// standard top-level child, can be the root by focus: a focused standard window is the scope,
   /// not a modal. The holder is looked up among every traversed node, because an overlay that has
-  /// focus is modal even when discovery would not offer the overlay itself.
+  /// focus is modal even when discovery would not offer the overlay itself. Role-based candidates
+  /// come from offered nodes only, so a disabled sheet that holds no focus is not modal.
+  ///
+  /// An overlay that has focus but is neither found nor backed by an offered sheet, popover, or
+  /// menu leaves the selection `unlocated`.
   static func selection<Identity: Hashable>(
     scope: WindowScope<Identity>, focused: Identity?, traversed: [ModalCandidate<Identity>]
   ) -> ModalSelection {
     let holder = focused.flatMap { identity in traversed.first { $0.identity == identity } }
     let offered = traversed.filter(\.offered)
+    let overlay = scope.source == .overlay
     let root = select(
-      paths: offered.map(\.path), roles: offered.map(\.role),
-      focused: scope.source == .overlay ? holder?.path : nil)
+      paths: offered.map(\.path), roles: offered.map(\.role), focused: overlay ? holder?.path : nil)
     return ModalSelection(
       focus: focused == nil ? nil : location(of: holder, in: scope), root: root,
-      rootRole: root.flatMap { root in traversed.first { $0.path == root }?.role })
+      rootRole: root.flatMap { root in traversed.first { $0.path == root }?.role },
+      unlocated: overlay && root == nil)
   }
 
   private static func location<Identity: Hashable>(
     of holder: ModalCandidate<Identity>?, in scope: WindowScope<Identity>
   ) -> FocusLocation {
     guard let holder else { return .notFound }
-    if holder.path.count == 1 { return .applicationChild }
+    if holder.path.count == 1 {
+      return scope.source == .focused ? .standardWindow : .applicationChild
+    }
     return holder.path[0] == scope.scopeIndex ? .scopeWindow : .otherChild
   }
 }

@@ -387,6 +387,7 @@ import Testing
       #expect(capture.modal.root == scenario.root, "\(scenario)")
       #expect(capture.modal.rootRole == scenario.rootRole, "\(scenario)")
       #expect(capture.unlocated == scenario.unlocated, "\(scenario)")
+      #expect(capture.menuIsOpen == (scenario.rootRole == "AXMenu"), "\(scenario)")
       #expect(names(capture) == scenario.offered, "\(scenario)")
       #expect(
         capture.offersShortcuts == (scenario.root == nil && !scenario.unlocated), "\(scenario)")

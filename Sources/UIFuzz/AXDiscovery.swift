@@ -37,7 +37,8 @@ extension AXDriver {
         return focused
       })
     let focusedNode = focused.map { AXNode($0.element, reads: reads) }
-    var result = ActionExplorer.keyboardActions(includeShortcuts: capture.offersShortcuts)
+    var result = ActionExplorer.keyboardActions(
+      includeShortcuts: capture.offersShortcuts, inMenu: capture.menuIsOpen)
     let sheet = FuzzAction.Sheet.identify(
       rootRole: capture.modal.rootRole, targets: capture.elements.map { $0.node.discoveryTarget })
     for node in capture.elements {

@@ -296,18 +296,24 @@ merge, so clicks were still inert. Artifacts were in the worktree's
   candidates).
 - Quit hygiene (`QuitPreparation.swift`, `Runner.swift`): before the quit the
   driver presses Escape while `Discovery` reports an open or unlocated overlay,
-  at most three times, polling up to 0.5 s after each. It quits regardless and
-  reports it. Metadata: `quit-overlays-dismissed` (the number of Escapes sent),
-  `quit-overlay-remaining`, and `quit-dismiss-ms`; `quit-ms` and `quit-forced`
-  keep their meaning, and all three keys are absent when the preparation is
-  skipped (watchdog, app already exited, desktop unavailable). One `Discovery`
-  capture per run costs 40-200 ms. A failure to send the key is an `automation`
-  finding with signature `quit-dismiss`, not an availability finding, so the
-  campaign does not discard a run whose actions all completed. Limits: a
-  timed-out accessibility read looks like no overlay (read errors are common, so
-  they are not treated as an open overlay), the heartbeat is not rechecked after
-  the Escapes, and the startup-telemetry failure path still runs the preparation
-  against a hung app.
+  at most three times. After each Escape it polls for at most 0.5 s and stops as
+  soon as the overlay that receives input closes or another takes its place
+  (told apart by the modal root's role and path depth), so the Escape that
+  closes a menu over a sheet is followed by the next one at once (wave 5). It
+  quits regardless and reports it. Metadata: `quit-overlays-dismissed` (the
+  number of Escapes sent), `quit-overlay-remaining`, and `quit-dismiss-ms`;
+  `quit-ms` and `quit-forced` keep their meaning, and all three keys are absent
+  when the preparation is skipped (watchdog, app already exited, desktop
+  unavailable). One `Discovery` capture per poll costs 40-200 ms. A failure to
+  send the key is an `automation` finding with signature `quit-dismiss`, not an
+  availability finding, so the campaign does not discard a run whose actions all
+  completed. Limits: a replacement with the same role and depth, and any reading
+  that is unlocated, is not seen as a change (the loop waits out its window, as
+  before, because an early Escape on a false change could land on the
+  workbench); a timed-out accessibility read looks like no overlay (read errors
+  are common, so they are not treated as an open overlay); the heartbeat is not
+  rechecked after the Escapes; and the startup-telemetry failure path still runs
+  the preparation against a hung app.
 - Sheet-aware mutation (`MutationState.swift`, `Trace.swift`,
   `Discovery.swift`): discovery tags each action it offers inside a sheet with
   the new optional `FuzzAction.sheet` (`match` or `editor`), told apart by
@@ -352,8 +358,8 @@ merged. Artifacts were in the worktree's `.build/smoke3-ui-fuzz`.
   Escapes (`quit-overlay-remaining` false) and spent about 1.1 s in the
   preparation: after the first Escape closes the menu the loop waits out its
   whole 0.5 s window, because the sheet is still open, before it sends the
-  second. Runs with no overlay spent 66-123 ms. Waiting only until the overlay
-  changes would save most of that.
+  second. Runs with no overlay spent 66-123 ms. Wave 5 waits only until the
+  overlay changes.
 - Two of four exploration runs ended in `locate click target failed: -25212`, a
   click on a context-menu item inside the sheet (`Start Speaking`,
   `Substitutions`). The tree nests that menu in the scroll area of the text that
@@ -401,7 +407,8 @@ Artifacts were in the worktree's `.build/smoke4-ui-fuzz`.
   Translate, Speech, Show Fonts, Show Colors, and Show Spelling and Grammar, all
   of which open UI outside the app, and some prompt for credentials on the host.
   The Apple-menu items (Log Out, Lock Screen, Force Quit) are pruned because the
-  Apple menu is not in `allowedMenus`, and were never offered in the dumps.
+  Apple menu is not in `allowedMenus`, and were never offered in the dumps. Wave
+  5 prunes the system-UI items.
 - No crash; the resolver has no skip, no retry, and no ledger failure.
 
 Follow-ups from wave 4 and these smoke tests: workbench controls with no
@@ -415,8 +422,43 @@ for replays; `repaired` should drop such actions if mutants keep producing
 them); `Apply` and `Refine` depend on fit state and `Stop` exists only while a
 fit runs, none of which the model tracks; `TreeDump` does not record `unlocated`
 or the modal root, only the per-entry `offered` flags; `driver.jsonl` records
-nothing about the pre-quit checks; the pre-quit loop could send its next Escape
-as soon as the open overlay changes instead of waiting out the window.
+nothing about the pre-quit checks, so the live check of the quit loop can use
+only `quit-dismiss-ms` (logging each observation would show whether an unlocated
+reading ever occurs and whether a sheet needs an extra poll to leave the tree).
+
+## Merged to main: wave 5
+
+- Menu items that open UI outside the app are no longer offered
+  (`SystemMenuItems.swift`, `VisibilityRules.swift`): Writing Tools, AutoFill
+  (Passwords, Contacts, Credit Cards), Share, Look Up, Translate, Speech, Start
+  Dictation, Emoji & Symbols, Show Fonts, Show Colors, Show Spelling and
+  Grammar, Show Substitutions, and Styles…. The new `PruneReason.systemUI`
+  applies to an `AXMenuItem` by identifier (AppKit's selector names and
+  identifier constants, stable across languages) or by title (macOS 27 English,
+  for the items with auto-numbered `_NS:n` identifiers); an unlisted item stays
+  offered. Discovery, `TreeDump`, and the resolver's `isOffered` share the rule,
+  and a pruned parent prunes its subtree. `AXNode` reads the identifier only for
+  menu items and the title only for menu and menu bar items, so other roles cost
+  no extra reads. The Apple menu stays pruned through `allowedMenus`, which a
+  new discovery scenario pins. The explorer also offers only Escape and the
+  arrows while a menu is open (`ActionExplorer.keyboardActions(inMenu:)`),
+  because Return would activate whatever item the arrows highlighted, pruned or
+  not, and `repaired` turns a recorded `AXMenuItem` action on a listed item into
+  a pause, so mutants of old traces stop pressing them. Replay is untouched: the
+  resolver's path and unique-name steps ignore visibility, so `fuzz-replay` of
+  an old trace still presses the item. Three local corpus files do
+  (`smoke2-ui-fuzz/corpus/00000003-...`, `00000007-...`, and
+  `smoke4-ui-fuzz/corpus/00000003-...`), and so may the older host and VM
+  corpora. To see it work in a live run: no `resolve` event names a listed item,
+  no `discover` with `modalRole` `AXPopover` or `sheet: "unidentified"` follows
+  a text-area `showMenu`, and `discover` events with `modalRole` `AXMenu` still
+  appear with fewer elements.
+- The pre-quit loop advances when the overlay changes (see the quit hygiene
+  bullet above). Expected in a live run: `quit-dismiss-ms` about 0.6-0.85 s for
+  a menu over the Match sheet (1.1 s before), `quit-overlays-dismissed` 2, and
+  `quit-overlay-remaining` false. Whether an Escape sent the moment the menu
+  leaves the tree always reaches the sheet is unmeasured; the old delay hid any
+  race.
 
 ## Not started
 

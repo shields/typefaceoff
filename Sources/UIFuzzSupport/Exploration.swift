@@ -123,10 +123,11 @@ public struct ActionExplorer {
     }
   }
 
-  public static func keyboardActions(includeShortcuts: Bool) -> [FuzzAction] {
-    var result: [FuzzAction] = [36, 48, 53, 123, 124, 125, 126].map {
-      FuzzAction(kind: .key, keyCode: $0)
-    }
+  /// With a menu open, Return would activate whatever item the arrows highlighted, including an
+  /// item that discovery does not offer, so `inMenu` leaves only Escape and the arrows.
+  public static func keyboardActions(includeShortcuts: Bool, inMenu: Bool = false) -> [FuzzAction] {
+    let codes: [UInt16] = inMenu ? [53, 123, 124, 125, 126] : [36, 48, 53, 123, 124, 125, 126]
+    var result = codes.map { FuzzAction(kind: .key, keyCode: $0) }
     if includeShortcuts {
       result += shortcuts.map { FuzzAction(kind: .shortcut, keyCode: $0.0, modifiers: $0.1) }
     }

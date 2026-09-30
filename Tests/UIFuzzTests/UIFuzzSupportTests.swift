@@ -128,6 +128,11 @@ import Testing
       + ActionExplorer.keyboardActions(includeShortcuts: true)
     #expect(ActionExplorer.keyboardActions(includeShortcuts: false).allSatisfy { $0.kind == .key })
     #expect(candidates.contains { $0.kind == .shortcut })
+    let menuKeys = ActionExplorer.keyboardActions(includeShortcuts: false, inMenu: true)
+    #expect(menuKeys.compactMap(\.keyCode) == [53, 123, 124, 125, 126])
+    #expect(
+      ActionExplorer.keyboardActions(includeShortcuts: false).compactMap(\.keyCode)
+        == [36, 48, 53, 123, 124, 125, 126])
     for _ in 0..<200 {
       let action = first.next(from: candidates, using: &left)
       #expect(action == second.next(from: candidates, using: &right))

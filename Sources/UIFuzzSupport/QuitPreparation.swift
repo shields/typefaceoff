@@ -4,9 +4,9 @@ import Foundation
 /// the driver closes what a run leaves open before it asks the app to quit.
 public enum QuitPreparation {
   public static let maximumEscapes = 3
-  /// The longest wait for what is open to change after an Escape. A layer that closes or is
-  /// replaced ends the wait at once; when nothing changes, the Escape did not reach the overlay,
-  /// and the next one goes out when the window ends.
+  /// The longest wait for what is open to change after an Escape. A sheet needs a moment to close,
+  /// and a quit sent before it has gone is dropped; `Overlay.isChanged` says what ends the wait
+  /// early.
   public static let settleSeconds: TimeInterval = 0.5
   public static let pollInterval: TimeInterval = 0.05
 

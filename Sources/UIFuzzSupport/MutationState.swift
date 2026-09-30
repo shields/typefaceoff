@@ -210,6 +210,14 @@ extension TraceMutator {
     var state = WorkbenchState.launch
     var result: [FuzzAction] = []
     for (index, original) in actions.enumerated() {
+      // Discovery no longer offers such an item, but a recorded trace still names it.
+      if original.targetRole == "AXMenuItem",
+        let target = original.target,
+        SystemMenuItems.opensSystemUI(identifier: target, title: target)
+      {
+        result.append(FuzzAction(kind: .pause, delayMilliseconds: 1))
+        continue
+      }
       var next = state
       let action = state.matchingAppearanceLabel(original)
       var enablers: [FuzzAction] = []

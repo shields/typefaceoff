@@ -238,6 +238,23 @@ import Testing
         == Self.expected([Self.openMatch, closer, Self.openMatch, size]))
   }
 
+  @Test func aRecordedMenuItemThatOpensSystemUIBecomesAPause() {
+    let writingTools = FuzzAction(
+      kind: .press, target: "__NSTextViewContextSubmenuIdentifierWritingTools",
+      targetRole: "AXMenuItem")
+    let speech = FuzzAction(kind: .click, target: "Start Speaking", targetRole: "AXMenuItem")
+    let copy = FuzzAction(kind: .press, target: "_NS:23", targetRole: "AXMenuItem")
+    let button = FuzzAction(kind: .press, target: "Summarize", targetRole: "AXButton")
+    let repaired = Self.repaired([writingTools, copy, speech, button, Self.key(36)])
+    #expect(repaired.map(\.kind) == [.pause, .press, .pause, .press, .key])
+    #expect(repaired[1] == copy)
+    #expect(repaired[3] == button)
+    #expect(
+      Self.repaired([writingTools, writingTools], maximumActions: 2).map(\.kind) == [
+        .pause, .pause,
+      ])
+  }
+
   @Test func returnMayLeaveTheMatchSheetOpenSoTheNextRequirementDismissesItFirst() {
     let size = Self.press("Size")
     #expect(

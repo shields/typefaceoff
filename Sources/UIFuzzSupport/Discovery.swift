@@ -16,6 +16,8 @@ public struct DiscoveryCapture<Node: AccessibilityNode> {
 
   public var unlocated: Bool { modal.unlocated }
 
+  public var menuIsOpen: Bool { modal.rootRole == "AXMenu" }
+
   /// Menu shortcuts reach the workbench, so they are offered only when nothing modal is open and
   /// no overlay is unaccounted for.
   public var offersShortcuts: Bool { modal.root == nil && !modal.unlocated }

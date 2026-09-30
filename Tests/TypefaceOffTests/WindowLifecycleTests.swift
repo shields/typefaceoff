@@ -24,7 +24,7 @@ import Testing
     #expect(firstSize.stringValue == "22")
     #expect(!first.isRestorable)
     let undo = try #require(first.undoManager)
-    submit("44", to: firstSize)
+    try await submit("44", to: firstSize, in: first)
     try await settle(first) { undo.canUndo }
     first.makeFirstResponder(nil)
     #expect(firstSize.stringValue == "44")
@@ -101,10 +101,11 @@ import Testing
     #expect(NSApp.sendAction(action, to: window, from: item))
   }
 
-  private func submit(_ value: String, to field: NSTextField) {
-    field.window?.makeFirstResponder(field)
+  private func submit(_ value: String, to field: NSTextField, in window: NSWindow) async throws {
+    window.makeFirstResponder(field)
     field.currentEditor()?.string = value
     (field.currentEditor() as? NSTextView)?.didChangeText()
+    try await settle(window)
     field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
   }
 
@@ -117,11 +118,8 @@ import Testing
     _ window: NSWindow, until condition: () -> Bool,
     sourceLocation: SourceLocation = #_sourceLocation
   ) async throws {
-    let deadline = ContinuousClock.now + .seconds(10)
     try await settle(window)
-    while !condition(), ContinuousClock.now < deadline {
-      try await settle(window)
-    }
-    #expect(condition(), "Timed out after 10 seconds.", sourceLocation: sourceLocation)
+    try await waitUntil(
+      condition, step: { try await settle(window) }, sourceLocation: sourceLocation)
   }
 }

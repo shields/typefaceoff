@@ -252,11 +252,7 @@ import TypefaceCore
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(FindCharacterProbe(model: model))
     defer { host.window.close() }
-    try await host.settle {
-      host.elements.contains {
-        $0.accessibilityLabel?() == "Probe find character" && $0.isAccessibilityEnabled?() == true
-      }
-    }
+    try await host.settle { host.isEnabled("Probe find character") }
     try await host.press("Probe find character")
     try await host.settle { searchField(host) != nil }
     let search = try #require(searchField(host))

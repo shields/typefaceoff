@@ -275,7 +275,8 @@ import TypefaceCore
     let canvas = try await host.element("Glyph canvas")
     #expect(canvas.accessibilityLabel?()?.hasPrefix("U+037E GREEK QUESTION MARK.") == true)
     field.window?.makeFirstResponder(field)
-    field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+    let editor = try #require(field.currentEditor())
+    editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     try await host.settle()
     #expect(model.comparison.selectedScalars == ["\u{37E}"])
     model.updatePresentation {
@@ -296,7 +297,7 @@ import TypefaceCore
     let sizeField: () -> NSTextField? = {
       host.subviews.compactMap { $0 as? NSTextField }.first {
         $0.placeholderString == "Size" && $0.convert($0.bounds, to: host.view).minX > 246
-          && $0.convert($0.bounds, to: host.view).maxX < 1194
+          && $0.convert($0.bounds, to: host.view).maxX < host.view.bounds.width - 246
       }
     }
     try await host.settle(
@@ -429,9 +430,11 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     let inspectButton: () -> AnyObject? = {
-      (host.elements + host.hitElements).first {
-        ($0.accessibilityLabel?() ?? "").hasPrefix("Inspect U+")
+      func isRankedButton(_ element: AnyObject) -> Bool {
+        (element.accessibilityLabel?() ?? "").hasPrefix("Inspect U+")
       }
+      return host.elements.first(where: isRankedButton)
+        ?? host.hitElements.first(where: isRankedButton)
     }
     try await host.settle(
       until: { inspectButton() != nil }, describing: "no ranked character button")
@@ -509,12 +512,10 @@ import TypefaceCore
     until condition: () -> Bool, describing state: @autoclosure () -> String = "",
     sourceLocation: SourceLocation = #_sourceLocation
   ) async throws {
-    let deadline = ContinuousClock.now + .seconds(10)
     try await settle()
-    while !condition(), ContinuousClock.now < deadline {
-      try await settle()
-    }
-    #expect(condition(), "\(state())", sourceLocation: sourceLocation)
+    try await waitUntil(
+      condition, describing: state(), step: { try await self.settle() },
+      sourceLocation: sourceLocation)
   }
 
   func element(_ label: String) async throws -> AnyObject {
@@ -656,7 +657,10 @@ import TypefaceCore
     _ = matches[0].accessibilityPerformIncrement()
   }
 
-  func choose(_ label: String, nativeTitles: [String], item: String? = nil) async throws {
+  func choose(
+    _ label: String, nativeTitles: [String], item: String? = nil,
+    sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws {
     let pickers = subviews.compactMap { $0 as? NSPopUpButton }.filter {
       Set(nativeTitles).isSubset(of: Set($0.itemTitles))
     }
@@ -671,10 +675,11 @@ import TypefaceCore
     let control = try await element(label)
     let selection = WorkbenchTestMenuSelection(title: item)
     menuSelection = selection
-    #expect(control.accessibilityPerformPress?() == true)
+    #expect(control.accessibilityPerformPress?() == true, sourceLocation: sourceLocation)
     try await waitUntil(
-      { selection.completed }, describing: "Menu selection did not complete: \(label)")
-    try #require(selection.completed, "Menu selection did not complete: \(label)")
+      { selection.completed }, describing: "Menu selection did not complete: \(label)",
+      sourceLocation: sourceLocation)
+    try #require(selection.completed, sourceLocation: sourceLocation)
     // AppKit animates dismissal after the selection action and tracking loop end.
     try await Task.sleep(for: .milliseconds(350))
   }
@@ -694,7 +699,8 @@ import TypefaceCore
   func submit(_ value: String, to field: NSTextField) async throws {
     enter(value, in: field)
     try await settle()
-    field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+    let editor = try #require(field.currentEditor(), "The field is not being edited")
+    editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
   }
 
   private var contentRoots: [NSView] {
@@ -721,8 +727,7 @@ import TypefaceCore
     return result
   }
 
-  // A 15-point row falls between sample rows 16 points apart when the window sits at the wrong
-  // offset on the screen, as a disclosure header did on a 1024 by 768 display.
+  // A 15-point row can fall between sample rows 16 points apart.
   var finelySampledHitElements: [AnyObject] {
     contentRoots.flatMap { sampledHits(in: $0, rowStep: 4) }
   }

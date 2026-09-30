@@ -199,11 +199,11 @@ extension SimilarityModelTests {
         }
       }
       let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+      defer { host.window.close() }
       try await host.settle { fail ? fit.error != nil : (fit.result != nil && !fit.running) }
       #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
       #expect(model.comparison == comparison)
       if fail { #expect(fit.error != nil) }
-      host.window.close()
     }
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }

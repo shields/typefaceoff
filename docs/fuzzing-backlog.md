@@ -153,6 +153,80 @@ Follow-ups the branches surfaced:
   (`glyphButtonsAndCharacterEntrySelectTheRequestedGlyph` expected U+0022 after
   a candidate list that starts at U+0021) was changed.
 
+## Merged to main: wave 3
+
+- `fuzzfix/stderr-finding`. Anything the fuzzed app writes to stderr becomes a
+  `.correctness` finding with signature `app-stderr: <first distinct line>`
+  (timestamp, process name, pid, and thread stripped so it is stable across
+  runs); the detail counts the distinct lines, capped so a runaway logger cannot
+  bloat a report. A missing log is silence only when the app never emitted
+  telemetry; otherwise it is an `automation` finding named `stderr-log`. The
+  scan reads at most 4 MiB and says so when it truncates. A crash still yields
+  its crash finding plus an `app-stderr` finding when it wrote to stderr.
+  `StderrScan.allowedSubstrings` is the allowlist. Its `Runner.swift` hunk is
+  compile-checked only, and the `absentIsEmpty` rule lives there without a unit
+  test.
+- `fuzzfix/table-reentrancy` made no change, deliberately. The NSTableView
+  warning is SwiftUI's own `List` on macOS 27, not app code: the app has no
+  NSTableView delegate (`FontFamilyPicker.swift` and
+  `CharacterSearchPicker.swift` use `List(..., selection:)`), and a bare `List`
+  of `Text` rows with no selection or accessibility reproduces it. It fires when
+  a list is first populated with about 300 or more rows, and when a short list
+  grows past the viewport; shrinking and reordering never warn, and a
+  `ScrollView` with `LazyVStack` did not warn on presentation. In the fuzz run,
+  opening the roughly 700-family picker was warning one and the search field's
+  cancel button regrowing the emptied list was warning two. Nothing app-side can
+  be fixed short of replacing `List` in both pickers, which would be a large
+  change: the tests find the table through `host.subviews` and the fuzzer
+  targets the picker as an `AXOutline`.
+  - Decision: accept it for now, and allowlist that exact line in `StderrScan`
+    so runs that open a picker do not each produce a finding for something the
+    app cannot act on. New stderr text is still a finding, and if the warning
+    becomes an assert the resulting crash is a crash finding.
+  - Report it to Apple with Feedback Assistant: a 700-row SwiftUI `List` in a
+    popover or a plain window that toggles between one row and many rows
+    reproduces it with no selection, `ScrollViewReader`, or accessibility.
+  - Re-run the probe on each new Xcode or macOS release. If it becomes an
+    assert, both pickers crash on first open with a large family list, and
+    replacing `List` becomes necessary; keep a stderr-capture regression test
+    (`dup2` fd 2 onto a temp file around the interaction and assert that
+    "reentrant" does not appear) for that rewrite.
+  - Unverified: macOS 15 and 26, and whether `LazyVStack` clears it under filter
+    growth.
+
+## Smoke test of main at 153d978 (host, one minute, 2026-09-29)
+
+Nine executions (five exploration, four seed). Artifacts were in the worktree's
+`.build/smoke-ui-fuzz`.
+
+- Liveness works. Seed runs take about 1.4 s (5.5-6.9 s before). Duration minus
+  workload minus discovery is 1.0-1.4 s per run (5.2 s before). `quit-ms` has a
+  median of 50 ms. No run reported a crash.
+- Output capture works inside the LaunchServices-launched app: all nine runs
+  have `stdout.log` and `stderr.log`, created by the app.
+- Its first catch: run `649e2831` wrote
+  `WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.`
+  to stderr twice. The run's tail is font-picker interaction (press
+  `Font B family`, two `Search installed fonts` values, the search field's
+  cancel button). It turned out to be a SwiftUI `List` warning, not app code
+  (see wave 3 above).
+- Four of five exploration runs completed all 32 actions (36% did before). The
+  one abort was `Control not found: [0, 0, 20, 7]`, the tracking-edit case the
+  ranking change does not cover. Too few runs to call it a rate.
+- Three runs were force-quit after about 2 s: two ended with the Match sheet
+  open and one ended with a pop-up menu open (a press on
+  `Character Alternatives`). So any open menu or sheet holds up the polite quit,
+  which points at a driver artifact more than an app bug. Escape before the quit
+  would recover the 2 s, but it would also stop measuring this until the hand
+  check (Shift-Cmd-E, then Cmd-Q) settles whether users can quit with a sheet
+  open.
+- Exploration runs take 13-15 s in total, of which discovery is 2.1-6.0 s
+  (16-46%). Discovery cost is the largest throughput lever left; the resolver
+  rewrite touches the same code, so wait for it.
+- Not exercised: crash detection and crash reports (needs a real crash: kill
+  `TypefaceOff` with `-SEGV` mid-run) and the mutation model (mutation starts at
+  execution 37).
+
 ## Not started
 
 ### Startup self-test (judgment finding)
@@ -179,18 +253,18 @@ session is editing, so wait for it.
 
 ### Runtime warnings and the dead exit status (VB1, F2, remainder)
 
-App stdout/stderr and crash reports are captured (see wave 2 above). What
-remains: fuzz builds are release configurations, so debug-only SwiftUI runtime
-warnings may never appear (verify with a known-warning build), and whether
-`OS_ACTIVITY_DT_MODE=YES` routes `os_log` to stderr is untested; a post-run
+App stdout/stderr and crash reports are captured, and anything on stderr is now
+a finding (waves 2 and 3 above). What remains: fuzz builds are release
+configurations, so debug-only SwiftUI runtime warnings may never appear (verify
+with a known-warning build), and whether `OS_ACTIVITY_DT_MODE=YES` routes
+`os_log` to stderr is untested; a post-run
 `log show --predicate 'subsystem == "com.apple.runtime-issues"'` is the
-fallback. Warnings should become `.correctness` findings, not log lines. Scan
-`stderr.log` for `Fatal error` and runtime-issue text after each run. Output
-written before `FuzzDiagnostics.shared` is first touched is not captured; touch
-it early in `TypefaceOffApp.init`. The dead `ExecutionReport.exitStatus`
-(constant nil, never encoded) should be dropped or filled from the crash
-report's termination code; that touches `Trace.swift`, which the resolution
-session edits.
+fallback. Normalize hex addresses and other per-run numbers in stderr messages
+so their signatures stay stable. Output written before `FuzzDiagnostics.shared`
+is first touched is not captured; touch it early in `TypefaceOffApp.init`. The
+dead `ExecutionReport.exitStatus` (constant nil, never encoded) should be
+dropped or filled from the crash report's termination code; that touches
+`Trace.swift`, which the resolution session edits.
 
 ### The explorer is blind behind sheets (investigation, wave 2)
 

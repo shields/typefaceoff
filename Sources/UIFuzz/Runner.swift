@@ -354,6 +354,19 @@ final class SequenceRunner {
     where !findings.contains(where: { $0.kind == .correctness && $0.signature == failure }) {
       findings.append(ExecutionFinding(kind: .correctness, signature: failure, detail: failure))
     }
+    if launchedApplication != nil {
+      do {
+        if let stderrFinding = try StderrScan.finding(
+          logAt: runDirectory.appending(path: "stderr.log"), absentIsEmpty: telemetry.events == 0)
+        {
+          findings.append(stderrFinding)
+        }
+      } catch {
+        findings.append(
+          ExecutionFinding(
+            kind: .automation, signature: "stderr-log", detail: "Could not scan stderr: \(error)"))
+      }
+    }
     var metadata = machineMetadata()
     for (key, value) in initialSession.metadata { metadata["initial-\(key)"] = value }
     for (key, value) in finalSession.metadata { metadata["final-\(key)"] = value }

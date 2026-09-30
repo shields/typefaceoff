@@ -27,7 +27,6 @@ import Testing
     var scopeIndex: Int?
     var standardCount: Int
     var includes: [Bool]
-    var discoveryIncludes: [Bool]
     var description: String { name }
   }
 
@@ -36,49 +35,42 @@ import Testing
       Row(
         name: "focused window is the second of two",
         children: [standard(1), standard(2), menuBar(3)], focused: 2, source: .focused,
-        scopeIndex: 1, standardCount: 2, includes: [false, true, true],
-        discoveryIncludes: [false, true, true]),
+        scopeIndex: 1, standardCount: 2, includes: [false, true, true]),
       Row(
         name: "focused window is the first of two",
         children: [standard(1), standard(2), menuBar(3)], focused: 1, source: .focused,
-        scopeIndex: 0, standardCount: 2, includes: [true, false, true],
-        discoveryIncludes: [true, false, true]),
+        scopeIndex: 0, standardCount: 2, includes: [true, false, true]),
       Row(
         name: "no focus selects the front-most standard window",
         children: [floating(1), standard(2), standard(3), menuBar(4)], focused: nil,
-        source: .frontmost, scopeIndex: 1, standardCount: 2, includes: [true, true, false, true],
-        discoveryIncludes: [true, true, false, true]),
+        source: .frontmost, scopeIndex: 1, standardCount: 2, includes: [true, true, false, true]),
       Row(
-        name: "a focused popover hides the workbench from discovery but not from resolution",
+        name: "a focused popover keeps the front-most window in scope",
         children: [standard(1), popover(2), standard(3), menuBar(4)], focused: 2, source: .overlay,
-        scopeIndex: 0, standardCount: 2, includes: [true, true, false, true],
-        discoveryIncludes: [false, true, false, true]),
+        scopeIndex: 0, standardCount: 2, includes: [true, true, false, true]),
       Row(
-        name: "a focused sheet window that is not standard",
+        name: "a focused top-level window that is not standard",
         children: [standard(1), floating(2), menuBar(3)], focused: 2, source: .overlay,
-        scopeIndex: 0, standardCount: 1, includes: [true, true, true],
-        discoveryIncludes: [false, true, true]),
+        scopeIndex: 0, standardCount: 1, includes: [true, true, true]),
       Row(
         name: "focus on an element that is not a child",
         children: [standard(1), standard(2), menuBar(3)], focused: 99, source: .overlay,
-        scopeIndex: 0, standardCount: 2, includes: [true, false, true],
-        discoveryIncludes: [false, false, true]),
+        scopeIndex: 0, standardCount: 2, includes: [true, false, true]),
       Row(
         name: "an overlay with no standard window",
         children: [popover(1), menuBar(2)], focused: 1, source: .overlay, scopeIndex: nil,
-        standardCount: 0, includes: [true, true], discoveryIncludes: [true, true]),
+        standardCount: 0, includes: [true, true]),
       Row(
         name: "zero windows and no focus",
         children: [menuBar(1), floating(2)], focused: nil, source: .none, scopeIndex: nil,
-        standardCount: 0, includes: [true, true], discoveryIncludes: [true, true]),
+        standardCount: 0, includes: [true, true]),
       Row(
         name: "no children at all", children: [], focused: nil, source: .none, scopeIndex: nil,
-        standardCount: 0, includes: [], discoveryIncludes: []),
+        standardCount: 0, includes: []),
       Row(
         name: "non-standard windows are always included",
         children: [floating(1), standard(2), floating(3)], focused: 2, source: .focused,
-        scopeIndex: 1, standardCount: 1, includes: [true, true, true],
-        discoveryIncludes: [true, true, true]),
+        scopeIndex: 1, standardCount: 1, includes: [true, true, true]),
     ]
   }
 
@@ -91,9 +83,6 @@ import Testing
       #expect(
         row.children.enumerated().map { scope.includes(index: $0, child: $1) } == row.includes,
         "\(row)")
-      #expect(
-        row.children.enumerated().map { scope.discoveryIncludes(index: $0, child: $1) }
-          == row.discoveryIncludes, "\(row)")
     }
   }
 
@@ -113,9 +102,18 @@ import Testing
     #expect(try JSONDecoder().decode([WindowScopeSource].self, from: encoded) == [.overlay])
   }
 
+  @Test func focusLocationsAreStableStrings() throws {
+    #expect(
+      [FocusLocation.applicationChild, .scopeWindow, .otherChild, .notFound].map(\.rawValue)
+        == ["applicationChild", "scopeWindow", "otherChild", "notFound"])
+    let encoded = try JSONEncoder().encode([FocusLocation.scopeWindow])
+    #expect(try JSONDecoder().decode([FocusLocation].self, from: encoded) == [.scopeWindow])
+  }
+
   struct ModalRow: CustomStringConvertible {
     var name: String
     var elements: [(path: [Int], role: String)]
+    var focused: [Int]? = nil
     var modal: [Int]?
     var retained: [Int]
     var description: String { name }
@@ -162,6 +160,32 @@ import Testing
         elements: [([1], "AXWindow"), ([1, 0], "AXList"), ([0], "AXWindow")], modal: nil,
         retained: [0, 1, 2]),
       ModalRow(name: "no elements", elements: [], modal: nil, retained: []),
+      ModalRow(
+        name: "a focused overlay is the modal whatever its role",
+        elements: [([0], "AXWindow"), ([1], "AXGroup"), ([1, 0], "AXButton")], focused: [1],
+        modal: [1], retained: [1, 2]),
+      ModalRow(
+        name: "a focused overlay that is not offered itself is still the modal",
+        elements: [([0], "AXWindow"), ([1, 0], "AXButton"), ([2], "AXMenuBar")], focused: [1],
+        modal: [1], retained: [1]),
+      ModalRow(
+        name: "a focused overlay wins over an equally deep modal that comes first",
+        elements: [([0, 1], "AXPopover"), ([0, 2], "AXSheet"), ([0, 2, 0], "AXButton")],
+        focused: [0, 2], modal: [0, 2], retained: [1, 2]),
+      ModalRow(
+        name: "an open menu that is deeper than the focused sheet wins",
+        elements: [
+          ([0, 1], "AXSheet"), ([0, 1, 0], "AXButton"), ([2, 0, 0], "AXMenu"),
+          ([2, 0, 0, 3], "AXMenuItem"),
+        ],
+        focused: [0, 1], modal: [2, 0, 0], retained: [2, 3]),
+      ModalRow(
+        name: "depth decides between a focused overlay and a menu",
+        elements: [
+          ([0, 1, 2], "AXGroup"), ([0, 1, 2, 0], "AXButton"), ([2, 0], "AXMenu"),
+          ([2, 0, 1], "AXMenuItem"),
+        ],
+        focused: [0, 1, 2], modal: [0, 1, 2], retained: [0, 1]),
     ]
   }
 
@@ -169,10 +193,10 @@ import Testing
     for row in Self.modalRows {
       let paths = row.elements.map(\.path)
       let roles = row.elements.map(\.role)
-      #expect(ModalScope.select(paths: paths, roles: roles) == row.modal, "\(row)")
-      let retained = ModalScope.retained(paths: paths, roles: roles)
-      #expect(retained.modal == row.modal, "\(row)")
-      #expect(retained.indices == row.retained, "\(row)")
+      let modal = ModalScope.select(paths: paths, roles: roles, focused: row.focused)
+      #expect(modal == row.modal, "\(row)")
+      let selection = ModalSelection(root: modal)
+      #expect(paths.indices.filter { selection.contains(paths[$0]) } == row.retained, "\(row)")
     }
   }
 }

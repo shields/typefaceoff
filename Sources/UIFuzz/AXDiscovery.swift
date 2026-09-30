@@ -1,15 +1,6 @@
 import ApplicationServices
-import CoreGraphics
 import Foundation
 import UIFuzzSupport
-
-private struct VisibleElement {
-  var node: AXNode
-  var path: [Int]
-  var role: String
-
-  var element: AXUIElement { node.element }
-}
 
 struct DiscoveryStats {
   var elements: Int
@@ -17,23 +8,28 @@ struct DiscoveryStats {
   var windows: Int
   var scope: WindowScopeSource
   var readErrors: Int
+  var focusedRole: String?
+  var focusedSubrole: String?
+  var focusLocation: FocusLocation?
+  var modalRole: String?
+  var modalDepth: Int?
 }
 
 extension AXDriver {
   func availableActions(observe: (DiscoveryStats) -> Void) -> [FuzzAction] {
     let reads = AXReads()
     let application = AXNode(self.application, reads: reads)
-    let topLevel = application.children.map {
-      TopLevelChild(identity: $0.identity, role: $0.role, subrole: $0.subrole)
-    }
-    let scope = WindowScope(children: topLevel, focused: application.focusedWindow())
-    let offered = visibleElements(of: application, topLevel: topLevel, scope: scope)
-    // Sheets, popovers, and open menus receive input before the workbench behind them.
-    let retained = ModalScope.retained(paths: offered.map(\.path), roles: offered.map(\.role))
-    let elements = retained.indices.map { offered[$0] }
-    var result = ActionExplorer.keyboardActions(includeShortcuts: retained.modal == nil)
-    for node in elements {
-      let element = node.element
+    var focused: AXIdentity?
+    let capture = Discovery.capture(
+      application: application,
+      focusedWindow: {
+        focused = application.focusedWindow()
+        return focused
+      })
+    let focusedNode = focused.map { AXNode($0.element, reads: reads) }
+    var result = ActionExplorer.keyboardActions(includeShortcuts: capture.offersShortcuts)
+    for node in capture.elements {
+      let element = node.node.element
       let target = node.node.discoveryTarget
       var supported: CFArray?
       AXUIElementCopyActionNames(element, &supported)
@@ -76,30 +72,10 @@ extension AXDriver {
     }
     observe(
       DiscoveryStats(
-        elements: elements.count, windows: scope.standardWindowCount, scope: scope.source,
-        readErrors: reads.errors))
-    return result
-  }
-
-  private func visibleElements(
-    of application: AXNode, topLevel: [TopLevelChild<AXIdentity>], scope: WindowScope<AXIdentity>
-  ) -> [VisibleElement] {
-    var pending: [(AXNode, [Int], CGRect?)] = [(application, [], nil)]
-    var visited = Set<AXIdentity>()
-    var result: [VisibleElement] = []
-    while let (node, path, parentClip) = pending.popLast(), visited.count < 10_000 {
-      guard visited.insert(node.identity).inserted,
-        case .keep(let emits, let clip) = VisibilityRules.disposition(
-          node.visibilityInput, parentClip: parentClip)
-      else { continue }
-      if emits { result.append(VisibleElement(node: node, path: path, role: node.role)) }
-      for (index, child) in node.children.enumerated().reversed() {
-        if path.isEmpty, !scope.discoveryIncludes(index: index, child: topLevel[index]) {
-          continue
-        }
-        pending.append((child, path + [index], clip))
-      }
-    }
+        elements: capture.elements.count, windows: capture.scope.standardWindowCount,
+        scope: capture.scope.source, readErrors: reads.errors, focusedRole: focusedNode?.role,
+        focusedSubrole: focusedNode?.subrole, focusLocation: capture.modal.focus,
+        modalRole: capture.modal.rootRole, modalDepth: capture.modal.root?.count))
     return result
   }
 }

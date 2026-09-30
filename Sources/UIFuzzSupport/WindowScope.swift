@@ -16,7 +16,8 @@ public enum WindowScopeSource: String, Codable, Sendable {
   case focused
   /// No window has focus, so the first standard window in `AXChildren` order (the front-most) is used.
   case frontmost
-  /// A window that is not a standard child (a popover or sheet) has focus.
+  /// The focused window is not a standard top-level child: a sheet or popover, which the tree may
+  /// nest inside a window or list beside it.
   case overlay
   case none
 }
@@ -46,22 +47,46 @@ public struct WindowScope<Identity: Hashable> {
     }
   }
 
-  /// Resolution and dumps: false only for standard windows other than the scope window. With an
-  /// overlay focused the scope is the overlay subtree plus the front-most standard window.
+  /// Resolution, discovery, and dumps: false only for standard windows other than the scope
+  /// window. With an overlay focused the scope is the front-most standard window plus every
+  /// non-standard child; `ModalScope` then narrows what discovery offers.
   public func includes(index: Int, child: TopLevelChild<Identity>) -> Bool {
     !Self.isStandardWindow(role: child.role, subrole: child.subrole) || index == scopeIndex
-  }
-
-  /// Discovery: an overlay hides every standard window behind it, because a popover or sheet
-  /// receives input before the workbench.
-  public func discoveryIncludes(index: Int, child: TopLevelChild<Identity>) -> Bool {
-    !Self.isStandardWindow(role: child.role, subrole: child.subrole)
-      || (source != .overlay && index == scopeIndex)
   }
 
   public static func isStandardWindow(role: String?, subrole: String?) -> Bool {
     role == "AXWindow" && subrole == "AXStandardWindow"
   }
+}
+
+/// Where the window that holds focus sits among the nodes discovery traversed. The driver log
+/// records it so a run shows whether the accessibility tree nests a sheet inside its window
+/// (`scopeWindow`) or lists it beside the windows (`applicationChild`).
+public enum FocusLocation: String, Codable, Sendable {
+  case applicationChild
+  case scopeWindow
+  /// Inside a non-standard top-level child, such as a floating window.
+  case otherChild
+  case notFound
+}
+
+/// A node that discovery traversed and did not prune.
+struct ModalCandidate<Identity: Hashable> {
+  var identity: Identity
+  var path: [Int]
+  var role: String
+  /// Whether discovery offers the node itself.
+  var offered: Bool
+}
+
+public struct ModalSelection: Equatable, Sendable {
+  /// Nil when no window has focus.
+  public var focus: FocusLocation?
+  /// The path of the overlay whose subtree discovery offers, or nil when nothing is modal.
+  public var root: [Int]?
+  public var rootRole: String?
+
+  public func contains(_ path: [Int]) -> Bool { root.map { path.starts(with: $0) } ?? true }
 }
 
 /// Sheets, popovers, and open menus receive input before the workbench behind them.
@@ -70,17 +95,42 @@ public enum ModalScope {
 
   /// The path of the deepest sheet, popover, or menu (the first when several are equally deep), or
   /// nil when none is open. `paths[i]` is the path of the element with role `roles[i]`.
-  public static func select(paths: [[Int]], roles elementRoles: [String]) -> [Int]? {
-    paths.indices.filter { roles.contains(elementRoles[$0]) }
+  ///
+  /// `focused` is the path of an overlay that holds focus. Whatever its role, it is a candidate,
+  /// and it wins ties.
+  public static func select(
+    paths: [[Int]], roles elementRoles: [String], focused: [Int]? = nil
+  ) -> [Int]? {
+    let deepest = paths.indices.filter { roles.contains(elementRoles[$0]) }
       .max { paths[$0].count < paths[$1].count }
       .map { paths[$0] }
+    guard let focused else { return deepest }
+    guard let deepest, deepest.count > focused.count else { return focused }
+    return deepest
   }
 
-  public static func retained(paths: [[Int]], roles elementRoles: [String]) -> (
-    modal: [Int]?, indices: [Int]
-  ) {
-    let modal = select(paths: paths, roles: elementRoles)
-    guard let modal else { return (nil, Array(paths.indices)) }
-    return (modal, paths.indices.filter { paths[$0].starts(with: modal) })
+  /// The one rule that discovery and tree dumps share. Only a focused overlay, which is not a
+  /// standard top-level child, can be the root by focus: a focused standard window is the scope,
+  /// not a modal. The holder is looked up among every traversed node, because an overlay that has
+  /// focus is modal even when discovery would not offer the overlay itself.
+  static func selection<Identity: Hashable>(
+    scope: WindowScope<Identity>, focused: Identity?, traversed: [ModalCandidate<Identity>]
+  ) -> ModalSelection {
+    let holder = focused.flatMap { identity in traversed.first { $0.identity == identity } }
+    let offered = traversed.filter(\.offered)
+    let root = select(
+      paths: offered.map(\.path), roles: offered.map(\.role),
+      focused: scope.source == .overlay ? holder?.path : nil)
+    return ModalSelection(
+      focus: focused == nil ? nil : location(of: holder, in: scope), root: root,
+      rootRole: root.flatMap { root in traversed.first { $0.path == root }?.role })
+  }
+
+  private static func location<Identity: Hashable>(
+    of holder: ModalCandidate<Identity>?, in scope: WindowScope<Identity>
+  ) -> FocusLocation {
+    guard let holder else { return .notFound }
+    if holder.path.count == 1 { return .applicationChild }
+    return holder.path[0] == scope.scopeIndex ? .scopeWindow : .otherChild
   }
 }

@@ -270,9 +270,9 @@ value, press Apply) like `selectFont` (`AXDriver.swift`), so `mutate()`,
 `constrained()`, and `TraceReducer` cannot split it. `constrained()`
 (`Generation.swift:139-150`) must bound the new action or `--max-text-units` is
 bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the merged
-resolver rewrote; no longer blocked, but re-read them first. Note that
-`WindowScope` now makes an open editor sheet the active scope, so the compound
-action may simplify.
+resolver rewrote; no longer blocked, but re-read them first. Note that discovery
+now offers only an open editor sheet's controls (not yet seen in a live run), so
+the compound action may simplify.
 
 ### Runtime warnings and the dead exit status (VB1, F2, remainder)
 
@@ -291,11 +291,29 @@ dropped or filled from the crash report's termination code; that touches
 
 ### The explorer is blind behind sheets (investigation, wave 2)
 
-Status: likely fixed by the merged `WindowScope`, which treats a sheet, popover,
-or open menu as the active scope ("an overlay hides every standard window behind
-it"). Not verified in a run. Check on the next smoke test or campaign that
-actions land inside sheets (presses of `Apply`, `Cancel`, `Refine`, `Stop`, and
-values in the editor field), which were zero in 536 exploration runs before.
+Status: fixed in code, not yet seen in a live run. The merged `WindowScope` did
+not fix it. In the one-minute host smoke test of `4425485` (2026-09-29,
+`.build/smoke2-ui-fuzz`), every `discover` event with the Match sheet open
+reported scope `overlay` with 1-12 elements, all menu-bar items and their menu
+items, and no action targeted a sheet control (25 of 32 actions in run
+`3bf4737e`, 22 of 32 in `5d51a6cd`). The cause, read from the code because the
+live tree has not been dumped, was `WindowScope.discoveryIncludes`: with a sheet
+up `AXFocusedWindow` is evidently not a standard top-level child, so discovery
+dropped the standard window, and the sheet nested inside it, and kept only the
+menu bar. Discovery now walks the scope window and every non-standard top-level
+child. When the focused overlay is found in that walk, its subtree is the modal
+root, whether the tree nests it in the window or lists it beside it. A sheet,
+popover, or open menu that does not hold focus still narrows by role; the
+deepest candidate wins and the focused one wins ties. Only the modal root's
+controls are offered, plus plain keys (Escape included) and no shortcuts.
+Discovery and `TreeDump` share `ModalScope.selection`, and resolution shares
+`WindowScope`. Each `discover` event in `driver.jsonl` now records
+`focusedRole`, `focusedSubrole`, `focusLocation`, `modalRole`, and `modalDepth`,
+so the next live run shows the real shape. Check on it that actions land inside
+sheets (presses of `Apply`, `Cancel`, `Refine`, `Stop`, and values in the editor
+field), which were zero in 536 exploration runs before. Discovery under a sheet
+now walks the whole window, which took 90-110 ms in the smoke test's discovers
+with no sheet, where it took 5-17 ms.
 
 146 of 536 exploration runs opened the Match sheet or the custom-text editor
 (Shift-Cmd-M, Shift-Cmd-E, or a press on `Match...` or `Edit text`). Between
@@ -307,15 +325,9 @@ of `Apply`, `Cancel`, `Refine`, or `Stop`. Shortcuts are offered only when no
 modal is detected, and 315 were offered while a sheet was up, so the sheet is
 not detected as modal.
 
-Suspected cause (unverified): `AXDiscovery.visibleElements` skips any
-`AXStandardWindow` that is not `kAXFocusedWindow`, and while a sheet is up the
-focused window may be the sheet, so the workbench window and the sheet it owns
-are both dropped. Minimal fix: treat a focused `AXSheet` as belonging to its
-parent window, and skip a standard window only when it is neither the focused
-window nor the parent of the focused sheet. Fold this into the resolution
-session's `WindowScope`. Also dump each menu item's `AXEnabled` and `AXFrame`
-when a menu is detected but nothing is offered, and add a FuzzDiagnostics
-`sheet` event (kind, open or closed) so analysis needs no reconstruction.
+Still open: dump each menu item's `AXEnabled` and `AXFrame` when a menu is
+detected but nothing is offered, and add a FuzzDiagnostics `sheet` event (kind,
+open or closed) so analysis needs no reconstruction.
 
 Consequence for the menu: every menu-bar press in exploration happened with a
 sheet up, and the app deliberately disables all workbench commands then

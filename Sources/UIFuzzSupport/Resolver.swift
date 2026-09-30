@@ -176,8 +176,7 @@ public final class AccessibilityResolver<Node: AccessibilityNode> {
     return .ambiguous(matches: candidates.count, offered: offered.count)
   }
 
-  /// Discovery's visibility rules along the ancestor chain; overlay hiding and modal scope are not
-  /// applied.
+  /// Discovery's visibility rules along the ancestor chain; modal scope is not applied.
   private func isOffered(_ slot: Int, visited: [Node], parents: [Int?]) -> Bool {
     var ancestors: [Int] = []
     var cursor = parents[slot]

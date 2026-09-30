@@ -18,6 +18,18 @@ public struct DiscoveryCapture<Node: AccessibilityNode> {
   public var offersShortcuts: Bool { modal.root == nil }
 }
 
+extension FuzzAction.Sheet {
+  /// The sheet that a modal root of role `rootRole` holds, told apart by a control that only it
+  /// has. `targets` are the names of the controls discovery offered inside the root. The Match
+  /// sheet's icon-only close button is named by its label or by its symbol.
+  public static func identify(rootRole: String?, targets: [String?]) -> Self? {
+    guard rootRole == "AXSheet" else { return nil }
+    let names = Set(targets.compactMap { $0 })
+    if !names.isDisjoint(with: ["Cancel matching", "xmark.circle.fill"]) { return .match }
+    return names.contains("Custom specimen text") ? .editor : nil
+  }
+}
+
 public enum Discovery {
   public static let nodeLimit = 10_000
 

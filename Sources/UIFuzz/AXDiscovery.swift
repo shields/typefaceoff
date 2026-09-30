@@ -28,6 +28,8 @@ extension AXDriver {
       })
     let focusedNode = focused.map { AXNode($0.element, reads: reads) }
     var result = ActionExplorer.keyboardActions(includeShortcuts: capture.offersShortcuts)
+    let sheet = FuzzAction.Sheet.identify(
+      rootRole: capture.modal.rootRole, targets: capture.elements.map { $0.node.discoveryTarget })
     for node in capture.elements {
       let element = node.node.element
       let target = node.node.discoveryTarget
@@ -67,7 +69,8 @@ extension AXDriver {
           commitValue: $0 == .setValue
             ? node.role != "AXTextArea"
               && !["Search installed fonts", "Search Unicode characters"].contains(target)
-            : nil)
+            : nil,
+          sheet: sheet)
       }
     }
     observe(

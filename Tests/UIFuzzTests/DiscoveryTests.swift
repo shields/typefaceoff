@@ -267,6 +267,53 @@ import Testing
     }
   }
 
+  @Test func aSheetIsIdentifiedByTheControlsOnlyItHas() {
+    let cases: [([String], FuzzAction.Sheet?)] = [
+      (["Cancel matching", "Cancel", "Apply"], .match),
+      (["xmark.circle.fill", "Cancel", "Apply"], .match),
+      (["Custom specimen text", "Cancel", "Apply"], .editor),
+      (["Cancel", "Apply"], nil),
+    ]
+    for (names, expected) in cases {
+      let sheet = world.node(
+        "AXSheet", name: "Sheet", frame: Self.sheetFrame,
+        children: names.map { button($0, at: Self.insideSheet) })
+      let application = world.application([
+        world.window(name: "Workbench", children: [workbench(), sheet]), menuBar(),
+      ])
+      let capture = discover(application, focused: sheet)
+      #expect(
+        FuzzAction.Sheet.identify(
+          rootRole: capture.modal.rootRole,
+          targets: capture.elements.map { $0.node.fakeAttributes.discoveryTarget })
+          == expected, "\(names)")
+    }
+  }
+
+  @Test func onlyASheetOverlayIsTaggedWithASheet() {
+    let popover = world.node(
+      "AXPopover", name: "Popover", frame: Self.panelFrame,
+      children: [button("Cancel matching", at: Self.insidePanel)])
+    let application = world.application([
+      world.window(name: "Workbench", children: [workbench(), popover]), menuBar(),
+    ])
+    let capture = discover(application, focused: popover)
+    #expect(capture.modal.rootRole == "AXPopover")
+    let targets = capture.elements.map { $0.node.fakeAttributes.discoveryTarget }
+    #expect(targets.contains("Cancel matching"))
+    #expect(FuzzAction.Sheet.identify(rootRole: capture.modal.rootRole, targets: targets) == nil)
+
+    let window = world.window(
+      name: "Workbench", children: [workbench(), button("Custom specimen text")])
+    let plain = discover(world.application([window, menuBar()]), focused: window)
+    #expect(plain.modal.rootRole == nil)
+    #expect(
+      FuzzAction.Sheet.identify(
+        rootRole: plain.modal.rootRole,
+        targets: plain.elements.map { $0.node.fakeAttributes.discoveryTarget }) == nil)
+    #expect(FuzzAction.Sheet.identify(rootRole: "AXSheet", targets: [nil, "Apply"]) == nil)
+  }
+
   @Test func escapeStaysAvailableWhenShortcutsAreWithheld() {
     let keys = ActionExplorer.keyboardActions(includeShortcuts: false)
     #expect(keys.contains { $0.kind == .key && $0.keyCode == 53 })

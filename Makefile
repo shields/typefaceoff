@@ -5,6 +5,9 @@ XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug 
 XCODE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme TypefaceOff -derivedDataPath .build/xcode
 PORTABLE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme PortableTests -derivedDataPath .build/portable
 PORTABLE_TESTS = .build/portable-tests.tar
+PORTABLE_RUNTIME = .build/portable-runtime.tar
+PORTABLE_SUPPORT = .build/support.tar
+RUNTIME ?= none
 RAW_FUZZ_TOOL = .build/fuzz-tool/debug/ui-fuzz
 FUZZ_DRIVER_APP = .build/fuzz-driver/UIFuzzDriver.app
 FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff.app
@@ -21,7 +24,7 @@ STARTUP_RUNS ?= 7
 STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
 
-.PHONY: build project run test test-app build-for-testing test-without-building coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
+.PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 
 project:
 	xcodegen generate --spec project.yml
@@ -41,22 +44,67 @@ test-app: project
 	rm -rf .build/xcode/Build/ProfileData
 	./scripts/test-app.sh $(XCODE_FLAGS) test
 
-# CI builds these once and runs them on macOS versions too old for this Xcode.
+# CI builds these once and runs them on other macOS versions, some too old for this Xcode.
 build-for-testing: project
-	rm -rf .build/portable/Build/Products
+	rm -rf .build/portable/Build/Products .build/portable-runtime
 	xcodebuild $(PORTABLE_FLAGS) build-for-testing
-	# Test processes search the products directory first, so an older Xcode
-	# runs these bundles with the Swift Testing runtime they were built against.
-	# Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR when it's set.
-	ditto "$$(xcode-select -p)/../SharedFrameworks/Testing.framework" .build/portable/Build/Products/Debug/Testing.framework
-	ditto "$$(xcode-select -p)/../SharedFrameworks/lib_TestingInterop.dylib" .build/portable/Build/Products/Debug/lib_TestingInterop.dylib
 	tar -cf $(PORTABLE_TESTS) -C .build/portable/Build Products
+	# The Xcode that built the bundles also stages its Swift Testing runtime.
+	# Test processes search the products directory first, so
+	# test-without-building can run the bundles against it instead of the older
+	# Xcode's. Like xcodebuild, `xcode-select -p` reports DEVELOPER_DIR when it's
+	# set.
+	mkdir -p .build/portable-runtime/testing
+	set -e; \
+	shared="$$(xcode-select -p)/../SharedFrameworks"; \
+	ditto "$$shared/Testing.framework" .build/portable-runtime/testing/Testing.framework; \
+	ditto "$$shared/lib_TestingInterop.dylib" .build/portable-runtime/testing/lib_TestingInterop.dylib; \
+	for overlay in "$$shared"/_Testing_*.framework; do \
+		ditto "$$overlay" ".build/portable-runtime/testing/$$(basename "$$overlay")"; \
+	done
+	tar -cf $(PORTABLE_RUNTIME) -C .build portable-runtime
+
+# Stages the running Xcode's XCTest support library and XCTestCore. An older
+# Xcode's support library needs Testing symbols that the bundles' Testing lacks,
+# and a newer one needs an XCTestCore that the older Xcode lacks, so a job with
+# the older Xcode runs the bundles with RUNTIME=support and these from a newer
+# Xcode.
+stage-support:
+	rm -rf .build/support
+	mkdir -p .build/support
+	set -e; \
+	developer="$$(xcode-select -p)"; \
+	ditto "$$developer/Platforms/MacOSX.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib" .build/support/libXCTestSwiftSupport.dylib; \
+	ditto "$$developer/../SharedFrameworks/XCTestCore.framework" .build/support/XCTestCore.framework
+	tar -cf $(PORTABLE_SUPPORT) -C .build support
 
 test-without-building:
 	rm -rf .build/portable-run
 	mkdir -p .build/portable-run
 	tar -xf $(PORTABLE_TESTS) -C .build/portable-run
+	set -e; \
+	case "$(RUNTIME)" in \
+		none) ;; \
+		testing) \
+			tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
+			ditto .build/portable-run/portable-runtime/testing .build/portable-run/Products/Debug ;; \
+		support) \
+			tar -xf $(PORTABLE_RUNTIME) -C .build/portable-run; \
+			tar -xf $(PORTABLE_SUPPORT) -C .build/portable-run; \
+			ditto .build/portable-run/portable-runtime/testing .build/portable-run/Products/Debug; \
+			ditto .build/portable-run/support .build/portable-run/Products/Debug ;; \
+		*) echo "Unknown RUNTIME $(RUNTIME)" >&2; exit 1 ;; \
+	esac
 	./scripts/test-app.sh -quiet -destination 'platform=macOS' -parallel-testing-enabled NO -xctestrun .build/portable-run/Products/*.xctestrun test-without-building
+
+# Launches the app from the portable tests and requires it to keep running, so
+# an older macOS checks the binary itself without a test runner.
+smoke-launch:
+	rm -rf .build/portable-smoke
+	mkdir -p .build/portable-smoke
+	# bsdtar extracts everything under a directory that the command line names.
+	tar -xf $(PORTABLE_TESTS) -C .build/portable-smoke Products/Debug/TypefaceOff.app
+	./scripts/smoke-launch.sh .build/portable-smoke/Products/Debug/TypefaceOff.app
 
 coverage: test
 	./scripts/coverage.sh $(SWIFT_FLAGS)

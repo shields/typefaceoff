@@ -9,6 +9,16 @@ if test "$status" -ne 0 && test -d "$result"; then
     xcrun xcresulttool get test-results summary --path "$result" || true
 fi
 if test "$status" -eq 0; then
+    # A test runner that cannot load the Swift Testing tests runs none and still succeeds.
+    # Captured on its own so that set -e stops when xcresulttool fails; in a pipeline only jq's
+    # status counts.
+    summary=$(xcrun xcresulttool get test-results summary --path "$result")
+    if ! printf '%s' "$summary" | jq -e '.totalTestCount > 0' >/dev/null; then
+        echo "No tests ran." >&2
+        status=1
+    fi
+fi
+if test "$status" -eq 0; then
     # SwiftUI reports misuse, such as publishing changes during a view update, only as runtime
     # warnings, which leave the tests passing.
     warnings=$(xcrun xcresulttool get test-results tests --path "$result" | jq -r '

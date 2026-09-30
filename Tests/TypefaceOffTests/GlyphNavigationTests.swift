@@ -23,28 +23,31 @@ import TypefaceCore
           showText: {}, focusChanged: { focused = $0 }))
     window.contentView = view
     window.orderFront(nil)
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitUntil {
+      view.layoutSubtreeIfNeeded()
+      return descendant(GlyphDrawingView.self, in: view) != nil
+    }
     let canvas = try #require(descendant(GlyphDrawingView.self, in: view))
     canvas.requestFocus(UUID())
-    try await Task.sleep(for: .milliseconds(50))
+    try await waitUntil { focused && canvas.hasKeyboardFocus }
     #expect(canvas.hasKeyboardFocus)
     #expect(focused)
     let bitmap = try #require(canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds))
     canvas.cacheDisplay(in: canvas.bounds, to: bitmap)
     let field = try #require(textFields(in: view).first { $0.isEditable })
     window.makeFirstResponder(field)
-    try await Task.sleep(for: .milliseconds(50))
+    try await waitUntil { !focused && !canvas.hasKeyboardFocus }
     #expect(!canvas.hasKeyboardFocus)
     #expect(!focused)
     canvas.requestFocus(UUID())
-    try await Task.sleep(for: .milliseconds(50))
+    try await waitUntil { focused }
     #expect(focused)
     window.setKey(false)
-    try await Task.sleep(for: .milliseconds(50))
+    try await waitUntil { !focused && !canvas.hasKeyboardFocus }
     #expect(!focused)
     #expect(!canvas.hasKeyboardFocus)
     window.setKey(true)
-    try await Task.sleep(for: .milliseconds(50))
+    try await waitUntil { focused && canvas.hasKeyboardFocus }
     #expect(focused)
     #expect(canvas.hasKeyboardFocus)
   }
@@ -64,6 +67,10 @@ import TypefaceCore
       rootView: WorkbenchView(model: model).environment(\.appearsActive, true))
     window.contentView = host
     window.orderFront(nil)
+    try await waitUntil {
+      host.layoutSubtreeIfNeeded()
+      return descendant(GlyphDrawingView.self, in: host) != nil
+    }
     try await Task.sleep(for: .milliseconds(300))
     let canvas = try #require(descendant(GlyphDrawingView.self, in: host))
     let frame = canvas.convert(canvas.bounds, to: host)
@@ -85,10 +92,17 @@ import TypefaceCore
     let host = NSHostingView(rootView: WorkbenchView(model: model))
     window.contentView = host
     window.makeKeyAndOrderFront(nil)
-    try await Task.sleep(for: .milliseconds(600))
+    try await waitUntil {
+      host.layoutSubtreeIfNeeded()
+      return descendant(SpecimenNSTextView.self, in: host) != nil
+    }
     let specimen = try #require(descendant(SpecimenNSTextView.self, in: host))
     specimen.select("a")
-    try await Task.sleep(for: .milliseconds(200))
+    try await waitUntil {
+      host.layoutSubtreeIfNeeded()
+      let canvas = descendant(GlyphDrawingView.self, in: host)
+      return model.comparison.mode == .glyph && canvas != nil && window.firstResponder === canvas
+    }
     #expect(model.comparison.selectedGlyph == "a")
     let right = try #require(
       NSEvent.keyEvent(
@@ -97,7 +111,13 @@ import TypefaceCore
         characters: "\u{F703}", charactersIgnoringModifiers: "\u{F703}", isARepeat: false,
         keyCode: 124))
     window.sendEvent(right)
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil {
+      host.layoutSubtreeIfNeeded()
+      return model.comparison.selectedGlyph != "a"
+        && textFields(in: host).contains {
+          $0.isEditable && $0.stringValue == model.comparison.selectedGlyph
+        }
+    }
     #expect(model.comparison.selectedGlyph != "a")
     let current = model.comparison.selectedGlyph
     let field = try #require(
@@ -111,7 +131,7 @@ import TypefaceCore
     let canvas = try #require(descendant(GlyphDrawingView.self, in: host))
     canvas.requestFocus(UUID())
     window.sendEvent(right)
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil { model.comparison.selectedGlyph != current }
     #expect(model.comparison.selectedGlyph != current)
   }
 
@@ -120,10 +140,12 @@ import TypefaceCore
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { descendant(SpecimenNSTextView.self, in: host.view) != nil }
     let specimen = try #require(descendant(SpecimenNSTextView.self, in: host.view))
     specimen.select("g")
-    try await host.settle()
+    try await host.settle {
+      model.comparison.mode == .glyph && descendant(GlyphDrawingView.self, in: host.view) != nil
+    }
     let canvas = try #require(descendant(GlyphDrawingView.self, in: host.view))
     #expect(model.comparison.mode == .glyph)
     if accessibility {
@@ -136,7 +158,10 @@ import TypefaceCore
           clickCount: 1, pressure: 1))
       canvas.mouseDown(with: event)
     }
-    try await host.settle()
+    try await host.settle {
+      model.comparison.mode == .text && model.comparison.selectedGlyph == "g"
+        && descendant(SpecimenNSTextView.self, in: host.view) != nil
+    }
     #expect(model.comparison.mode == .text)
     #expect(model.comparison.selectedGlyph == "g")
     #expect(descendant(SpecimenNSTextView.self, in: host.view) != nil)

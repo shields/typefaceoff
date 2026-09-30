@@ -69,7 +69,7 @@ import TypefaceCore
     let host = NSHostingView(rootView: WorkbenchView(model: model))
     window.contentView = host
     window.orderFront(nil)
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitUntil { longSpecimensAreLaidOut(in: host) }
     host.layoutSubtreeIfNeeded()
     let original = specimens(in: host)
     #expect(original.count == 2)
@@ -79,11 +79,14 @@ import TypefaceCore
     scroll(a, to: 0.4)
     #expect(abs(progress(b) - 0.4) < 0.001)
     original.first?.select("x")
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil { model.comparison.mode == .glyph && laidOutSpecimens(in: host).isEmpty }
     #expect(model.comparison.mode == .glyph)
     #expect(specimens(in: host).isEmpty)
     model.edit("Return to text", undoManager: nil) { $0.mode = .text }
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitUntil {
+      let now = laidOutSpecimens(in: host)
+      return now.count == 2 && positioned(now, at: 0.4)
+    }
     host.layoutSubtreeIfNeeded()
     let restored = specimens(in: host)
     #expect(restored.count == 2)
@@ -91,18 +94,30 @@ import TypefaceCore
       let scroll = try #require(specimen.enclosingScrollView)
       #expect(abs(progress(scroll) - 0.4) < 0.001)
     }
+    let sizeBefore = try #require(fontSize(of: restored.last))
     model.edit("Resize type", undoManager: nil) { $0.b?.size = 18 }
     window.setContentSize(NSSize(width: 1250, height: 650))
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitUntil {
+      let now = laidOutSpecimens(in: host)
+      let size = fontSize(of: now.last)
+      return now.count == 2 && size != nil && size != sizeBefore && positioned(now, at: 0.4)
+    }
     host.layoutSubtreeIfNeeded()
     for specimen in specimens(in: host) {
       let scroll = try #require(specimen.enclosingScrollView)
       #expect(abs(progress(scroll) - 0.4) < 0.001)
     }
+    let customTexts = restored.map(\.string)
     model.edit("Change sample", undoManager: nil) { $0.sample = .reading }
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil {
+      let now = laidOutSpecimens(in: host)
+      return now.count == 2 && now.allSatisfy { !customTexts.contains($0.string) } && atTop(now)
+    }
     model.edit("Restore custom sample", undoManager: nil) { $0.sample = .custom }
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil {
+      let now = laidOutSpecimens(in: host)
+      return now.count == 2 && now.allSatisfy { customTexts.contains($0.string) } && atTop(now)
+    }
     host.layoutSubtreeIfNeeded()
     for specimen in specimens(in: host) {
       #expect(try #require(specimen.enclosingScrollView).contentView.bounds.minY == 0)
@@ -112,7 +127,10 @@ import TypefaceCore
     model.edit("Edit sample", undoManager: nil) {
       $0.customText = String(repeating: "A different long specimen.\n", count: 100)
     }
-    try await Task.sleep(for: .milliseconds(100))
+    try await waitUntil {
+      let now = laidOutSpecimens(in: host)
+      return now.count == 2 && now.allSatisfy { !customTexts.contains($0.string) } && atTop(now)
+    }
     host.layoutSubtreeIfNeeded()
     for specimen in specimens(in: host) {
       #expect(try #require(specimen.enclosingScrollView).contentView.bounds.minY == 0)
@@ -140,6 +158,33 @@ import TypefaceCore
   private func specimens(in view: NSView) -> [SpecimenNSTextView] {
     if let specimen = view as? SpecimenNSTextView { return [specimen] }
     return view.subviews.flatMap { specimens(in: $0) }
+  }
+
+  private func laidOutSpecimens(in host: NSView) -> [SpecimenNSTextView] {
+    host.layoutSubtreeIfNeeded()
+    return specimens(in: host)
+  }
+
+  private func longSpecimensAreLaidOut(in host: NSView) -> Bool {
+    let scrolls = laidOutSpecimens(in: host).compactMap(\.enclosingScrollView)
+    return scrolls.count == 2
+      && scrolls.allSatisfy { $0.documentView!.frame.height > $0.contentView.bounds.height }
+      && scrolls[0].documentView!.frame.height != scrolls[1].documentView!.frame.height
+  }
+
+  private func positioned(_ views: [SpecimenNSTextView], at fraction: Double) -> Bool {
+    views.allSatisfy { view in
+      view.enclosingScrollView.map { abs(progress($0) - fraction) < 0.001 } ?? false
+    }
+  }
+
+  private func atTop(_ views: [SpecimenNSTextView]) -> Bool {
+    views.allSatisfy { $0.enclosingScrollView?.contentView.bounds.minY == 0 }
+  }
+
+  private func fontSize(of view: SpecimenNSTextView?) -> CGFloat? {
+    guard let storage = view?.textStorage, storage.length > 0 else { return nil }
+    return (storage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize
   }
 }
 

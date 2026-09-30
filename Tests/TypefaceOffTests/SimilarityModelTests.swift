@@ -56,10 +56,10 @@ import TypefaceCore
     model.sort = .similarity
     let request = FamilySimilarityModel.Request(reference: .init("ArialMT"), scale: 2)
     let task = Task { await model.update(request, catalog: FontCatalog()) }
-    while !model.comparing { await Task.yield() }
+    try await waitUntil { model.comparing }
     try await Task.sleep(for: .milliseconds(230))
     continuation.yield(.init(family: "Arial", score: Self.score(0)))
-    try await Task.sleep(for: .milliseconds(20))
+    try await waitUntil { model.results.count == 1 }
     #expect(model.comparing && model.results.count == 1)
     task.cancel()
     await task.value
@@ -79,7 +79,7 @@ import TypefaceCore
     let fit = FontFitModel(load: Self.fitResult)
     #expect(!fit.apply(to: model, undoManager: nil))
     fit.start(request)
-    try await Task.sleep(for: .milliseconds(30))
+    try await waitUntil { !fit.running }
     #expect(fit.result?.improved == true && !fit.running)
     model.comparison.a.size += 1
     #expect(!fit.apply(to: model, undoManager: nil))
@@ -94,7 +94,7 @@ import TypefaceCore
     undo.undo()
     #expect(model.comparison == initial)
     fit.start(request, refine: true)
-    try await Task.sleep(for: .milliseconds(30))
+    try await waitUntil { !fit.running }
     #expect(fit.result?.evaluations == 20)
     fit.start(nil)
     #expect(fit.result == nil && !fit.running)
@@ -117,7 +117,7 @@ import TypefaceCore
     #expect(fit.result == nil && !fit.running)
     let failed = FontFitModel { _, _ in throw SimilarityError.renderingFailed }
     failed.start(request)
-    try await Task.sleep(for: .milliseconds(20))
+    try await waitUntil { !failed.running }
     #expect(failed.error != nil && !failed.running)
   }
 }
@@ -138,12 +138,12 @@ extension SimilarityModelTests {
         ranking: ranking, reference: .init("ArialMT"), choose: { chosen = $0 }), width: 300,
       height: 400)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { calls.withLock { $0 } == 1 }
     continuation.yield(.init(family: "Beta", score: Self.score(0.1)))
     continuation.yield(.init(family: "Alpha", score: Self.score(0.2)))
     continuation.yield(.init(family: "Missing", score: nil, unavailableReason: "Missing character"))
     continuation.finish()
-    try await host.settle()
+    try await host.settle { !ranking.comparing && ranking.results.count == 3 }
     let search = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
     search.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     #expect(chosen == "Beta")
@@ -153,7 +153,7 @@ extension SimilarityModelTests {
     search.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     #expect(chosen == "Alpha")
     try await host.press("Name")
-    try await host.settle()
+    try await host.settle { ranking.sort == .name }
     #expect(ranking.sort == .name)
   }
 
@@ -163,21 +163,23 @@ extension SimilarityModelTests {
     let fit = FontFitModel(load: Self.fitResult)
     let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 750)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { fit.result != nil }
     let axis = try #require(model.comparison.b?.face.axes.first)
     try await host.press(axis.name)
-    try await host.settle()
+    try await host.settle {
+      fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id]
+    }
     #expect(fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id])
     try await host.press(axis.name)
     try await host.press("Typography")
     try await host.settle()
     try await host.press("Kerning")
-    try await host.settle()
+    try await host.settle { fit.result != nil && fit.result?.proposed.features["ot.kern"] == nil }
     #expect(fit.result?.proposed.features["ot.kern"] == nil)
     try await host.press("Kerning")
-    try await host.settle()
+    try await host.settle { !fit.running && fit.result?.proposed.features["ot.kern"] != nil }
     try await host.press("Refine")
-    try await host.settle()
+    try await host.settle { fit.result?.evaluations == 20 }
     #expect(fit.result?.evaluations == 20)
     #expect(model.comparison.a == model.comparison.b)
   }
@@ -197,11 +199,11 @@ extension SimilarityModelTests {
         }
       }
       let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
-      try await host.settle()
+      defer { host.window.close() }
+      try await host.settle { fail ? fit.error != nil : (fit.result != nil && !fit.running) }
       #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
       #expect(model.comparison == comparison)
       if fail { #expect(fit.error != nil) }
-      host.window.close()
     }
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }
@@ -210,7 +212,7 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
-    try await host.settle()
+    try await host.settle { fit.running }
     #expect(fit.running)
     try await host.press("Stop")
     #expect(!fit.running && model.comparison == comparison)
@@ -229,7 +231,10 @@ extension SimilarityModelTests {
         ranking: first.familySimilarity, reference: .init("TypefaceOff-Missing"), choose: { _ in }),
       width: 300, height: 400)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle {
+      first.familySimilarity.error?.contains("Font unavailable") == true
+        && !first.familySimilarity.comparing
+    }
     #expect(first.familySimilarity.error?.contains("Font unavailable") == true)
     #expect(!first.familySimilarity.comparing)
   }
@@ -246,10 +251,10 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
-    try await host.settle()
+    try await host.settle { fit.running }
     #expect(fit.running)
     host.setContent(AnyView(EmptyView()))
-    try await host.settle()
+    try await host.settle { !fit.running }
     #expect(!fit.running)
   }
 

@@ -54,14 +54,14 @@ struct InitialFontWork: Sendable {
   {
     var config = config
     config.size = 21
-    return PreparedSearch(input: config) {
+    return PreparedSearch(input: config) { config in
       #if TYPEFACEOFF_STARTUP_BENCHMARK
-        StartupDiagnostics.markBackground("previewPreparationStarted-\($0.postScriptName)")
+        StartupDiagnostics.markBackground("previewPreparationStarted-\(config.postScriptName)")
         defer {
-          StartupDiagnostics.markBackground("previewPreparationFinished-\($0.postScriptName)")
+          StartupDiagnostics.markBackground("previewPreparationFinished-\(config.postScriptName)")
         }
       #endif
-      return try await FontFeaturePreviewEngine.shared.previews(config: $0)
+      return try await FontFeaturePreviewEngine.shared.previews(config: config)
     }
   }
 }

@@ -6,9 +6,9 @@ characters, and see where their shapes and spacing differ.
 
 ## Run
 
-Requires macOS 15 or later and Xcode with Swift 6.3 or later. Install XcodeGen
-for the app build; development checks also use Bun, Node.js, Lefthook, zizmor,
-ShellCheck, shfmt, and jq:
+The app runs on macOS 15 or later, but building it requires Xcode 27 with Swift
+6.4 or later. Install XcodeGen for the app build; development checks also use
+Bun, Node.js, Lefthook, zizmor, ShellCheck, shfmt, and jq:
 
 ```sh
 brew install xcodegen bun node lefthook zizmor shellcheck shfmt jq
@@ -216,11 +216,20 @@ line coverage for every engine, app, and reusable fuzzing-support source file.
 Tests for Inter’s optional variable axes and character variants require that
 font to be installed.
 
-The app supports macOS 15, but Xcode 26.4 and later need macOS 26.2, so CI
-builds the tests once and runs them on macOS 15 without rebuilding.
-`make build-for-testing` packs the core and native test bundles into
-`.build/portable-tests.tar`, and `make test-without-building` unpacks and runs
-them with whatever Xcode is installed, saving results like `make test-app`.
+The app supports macOS 15, but Xcode 27 needs macOS 26.6, and Xcode 26.4 and
+later need macOS 26.2, so macOS 15 runs at most Xcode 26.3. CI builds the test
+bundles with Xcode 27 and runs them without rebuilding on macOS 15 and 26, using
+the Xcode 26 those runners have; the main job builds and tests separately on
+macOS 27. `make build-for-testing` packs the core and native test bundles into
+`.build/portable-tests.tar`, and the Swift Testing runtime and overlays of the
+Xcode that built them into `.build/portable-runtime.tar`. `make stage-support`,
+run with Xcode 26.6, packs its XCTest support library and XCTestCore into
+`.build/support.tar`. `make test-without-building RUNTIME=…` unpacks the bundles
+and runs them with the active Xcode, saving results like `make test-app`;
+`testing` also unpacks the Testing runtime, and `support` that and the staged
+XCTest support. `make smoke-launch` starts the built app and fails if it exits
+within 15 seconds, so an older macOS checks the binary itself. A run that
+executes no tests fails.
 
 `make review` renders native text, glyph, single-font, and character search
 windows into `.build/review` for visual inspection and records glyph redraw

@@ -14,15 +14,14 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # Keep Xcode 26.6 until the macos-26 image includes a stable Xcode 27.
-  # Xcode 27 is currently offered only through a separate preview image:
+  # Xcode 27 is offered only on the xcode-27 image, a public preview that runs macOS 27:
   # https://github.com/actions/runner-images/issues/14404
-  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
 
 jobs:
   test:
     name: Build, lint, and test
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,8 +39,8 @@ jobs:
         run: make build
 
   build-tests:
-    name: Build tests for macOS 15
-    runs-on: macos-26
+    name: Build tests
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,18 +52,48 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: portable-tests
-          path: .build/portable-tests.tar
+          path: |
+            .build/portable-tests.tar
+            .build/portable-runtime.tar
           if-no-files-found: error
           retention-days: 1
 
-  test-macos-15:
-    name: Test on macOS 15
-    needs: build-tests
-    runs-on: macos-15
+  stage-support:
+    name: Stage the Xcode 26.6 XCTest support
+    runs-on: macos-26
     env:
-      # Xcode 26.4 and later need macOS 26.2, so this job runs the tests that
-      # build-tests compiled with a newer Xcode.
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Stage the support library
+        run: make stage-support
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: xctest-support-26
+          path: .build/support.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  test-older-macos:
+    name: Test on macOS ${{ matrix.macos }}
+    needs: [build-tests, stage-support]
+    runs-on: macos-${{ matrix.macos }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Xcode 26.4 and later need macOS 26.2, so macOS 15 runs Xcode 26.3. Its XCTest
+          # support library needs Testing symbols that Xcode 27 removed, so it runs
+          # Xcode 26.6's library with that Xcode's XCTestCore, both staged above.
+          - { macos: 15, xcode: "26.3", runtime: support }
+          - { macos: 26, xcode: "26.6", runtime: testing }
+    env:
+      # The runners lack Xcode 27, so they run its bundles with their own Xcode 26.
+      DEVELOPER_DIR:
+        /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      RUNTIME: ${{ matrix.runtime }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,5 +102,11 @@ jobs:
         with:
           name: portable-tests
           path: .build
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: xctest-support-26
+          path: .build
+      - name: Launch the app
+        run: make smoke-launch
       - name: Test
         run: make test-without-building

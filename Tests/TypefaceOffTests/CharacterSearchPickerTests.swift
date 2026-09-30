@@ -252,12 +252,14 @@ import TypefaceCore
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(FindCharacterProbe(model: model))
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { host.isEnabled("Probe find character") }
     try await host.press("Probe find character")
     try await host.settle { searchField(host) != nil }
+    let search = try #require(searchField(host))
     #expect(model.comparison.mode == .glyph)
-    try #require(searchField(host)).currentEditor()?.doCommand(
-      by: #selector(NSResponder.cancelOperation(_:)))
+    search.window?.makeFirstResponder(search)
+    let editor = try #require(search.currentEditor())
+    editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     try await host.settle { searchField(host) == nil }
   }
 
@@ -288,6 +290,7 @@ private struct FindCharacterProbe: View {
   var body: some View {
     VStack {
       Button("Probe find character") { actions?.characterSearch.wrappedValue = true }
+        .disabled(actions == nil)
       WorkbenchView(model: model)
     }
   }

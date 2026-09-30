@@ -35,8 +35,8 @@ import Testing
     #expect(firstSize.stringValue == "22")
     #expect(!first.isRestorable)
     let undo = try #require(first.undoManager)
-    submit("44", to: firstSize)
-    try await settle(first)
+    try await submit("44", to: firstSize, in: first)
+    try await settle(first) { undo.canUndo }
     first.makeFirstResponder(nil)
     #expect(firstSize.stringValue == "44")
     #expect(undo.canUndo)
@@ -48,15 +48,15 @@ import Testing
     #expect(secondSize.stringValue == "22")
     #expect(second.undoManager !== undo)
     try editCommand(modifiers: .command, window: first)
-    try await settle(first)
+    try await settle(first) { firstSize.stringValue == "22" }
     #expect(firstSize.stringValue == "22")
     try editCommand(modifiers: [.command, .shift], window: first)
-    try await settle(first)
+    try await settle(first) { firstSize.stringValue == "44" }
     #expect(firstSize.stringValue == "44")
     #expect(secondSize.stringValue == "22")
 
     first.performClose(nil)
-    try await settle(first)
+    try await settle(first) { !first.isVisible && first.sheets.isEmpty }
     #expect(first.sheets.isEmpty)
     #expect(!first.isVisible)
     let fresh = try await newWindow(fileMenu)
@@ -113,15 +113,25 @@ import Testing
     #expect(NSApp.sendAction(action, to: window, from: item))
   }
 
-  private func submit(_ value: String, to field: NSTextField) {
-    field.window?.makeFirstResponder(field)
+  private func submit(_ value: String, to field: NSTextField, in window: NSWindow) async throws {
+    window.makeFirstResponder(field)
     field.currentEditor()?.string = value
     (field.currentEditor() as? NSTextView)?.didChangeText()
+    try await settle(window)
     field.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
   }
 
   private func settle(_ window: NSWindow) async throws {
     try await Task.sleep(for: .milliseconds(250))
     window.contentView?.layoutSubtreeIfNeeded()
+  }
+
+  private func settle(
+    _ window: NSWindow, until condition: () -> Bool,
+    sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws {
+    try await settle(window)
+    try await waitUntil(
+      condition, step: { try await settle(window) }, sourceLocation: sourceLocation)
   }
 }

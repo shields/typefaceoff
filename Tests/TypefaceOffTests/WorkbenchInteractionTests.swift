@@ -6,6 +6,29 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct WorkbenchInteractionTests {
+  @Test func missingControlsRespectTheDeadlineAcrossLongScrollViews() async throws {
+    let host = WorkbenchTestHost(
+      ScrollView {
+        VStack {
+          Button("Visible deadline test control") {}
+          Text("Scrollable content").frame(height: 20_000)
+        }
+      })
+    defer { host.window.close() }
+    try await host.settle()
+    #expect(try await host.element("Visible deadline test control").accessibilityRole?() == .button)
+    try #require(
+      host.subviews.compactMap { $0 as? NSScrollView }.contains {
+        ($0.documentView?.bounds.height ?? 0) > 10_000
+      })
+    let start = ContinuousClock.now
+    let failure = await #expect(throws: (any Error).self) {
+      _ = try await host.element("Missing deadline test control", timeout: .milliseconds(100))
+    }
+    #expect(String(describing: failure).contains("Missing control: Missing deadline test control"))
+    #expect(start.duration(to: .now) < .seconds(5))
+  }
+
   @Test func matchingPreviewKeepsTheComparisonUnchangedUntilApply() async throws {
     let model = WorkbenchModel()
     let initial = model.comparison
@@ -522,34 +545,37 @@ import TypefaceCore
       sourceLocation: sourceLocation)
   }
 
-  func element(_ label: String) async throws -> AnyObject {
-    let deadline = ContinuousClock.now + .seconds(10)
-    while true {
-      if let result = try await find(label) { return result }
-      guard ContinuousClock.now < deadline else { break }
-      try await settle()
+  func element(_ label: String, timeout: Duration = .seconds(10)) async throws -> AnyObject {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+      if let result = try await find(label, until: deadline) { return result }
+      if ContinuousClock.now < deadline { try await settle() }
     }
     throw MissingControl(label: label, available: accessibilitySummary)
   }
 
-  private func find(_ label: String) async throws -> AnyObject? {
-    if let result = visibleElement(label) { return result }
+  private func find(_ label: String, until deadline: ContinuousClock.Instant) async throws
+    -> AnyObject?
+  {
+    if let result = visibleElement(label, until: deadline) { return result }
     // Older SwiftUI versions expose only the visible portion of a scroll view.
     for scroll in subviews.compactMap({ $0 as? NSScrollView }) {
+      guard ContinuousClock.now < deadline else { return nil }
       guard let document = scroll.documentView else { continue }
       let original = scroll.contentView.bounds.origin
       let maximum = document.bounds.height - scroll.contentView.bounds.height
       guard maximum > 0 else { continue }
       let step = max(1, scroll.contentView.bounds.height / 2)
       for offset in stride(from: 0, through: maximum + step, by: step) {
+        guard ContinuousClock.now < deadline else { break }
         scroll.contentView.scroll(to: NSPoint(x: original.x, y: min(offset, maximum)))
         scroll.reflectScrolledClipView(scroll.contentView)
         try await settle()
-        if let result = visibleElement(label) { return result }
+        if let result = visibleElement(label, until: deadline) { return result }
       }
       scroll.contentView.scroll(to: original)
       scroll.reflectScrolledClipView(scroll.contentView)
-      try await settle()
+      if ContinuousClock.now < deadline { try await settle() }
     }
     return nil
   }
@@ -558,8 +584,12 @@ import TypefaceCore
     var named = Set<String>()
     var unnamed: [String: Int] = [:]
     var seen = Set<ObjectIdentifier>()
+    let deadline = ContinuousClock.now + .seconds(1)
+    let snapshot =
+      elements + hitElements(until: deadline) + finelySampledHitElements(until: deadline)
+    let samplingTimedOut = ContinuousClock.now >= deadline
     // hitElements returns an element once per sample point that lands on it.
-    for element in elements + hitElements + finelySampledHitElements
+    for element in snapshot
     where seen.insert(ObjectIdentifier(element)).inserted {
       let role = element.accessibilityRole?()?.rawValue ?? "no role"
       let names = [
@@ -581,15 +611,18 @@ import TypefaceCore
     return
       "\(named.sorted().joined(separator: ", ")). Unnamed: \(unnamedCounts.joined(separator: ", ")). "
       + "Scroll views: \(scrolls.joined(separator: "; "))"
+      + (samplingTimedOut ? ". Hit-test sampling reached its deadline" : "")
   }
 
-  private func visibleElement(_ label: String) -> AnyObject? {
+  private func visibleElement(_ label: String, until deadline: ContinuousClock.Instant? = nil)
+    -> AnyObject?
+  {
     func matches(_ element: AnyObject) -> Bool {
       element.accessibilityIdentifier?() == label || element.accessibilityLabel?() == label
         || element.accessibilityTitle?() == label
     }
-    return elements.first(where: matches) ?? hitElements.first(where: matches)
-      ?? finelySampledHitElements.first(where: matches)
+    return elements.first(where: matches) ?? hitElements(until: deadline).first(where: matches)
+      ?? finelySampledHitElements(until: deadline).first(where: matches)
   }
 
   func isEnabled(_ label: String) -> Bool {
@@ -716,32 +749,42 @@ import TypefaceCore
   }
 
   var hitElements: [AnyObject] {
+    hitElements(until: nil)
+  }
+
+  private func hitElements(until deadline: ContinuousClock.Instant?) -> [AnyObject] {
     var result: [AnyObject] = []
     for root in contentRoots {
       guard let owner = root.window else { continue }
       // Small native controls can fall between the fallback grid's sample points.
       for view in descendants(of: root) where view is NSControl {
+        if let deadline, ContinuousClock.now >= deadline { return result }
         let frame = owner.convertToScreen(view.convert(view.bounds, to: nil))
         if let hit = root.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) {
           result.append(hit as AnyObject)
         }
       }
-      result += sampledHits(in: root, rowStep: 16)
+      result += sampledHits(in: root, rowStep: 16, until: deadline)
     }
     return result
   }
 
   // A 15-point row can fall between sample rows 16 points apart.
-  var finelySampledHitElements: [AnyObject] {
-    contentRoots.flatMap { sampledHits(in: $0, rowStep: 4) }
+  private func finelySampledHitElements(until deadline: ContinuousClock.Instant?) -> [AnyObject] {
+    contentRoots.flatMap { sampledHits(in: $0, rowStep: 4, until: deadline) }
   }
 
-  private func sampledHits(in root: NSView, rowStep: Double) -> [AnyObject] {
+  private func sampledHits(
+    in root: NSView, rowStep: Double, until deadline: ContinuousClock.Instant?
+  )
+    -> [AnyObject]
+  {
     guard let owner = root.window else { return [] }
     var result: [AnyObject] = []
     let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
     for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: rowStep) {
       for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
+        if let deadline, ContinuousClock.now >= deadline { return result }
         if let hit = root.accessibilityHitTest(NSPoint(x: x, y: y)) {
           result.append(hit as AnyObject)
         }

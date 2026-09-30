@@ -189,6 +189,16 @@ instead of a sorted list from every window. Discovery reads more of the tree,
 and `measured-ms` leaves out waits and skipped picks, so timings and those
 listings are not comparable with reports from earlier campaigns.
 
+Clicks, drags, and scrolls are real mouse events posted through the session
+event tap, because AppKit silently drops mouse events posted to the app’s
+process. They move the real pointer to each target, so leave the mouse alone
+while `make fuzz`, `make fuzz-replay`, `make fuzz-minimize`, or
+`make fuzz-benchmark` runs on this Mac; only `make fuzz-vm` campaigns run in the
+guest. Before each click, drag, or scroll the driver activates the app and waits
+for Accessibility to report the app under the target point. When the Dock,
+another app’s window, or nothing is there, such as a control off the display,
+the action fails as an automation finding instead of clicking elsewhere.
+
 `make fuzz-vm` runs the same campaign in a macOS 27 virtual machine whose
 session never locks, so it continues while this Mac is locked and keeps its
 state under `.build/ui-fuzz-vm`. It requires [Tart](https://tart.run)

@@ -4,10 +4,42 @@ import Foundation
 /// the driver closes what a run leaves open before it asks the app to quit.
 public enum QuitPreparation {
   public static let maximumEscapes = 3
-  /// A sheet needs a moment to close after the key that dismisses it, and a quit sent before it
-  /// has gone is dropped.
+  /// The longest wait for what is open to change after an Escape. A layer that closes or is
+  /// replaced ends the wait at once; when nothing changes, the Escape did not reach the overlay,
+  /// and the next one goes out when the window ends.
   public static let settleSeconds: TimeInterval = 0.5
   public static let pollInterval: TimeInterval = 0.05
+
+  /// The layer that receives input, as discovery sees it: a menu over a sheet is the menu.
+  public enum Overlay: Equatable, Sendable {
+    case located(role: String?, depth: Int)
+    /// An overlay has focus but nothing locates it.
+    case unlocated
+
+    /// Nil when nothing modal is open and no overlay is unaccounted for.
+    public init?(_ modal: ModalSelection) {
+      if let root = modal.root {
+        self = .located(role: modal.rootRole, depth: root.count)
+      } else if modal.unlocated {
+        self = .unlocated
+      } else {
+        return nil
+      }
+    }
+
+    /// Whether `observation`, taken after an Escape, shows that this layer closed or gave way to
+    /// another. A replacement with the same role and depth looks the same, and so does any
+    /// observation or layer that is unlocated, which may be this layer with a failed read. Those
+    /// count as no change, so the loop waits out its window: an Escape sent on a false change could
+    /// land on the workbench.
+    func isChanged(by observation: Overlay?) -> Bool {
+      guard let observation else { return true }
+      guard case .located(let role, let depth) = self,
+        case .located(let observedRole, let observedDepth) = observation
+      else { return false }
+      return role != observedRole || depth != observedDepth
+    }
+  }
 
   public struct Outcome {
     /// Escapes that were sent; one that could not be sent is not counted.
@@ -26,13 +58,13 @@ public enum QuitPreparation {
     }
   }
 
-  /// `isOverlayOpen` and `dismiss` touch the app, so the caller must have checked that it is alive
+  /// `openOverlay` and `dismiss` touch the app, so the caller must have checked that it is alive
   /// and responsive.
   public static func run(
     clock: some ResolutionClock, maximumEscapes: Int = QuitPreparation.maximumEscapes,
     settleSeconds: TimeInterval = QuitPreparation.settleSeconds,
     pollInterval: TimeInterval = QuitPreparation.pollInterval,
-    isOverlayOpen: () -> Bool, dismiss: () throws -> Void
+    openOverlay: () -> Overlay?, dismiss: () throws -> Void
   ) -> Outcome {
     precondition(settleSeconds > 0 && pollInterval > 0)
     let start = clock.now
@@ -42,8 +74,8 @@ public enum QuitPreparation {
         milliseconds: (clock.now - start) * 1000, failure: failure)
     }
     var escapes = 0
-    var open = isOverlayOpen()
-    while open && escapes < maximumEscapes {
+    var open = openOverlay()
+    while let layer = open, escapes < maximumEscapes {
       do {
         try dismiss()
       } catch {
@@ -53,9 +85,9 @@ public enum QuitPreparation {
       let deadline = clock.now + settleSeconds
       repeat {
         clock.sleep(min(pollInterval, deadline - clock.now))
-        open = isOverlayOpen()
-      } while open && clock.now < deadline
+        open = openOverlay()
+      } while !layer.isChanged(by: open) && clock.now < deadline
     }
-    return outcome(escapes: escapes, remaining: open)
+    return outcome(escapes: escapes, remaining: open != nil)
   }
 }

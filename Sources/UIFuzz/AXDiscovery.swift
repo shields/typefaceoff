@@ -19,11 +19,11 @@ struct DiscoveryStats {
 
 extension AXDriver {
   /// A focused overlay that discovery cannot locate counts as open: the app still drops a quit.
-  func hasOpenOverlay() -> Bool {
+  func openOverlay() -> QuitPreparation.Overlay? {
     let application = AXNode(self.application, reads: AXReads())
     let capture = Discovery.capture(
       application: application, focusedWindow: { application.focusedWindow() })
-    return capture.modal.root != nil || capture.unlocated
+    return QuitPreparation.Overlay(capture.modal)
   }
 
   func availableActions(observe: (DiscoveryStats) -> Void) -> [FuzzAction] {

@@ -16,8 +16,13 @@ import Testing
     let host = NSHostingView(rootView: Fixture(model: model, visible: true))
     window.contentView = host
     window.orderFront(nil)
-    try await Task.sleep(for: .milliseconds(250))
-    host.layoutSubtreeIfNeeded()
+    try await waitUntil {
+      host.layoutSubtreeIfNeeded()
+      guard let scroll = scrollView(in: host), let document = scroll.documentView else {
+        return false
+      }
+      return document.frame.height > scroll.contentView.bounds.height
+    }
     let inspector = try #require(scrollView(in: host))
     inspector.contentView.scroll(to: NSPoint(x: 0, y: 100))
     inspector.reflectScrolledClipView(inspector.contentView)

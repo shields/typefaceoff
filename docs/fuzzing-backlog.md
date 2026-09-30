@@ -25,12 +25,18 @@ Four blind spots hid this, so "no crashes" says little: stale process liveness
 (crash detection cannot fire), inert mouse events, a custom-text stress path
 that never lands, and empty app stdout/stderr logs.
 
-## Owned by other sessions
+## Merged from another session (38a7647)
 
-- Control resolution, window scoping, idle waits, and app accessibility names
-  (see `.build/handoff/control-not-found.md`). It covers A1-A3, VT1-VT3, and
-  VB2. Stable identifiers for inspector controls are committed on its branch
-  (`dd9afcc`); the resolver rewrite is not.
+Control resolution, window scoping, idle waits, and app accessibility names (see
+`.build/handoff/control-not-found.md`): a tested resolver, a skip ledger that
+counts and surfaces skipped steps, an idle wait, resolution in the focused
+window, and stable identifiers for inspector controls. It covers A1-A3, VT1-VT3,
+and VB2. The combination with waves 1 to 3 passed the full gate but has not run
+against a live UI; measure the abort rate and the skip ledger on the next smoke
+test or campaign.
+
+## Still owned by another session
+
 - Mouse delivery (`.build/handoff/mouse-clicks.md`, D1, VC3).
 
 ## Merged to main (9b829d7)
@@ -235,8 +241,9 @@ Nine executions (five exploration, four seed). Artifacts were in the worktree's
   check (Shift-Cmd-E, then Cmd-Q) settles whether users can quit with a sheet
   open.
 - Exploration runs take 13-15 s in total, of which discovery is 2.1-6.0 s
-  (16-46%). Discovery cost is the largest throughput lever left; the resolver
-  rewrite touches the same code, so wait for it.
+  (16-46%). Discovery cost is the largest throughput lever left. The resolver
+  rewrite that touched the same code has merged, so it is no longer blocked;
+  re-measure first, since `AXDiscovery` changed.
 - Not exercised: crash detection and crash reports (needs a real crash: kill
   `TypefaceOff` with `-SEGV` mid-run) and the mutation model (mutation starts at
   execution 37).
@@ -262,8 +269,10 @@ at 4,096 units or more). Make it one compound action kind (open editor, set
 value, press Apply) like `selectFont` (`AXDriver.swift`), so `mutate()`,
 `constrained()`, and `TraceReducer` cannot split it. `constrained()`
 (`Generation.swift:139-150`) must bound the new action or `--max-text-units` is
-bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the resolution
-session is editing, so wait for it.
+bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the merged
+resolver rewrote; no longer blocked, but re-read them first. Note that
+`WindowScope` now makes an open editor sheet the active scope, so the compound
+action may simplify.
 
 ### Runtime warnings and the dead exit status (VB1, F2, remainder)
 
@@ -281,6 +290,12 @@ dropped or filled from the crash report's termination code; that touches
 `Trace.swift`, which the resolution session edits.
 
 ### The explorer is blind behind sheets (investigation, wave 2)
+
+Status: likely fixed by the merged `WindowScope`, which treats a sheet, popover,
+or open menu as the active scope ("an overlay hides every standard window behind
+it"). Not verified in a run. Check on the next smoke test or campaign that
+actions land inside sheets (presses of `Apply`, `Cancel`, `Refine`, `Stop`, and
+values in the editor field), which were zero in 536 exploration runs before.
 
 146 of 536 exploration runs opened the Match sheet or the custom-text editor
 (Shift-Cmd-M, Shift-Cmd-E, or a press on `Match...` or `Edit text`). Between

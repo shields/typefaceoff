@@ -42,6 +42,11 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
     }
   }
 
+  public enum Sheet: String, Codable, Sendable {
+    case editor
+    case match
+  }
+
   public var kind: Kind
   public var target: String?
   public var targetPath: [Int]?
@@ -53,12 +58,16 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
   public var deltaX: Double?
   public var deltaY: Double?
   public var delayMilliseconds: Int
+  /// The sheet that held the control when discovery offered it. Axis and feature names depend on
+  /// the font, so this is the only way to know that such a control exists only while its sheet is
+  /// open. Traces recorded without it decode with nil.
+  public var sheet: Sheet?
 
   public init(
     kind: Kind, target: String? = nil, value: String? = nil, keyCode: UInt16? = nil,
     modifiers: UInt64? = nil, deltaX: Double? = nil, deltaY: Double? = nil,
     delayMilliseconds: Int = 30, targetPath: [Int]? = nil, targetRole: String? = nil,
-    commitValue: Bool? = nil
+    commitValue: Bool? = nil, sheet: Sheet? = nil
   ) {
     self.kind = kind
     self.target = target
@@ -71,6 +80,7 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
     self.deltaX = deltaX
     self.deltaY = deltaY
     self.delayMilliseconds = delayMilliseconds
+    self.sheet = sheet
   }
 }
 

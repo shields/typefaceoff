@@ -27,6 +27,7 @@ struct WorkbenchState: Equatable, Sendable {
   private static let escape = FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400)
 
   static func requirement(of action: FuzzAction) -> Requirement? {
+    if let sheet = action.sheet { return .sheet(sheet == .match ? .match : .editor) }
     guard let target = action.target else { return nil }
     switch target {
     case "Glyph canvas", "Character", "Previous character", "Next character",
@@ -34,7 +35,9 @@ struct WorkbenchState: Equatable, Sendable {
       return .mode(.glyph)
     case "Font A specimen", "Font B specimen": return .mode(.text)
     case "Custom specimen text": return .sheet(.editor)
-    case "Tracking", "Weight": return .sheet(.match)
+    case "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
+      "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area":
+      return .sheet(.match)
     case "Apply", "Cancel": return .sheet(nil)
     case "Search installed fonts": return .popover(.fonts)
     case "Search Unicode characters": return .popover(.characters)
@@ -150,9 +153,13 @@ struct WorkbenchState: Equatable, Sendable {
       default: popover = .closed
       }
     case 36:
+      // Return presses the sheet's default button, Apply, which is disabled until a fit improves,
+      // and the editor's text view may take the key. Whether the sheet closes is unknown. The
+      // menu shortcut that reopens a sheet does nothing while one is up, but a sheet control has
+      // nothing to act on once the sheet is gone, so the sheet counts as closed.
       if popover != .closed {
         popover = nil
-      } else if sheet == .editor {
+      } else if sheet == .editor || sheet == .match {
         sheet = .closed
       }
     default: break
@@ -167,9 +174,9 @@ struct WorkbenchState: Equatable, Sendable {
       mode = action.kind == .press ? .text : nil
     case "Glyph": mode = .glyph
     case "Text": mode = .text
-    case "Edit text": if sheet == .closed { sheet = .editor }
-    case "Match…": if sheet == .closed { sheet = .match }
-    case "Apply", "Cancel": sheet = .closed
+    case "Edit text", "Edit sample text…": if sheet == .closed { sheet = .editor }
+    case "Match…", "Match fonts…": if sheet == .closed { sheet = .match }
+    case "Apply", "Cancel", "Cancel matching", "xmark.circle.fill": sheet = .closed
     case "Search characters":
       mode = .glyph
       popover = .characters

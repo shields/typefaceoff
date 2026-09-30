@@ -83,6 +83,33 @@ import Testing
     #expect(trace.actions[1].commitValue == nil)
   }
 
+  @Test func theSheetTagIsOptionalAndRoundTrips() throws {
+    let tagged = FuzzAction(kind: .press, target: "Optical Size", sheet: .match)
+    #expect(
+      try Self.encode(tagged)
+        == #"{"delayMilliseconds":30,"kind":"press","sheet":"match","target":"Optical Size"}"#)
+    let editor = Data(
+      #"{"version":1,"seed":7,"origin":"exploration","actions":[{"kind":"press","target":"Apply","sheet":"editor","delayMilliseconds":30},{"kind":"press","target":"Apply","delayMilliseconds":30}]}"#
+        .utf8)
+    let trace = try JSONDecoder().decode(FuzzTrace.self, from: editor)
+    #expect(trace.actions[0].sheet == .editor)
+    #expect(trace.actions[1].sheet == nil)
+    let directory = FileManager.default.temporaryDirectory.appending(
+      path: "schema-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let url = directory.appending(path: "tagged.json")
+    let saved = FuzzTrace(seed: 1, actions: [tagged, Self.action])
+    try TraceIO.save(saved, to: url)
+    #expect(try TraceIO.load(url) == saved)
+    #expect(throws: (any Error).self) {
+      try JSONDecoder().decode(
+        FuzzTrace.self,
+        from: Data(
+          #"{"version":1,"seed":7,"origin":"x","actions":[{"kind":"press","sheet":"popover","delayMilliseconds":30}]}"#
+            .utf8))
+    }
+  }
+
   @Test func loadRejectsOtherSchemaVersions() throws {
     let directory = FileManager.default.temporaryDirectory.appending(
       path: "schema-\(UUID().uuidString)")

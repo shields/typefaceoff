@@ -59,6 +59,19 @@ private func control(
     #expect(phantoms.filter { $0.targetPath == [0, 99] }.count <= 1)
   }
 
+  @Test func aPickKeepsTheSheetItWasDiscoveredIn() {
+    var explorer = ActionExplorer(mutator: TraceMutator())
+    var random = SplitMix64(seed: 7)
+    var tagged = control(.press, "Optical Size", [0, 1, 5], role: "AXCheckBox")
+    tagged.sheet = .match
+    let actions = picks(4, explorer: &explorer, random: &random) { _ in [tagged] }
+    #expect(actions.allSatisfy { $0.sheet == .match && $0.target == "Optical Size" })
+    let untagged = picks(1, explorer: &explorer, random: &random) { _ in
+      [control(.press, "Swap fonts", [0, 2])]
+    }
+    #expect(untagged[0].sheet == nil)
+  }
+
   @Test func keyboardActionsKeepSeparateCounts() {
     var explorer = ActionExplorer(mutator: TraceMutator())
     var random = SplitMix64(seed: 4)

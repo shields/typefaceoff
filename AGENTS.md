@@ -19,11 +19,13 @@ identifier must be unique within a window and never equal another element's
 label, title, or menu title. Never change an existing identifier, label, or
 title the fuzzer uses, such as `Shared point size`, `Glyph canvas`, the search
 fields, the `Font A specimen` labels, and the symbol-name identifiers of
-icon-only buttons. Name matching, window scope, and visibility rules live in
-`Sources/UIFuzzSupport` behind `AccessibilityNode`, where the coverage gate
-applies. `Sources/UIFuzz` adapts the system accessibility API to them, and its
-`AXDiscovery.swift` still decides which actions each control offers, outside the
-gate.
+icon-only buttons. The Match sheet's `Cancel matching` button and the editor
+sheet's `Custom specimen text` field also tell the fuzzer which sheet is open,
+so a recorded action can require it. Name matching, window scope, and visibility
+rules live in `Sources/UIFuzzSupport` behind `AccessibilityNode`, where the
+coverage gate applies. `Sources/UIFuzz` adapts the system accessibility API to
+them, and its `AXDiscovery.swift` still decides which actions each control
+offers, outside the gate.
 
 Character search uses the running macOS's Unicode names, which differ between
 macOS versions, and CI tests on macOS 15, 26, and 27. Tests that depend on names

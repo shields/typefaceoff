@@ -138,12 +138,12 @@ extension SimilarityModelTests {
         ranking: ranking, reference: .init("ArialMT"), choose: { chosen = $0 }), width: 300,
       height: 400)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { calls.withLock { $0 } == 1 }
     continuation.yield(.init(family: "Beta", score: Self.score(0.1)))
     continuation.yield(.init(family: "Alpha", score: Self.score(0.2)))
     continuation.yield(.init(family: "Missing", score: nil, unavailableReason: "Missing character"))
     continuation.finish()
-    try await host.settle()
+    try await host.settle { !ranking.comparing && ranking.results.count == 3 }
     let search = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
     search.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     #expect(chosen == "Beta")
@@ -153,7 +153,7 @@ extension SimilarityModelTests {
     search.currentEditor()?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
     #expect(chosen == "Alpha")
     try await host.press("Name")
-    try await host.settle()
+    try await host.settle { ranking.sort == .name }
     #expect(ranking.sort == .name)
   }
 
@@ -163,21 +163,23 @@ extension SimilarityModelTests {
     let fit = FontFitModel(load: Self.fitResult)
     let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 750)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle { fit.result != nil }
     let axis = try #require(model.comparison.b?.face.axes.first)
     try await host.press(axis.name)
-    try await host.settle()
+    try await host.settle {
+      fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id]
+    }
     #expect(fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id])
     try await host.press(axis.name)
     try await host.press("Typography")
     try await host.settle()
     try await host.press("Kerning")
-    try await host.settle()
+    try await host.settle { fit.result != nil && fit.result?.proposed.features["ot.kern"] == nil }
     #expect(fit.result?.proposed.features["ot.kern"] == nil)
     try await host.press("Kerning")
-    try await host.settle()
+    try await host.settle { !fit.running && fit.result?.proposed.features["ot.kern"] != nil }
     try await host.press("Refine")
-    try await host.settle()
+    try await host.settle { fit.result?.evaluations == 20 }
     #expect(fit.result?.evaluations == 20)
     #expect(model.comparison.a == model.comparison.b)
   }
@@ -197,7 +199,7 @@ extension SimilarityModelTests {
         }
       }
       let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
-      try await host.settle()
+      try await host.settle { fail ? fit.error != nil : (fit.result != nil && !fit.running) }
       #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
       #expect(model.comparison == comparison)
       if fail { #expect(fit.error != nil) }
@@ -210,7 +212,7 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
-    try await host.settle()
+    try await host.settle { fit.running }
     #expect(fit.running)
     try await host.press("Stop")
     #expect(!fit.running && model.comparison == comparison)
@@ -229,7 +231,10 @@ extension SimilarityModelTests {
         ranking: first.familySimilarity, reference: .init("TypefaceOff-Missing"), choose: { _ in }),
       width: 300, height: 400)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle {
+      first.familySimilarity.error?.contains("Font unavailable") == true
+        && !first.familySimilarity.comparing
+    }
     #expect(first.familySimilarity.error?.contains("Font unavailable") == true)
     #expect(!first.familySimilarity.comparing)
   }
@@ -246,10 +251,10 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
-    try await host.settle()
+    try await host.settle { fit.running }
     #expect(fit.running)
     host.setContent(AnyView(EmptyView()))
-    try await host.settle()
+    try await host.settle { !fit.running }
     #expect(!fit.running)
   }
 

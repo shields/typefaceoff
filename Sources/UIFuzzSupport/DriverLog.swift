@@ -35,6 +35,8 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
   public var modalDepth: Int?
   /// True when an overlay had focus but could not be located, so discovery offered only plain keys.
   public var unlocated: Bool?
+  /// `FuzzAction.Sheet.logName` of the modal root.
+  public var sheet: String?
 
   public init(
     uptime: TimeInterval, event: Kind, action: Int? = nil, control: String? = nil,
@@ -43,7 +45,8 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     windows: Int? = nil, scope: WindowScopeSource? = nil, elements: Int? = nil,
     elapsedMs: Double? = nil, skipped: Bool? = nil, focusedRole: String? = nil,
     focusedSubrole: String? = nil, focusLocation: FocusLocation? = nil,
-    modalRole: String? = nil, modalDepth: Int? = nil, unlocated: Bool? = nil
+    modalRole: String? = nil, modalDepth: Int? = nil, unlocated: Bool? = nil,
+    sheet: String? = nil
   ) {
     self.uptime = uptime
     self.event = event
@@ -66,6 +69,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     self.modalRole = modalRole
     self.modalDepth = modalDepth
     self.unlocated = unlocated
+    self.sheet = sheet
   }
 
   /// A skipped wait read no telemetry, so it carries none of the wait's figures.

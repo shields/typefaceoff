@@ -326,8 +326,10 @@ To verify in the first live run after this (mouse routing is also new, so clicks
 now deliver):
 
 - `discover` events with a sheet open: `modalRole` `AXSheet`, `focusLocation`
-  `scopeWindow` or `applicationChild`, `unlocated` false; count the `unlocated`
-  discovers and read them with `scope` and `windows`.
+  `scopeWindow` or `applicationChild`, `unlocated` false, and `sheet` `match` or
+  `editor` (`unidentified` means the sheet's fixed control names changed, so no
+  tag reaches the traces); count the `unlocated` discovers and read them with
+  `scope` and `windows`.
 - `executed.json` actions recorded inside the Match sheet carry
   `"sheet": "match"`, inside the editor `"sheet": "editor"`. If not, check the
   Match close button's identifier and description and the sheet root's role in

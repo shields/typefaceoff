@@ -372,6 +372,14 @@ import Testing
     #expect(FuzzAction.Sheet.identify(rootRole: "AXSheet", targets: [nil, "Apply"]) == nil)
   }
 
+  @Test func theLogNamesTheSheetOrSaysThatASheetWasNotIdentified() {
+    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: .match) == "match")
+    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: .editor) == "editor")
+    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: nil) == "unidentified")
+    #expect(FuzzAction.Sheet.logName(rootRole: "AXPopover", identified: nil) == nil)
+    #expect(FuzzAction.Sheet.logName(rootRole: nil, identified: .match) == nil)
+  }
+
   @Test func escapeStaysAvailableWhenShortcutsAreWithheld() {
     let keys = ActionExplorer.keyboardActions(includeShortcuts: false)
     #expect(keys.contains { $0.kind == .key && $0.keyCode == 53 })

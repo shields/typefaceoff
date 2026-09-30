@@ -14,6 +14,7 @@ struct DiscoveryStats {
   var modalRole: String?
   var modalDepth: Int?
   var unlocated: Bool
+  var sheet: String?
 }
 
 extension AXDriver {
@@ -88,7 +89,8 @@ extension AXDriver {
         scope: capture.scope.source, readErrors: reads.errors, focusedRole: focusedNode?.role,
         focusedSubrole: focusedNode?.subrole, focusLocation: capture.modal.focus,
         modalRole: capture.modal.rootRole, modalDepth: capture.modal.root?.count,
-        unlocated: capture.unlocated))
+        unlocated: capture.unlocated,
+        sheet: FuzzAction.Sheet.logName(rootRole: capture.modal.rootRole, identified: sheet)))
     return result
   }
 }

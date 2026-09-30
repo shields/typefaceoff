@@ -60,7 +60,7 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
   public var delayMilliseconds: Int
   /// The sheet that held the control when discovery offered it. Axis and feature names depend on
   /// the font, so this is the only way to know that such a control exists only while its sheet is
-  /// open. Traces recorded without it decode with nil.
+  /// open. Nil for a control outside a sheet and for a sheet that discovery could not identify.
   public var sheet: Sheet?
 
   public init(

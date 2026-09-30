@@ -31,6 +31,14 @@ extension FuzzAction.Sheet {
     if !names.isDisjoint(with: ["Cancel matching", "xmark.circle.fill"]) { return .match }
     return names.contains("Custom specimen text") ? .editor : nil
   }
+
+  /// What the driver log records for a modal root: the sheet it was identified as, or that an
+  /// `AXSheet` could not be identified, since no tag reaches the traces then. Nil for any other
+  /// root.
+  public static func logName(rootRole: String?, identified: Self?) -> String? {
+    guard rootRole == "AXSheet" else { return nil }
+    return identified?.rawValue ?? "unidentified"
+  }
 }
 
 public enum Discovery {

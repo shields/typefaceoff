@@ -280,7 +280,7 @@ final class SequenceRunner {
                     elapsedMs: discovered, focusedRole: stats?.focusedRole,
                     focusedSubrole: stats?.focusedSubrole, focusLocation: stats?.focusLocation,
                     modalRole: stats?.modalRole, modalDepth: stats?.modalDepth,
-                    unlocated: stats?.unlocated))
+                    unlocated: stats?.unlocated, sheet: stats?.sheet))
                 return action
               }, begin: begin, resolve: resolveControl,
               didSkip: { skipped, failure in

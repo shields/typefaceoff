@@ -27,7 +27,12 @@ struct WorkbenchState: Equatable, Sendable {
   private static let escape = FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400)
 
   static func requirement(of action: FuzzAction) -> Requirement? {
-    if let sheet = action.sheet { return .sheet(sheet == .match ? .match : .editor) }
+    if let sheet = action.sheet {
+      switch sheet {
+      case .match: return .sheet(.match)
+      case .editor: return .sheet(.editor)
+      }
+    }
     guard let target = action.target else { return nil }
     switch target {
     case "Glyph canvas", "Character", "Previous character", "Next character",

@@ -16,6 +16,14 @@ struct DiscoveryStats {
 }
 
 extension AXDriver {
+  /// A sheet, popover, or menu is open, by the same test that narrows what discovery offers.
+  func hasOpenOverlay() -> Bool {
+    let application = AXNode(self.application, reads: AXReads())
+    return Discovery.capture(
+      application: application, focusedWindow: { application.focusedWindow() }
+    ).modal.root != nil
+  }
+
   func availableActions(observe: (DiscoveryStats) -> Void) -> [FuzzAction] {
     let reads = AXReads()
     let application = AXNode(self.application, reads: reads)

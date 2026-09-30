@@ -81,6 +81,7 @@ final class SequenceRunner {
     var automationFailed = false
     var launchedApplication: NSRunningApplication?
     var launchedProcessIdentifier: pid_t?
+    var launchedDriver: AXDriver?
     var executed = input
     executed.actions = []
     var random = SplitMix64(seed: input.seed)
@@ -88,6 +89,7 @@ final class SequenceRunner {
     var lastActionStartedAt: TimeInterval?
     var quitMilliseconds: Double?
     var quitForced = false
+    var quitPreparation: QuitPreparation.Outcome?
     func unexpectedExit(_ phase: ExitPhase, note: String? = nil) -> ExecutionFinding {
       let now = ProcessInfo.processInfo.systemUptime
       var notes = note.map { [$0] } ?? []
@@ -145,6 +147,7 @@ final class SequenceRunner {
       launchedProcessIdentifier = application.processIdentifier
       application.activate(options: [.activateAllWindows])
       let driver = try AXDriver(processIdentifier: application.processIdentifier)
+      launchedDriver = driver
 
       let startupDeadline = ProcessInfo.processInfo.systemUptime + configuration.watchdogSeconds
       while !application.hasExited && ProcessInfo.processInfo.systemUptime < startupDeadline
@@ -490,9 +493,33 @@ final class SequenceRunner {
       // Signalling a pid of 0 or -1 would reach whole process groups, so the pid that passed the
       // liveness check is the one signalled.
       let pid = application.processIdentifier
-      let alreadyExited = !ProcessLiveness.isAlive(pid)
+      var alreadyExited = !ProcessLiveness.isAlive(pid)
+      var exitNote: String?
+      if !alreadyExited, !watchdog, finalSession.unavailableReason == nil,
+        let driver = launchedDriver
+      {
+        let preparation = QuitPreparation.run(
+          clock: clock, isOverlayOpen: { driver.hasOpenOverlay() },
+          dismiss: { try driver.dismissOverlay() })
+        quitPreparation = preparation
+        alreadyExited = !ProcessLiveness.isAlive(pid)
+        if alreadyExited {
+          exitNote =
+            "It exited while the driver dismissed an overlay."
+            + (preparation.failure.map { " Driver error: \($0)" } ?? "")
+        } else if let failure = preparation.failure {
+          if let unavailable = failure as? AvailabilityError {
+            findings.append(unavailable.finding)
+          } else {
+            findings.append(
+              ExecutionFinding(
+                kind: .automation, signature: "quit-dismiss",
+                detail: "The driver could not dismiss an open overlay before quitting: \(failure)"))
+          }
+        }
+      }
       if alreadyExited && !findings.contains(where: { $0.kind == .crash }) {
-        findings.append(unexpectedExit(.afterActions))
+        findings.append(unexpectedExit(.afterActions, note: exitNote))
       } else if !alreadyExited {
         let quitStart = ProcessInfo.processInfo.systemUptime
         if watchdog {
@@ -598,6 +625,9 @@ final class SequenceRunner {
     if let quitMilliseconds {
       metadata["quit-ms"] = String(quitMilliseconds)
       metadata["quit-forced"] = String(quitForced)
+    }
+    if let quitPreparation {
+      metadata.merge(quitPreparation.metadata) { _, new in new }
     }
     if let snapshot = telemetry.latestSnapshot { metadata["final-snapshot"] = snapshot }
     for (key, value) in resolutions.entries(

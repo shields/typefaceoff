@@ -368,7 +368,43 @@ merged. Artifacts were in the worktree's `.build/smoke3-ui-fuzz`.
   took 1.1 s. Idle waits are 150 ms median. Together they are about 8 s of a
   15-20 s exploration run.
 
-Follow-ups from wave 4 and this smoke test: workbench controls with no
+## Smoke test of main at a3c14d8 (host, one minute, 2026-09-30)
+
+Seven executions (four exploration, three seed), with the click-point fix.
+Artifacts were in the worktree's `.build/smoke4-ui-fuzz`.
+
+- `locate click target` is gone (two of four exploration runs before). The
+  click-point change is confirmed only by the absence of the failure; no run
+  clicked a context-menu item.
+- The editor sheet was explored for the first time: `Shift-Cmd-E` opened it,
+  discovery tagged it `editor` after one `unidentified` discover while it was
+  still animating in (2 elements, no controls yet), the explorer typed into
+  `Custom specimen text`, scrolled, pressed `Cancel` (no `AXPress` failure), and
+  carried on in the workbench. The font popover was explored too (`cancel`,
+  `Search Unicode characters`, Escape).
+- One automation finding, `AXPress failed: -25200` on a press of `Match…` at
+  action 21 of 32. The sheet had opened, as in the earlier analysis: the SwiftUI
+  accessibility proxy reports failure after the action is dispatched. About one
+  in nine presses of it does this (3 of 26 before; 1 of the 2 presses in the
+  last two smoke tests), and it ends the run, so it costs the sheet exploration
+  the button exists to reach. Proposed: read `AXEnabled` on -25200, count an
+  enabled control's press as dispatched but unconfirmed in the ledger and run
+  metadata, and continue; a disabled control (Zoom at its limit) becomes a skip.
+  It turns a fail-fast error into a counted one, so it waits for a decision.
+- One forced quit (`quit-overlays-dismissed` 3, `quit-overlay-remaining` true,
+  `quit-dismiss-ms` 1.8 s). The run opened the Match sheet, a context menu on
+  its text area, pressed `Writing Tools`
+  (`__NSTextViewContextSubmenuIdentifierWritingTools`), and Apple's Writing
+  Tools popover (an `AXPopover` at depth 6) and then a nested `AXSheet` at depth
+  3 appeared, which three Escapes did not close. The same NSTextView context
+  menus offer AutoFill (Passwords, Contacts, Credit Cards), Share, Look Up,
+  Translate, Speech, Show Fonts, Show Colors, and Show Spelling and Grammar, all
+  of which open UI outside the app, and some prompt for credentials on the host.
+  The Apple-menu items (Log Out, Lock Screen, Force Quit) are pruned because the
+  Apple menu is not in `allowedMenus`, and were never offered in the dumps.
+- No crash; the resolver has no skip, no retry, and no ledger failure.
+
+Follow-ups from wave 4 and these smoke tests: workbench controls with no
 requirement in the table (Swap fonts, Font A Size) can still run while a
 mutated-in opener has a sheet up (they usually still resolve, so the harm is
 small; a `sheet closed` requirement would fix it); menu-item actions such as

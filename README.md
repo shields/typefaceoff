@@ -164,7 +164,9 @@ first: it clones Cirrus Labs' `macos-golden-gate-vanilla` image (about 35 GB) as
 `typefaceoff-fuzz`, shows the guest's window while you allow UIFuzzDriver in its
 Accessibility settings, and runs a one-second campaign to confirm the driver
 works. Guest timings are comparable to this Mac's but are not interchangeable
-with them.
+with them. A headless guest's display boots at 1024x768 points, narrower than
+the workbench window, so each campaign first switches it to 1920x1080 points,
+which fits the window and every control.
 
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`

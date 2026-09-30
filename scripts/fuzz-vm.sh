@@ -100,6 +100,13 @@ prepare_guest() {
         ditto $(quote "$shares/repo/$app") ~/typefaceoff/TypefaceOff.app"
 }
 
+# The headless guest's display starts at 1024x768, narrower than the workbench window.
+set_display() {
+    vm_ssh "admin@$ip" "
+        until [ \"\$(stat -f %Su /dev/console)\" = admin ]; do sleep 1; done
+        swift $(quote "$shares/repo/scripts/set-vm-display.swift") 1920 1080"
+}
+
 run_campaign() {
     arguments=
     for argument in "$@"; do
@@ -132,6 +139,7 @@ run)
     fi
     start_vm --no-graphics
     prepare_guest
+    set_display
     run_campaign "$@"
     ;;
 *)

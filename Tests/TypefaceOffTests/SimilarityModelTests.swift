@@ -30,16 +30,6 @@ import TypefaceCore
     }
   }
 
-  static func wait(until condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation)
-    async throws
-  {
-    let deadline = ContinuousClock.now + .seconds(10)
-    while !condition(), ContinuousClock.now < deadline {
-      try await Task.sleep(for: .milliseconds(10))
-    }
-    #expect(condition(), "Timed out after 10 seconds", sourceLocation: sourceLocation)
-  }
-
   @Test func familyScoresSortWithStableNamesAndUnavailableEntriesLast() async throws {
     let model = FamilySimilarityModel { _, _, _ in
       AsyncThrowingStream {
@@ -66,10 +56,10 @@ import TypefaceCore
     model.sort = .similarity
     let request = FamilySimilarityModel.Request(reference: .init("ArialMT"), scale: 2)
     let task = Task { await model.update(request, catalog: FontCatalog()) }
-    try await Self.wait { model.comparing }
+    try await waitUntil { model.comparing }
     try await Task.sleep(for: .milliseconds(230))
     continuation.yield(.init(family: "Arial", score: Self.score(0)))
-    try await Self.wait { model.results.count == 1 }
+    try await waitUntil { model.results.count == 1 }
     #expect(model.comparing && model.results.count == 1)
     task.cancel()
     await task.value
@@ -89,7 +79,7 @@ import TypefaceCore
     let fit = FontFitModel(load: Self.fitResult)
     #expect(!fit.apply(to: model, undoManager: nil))
     fit.start(request)
-    try await Self.wait { !fit.running }
+    try await waitUntil { !fit.running }
     #expect(fit.result?.improved == true && !fit.running)
     model.comparison.a.size += 1
     #expect(!fit.apply(to: model, undoManager: nil))
@@ -104,7 +94,7 @@ import TypefaceCore
     undo.undo()
     #expect(model.comparison == initial)
     fit.start(request, refine: true)
-    try await Self.wait { !fit.running }
+    try await waitUntil { !fit.running }
     #expect(fit.result?.evaluations == 20)
     fit.start(nil)
     #expect(fit.result == nil && !fit.running)
@@ -127,7 +117,7 @@ import TypefaceCore
     #expect(fit.result == nil && !fit.running)
     let failed = FontFitModel { _, _ in throw SimilarityError.renderingFailed }
     failed.start(request)
-    try await Self.wait { !failed.running }
+    try await waitUntil { !failed.running }
     #expect(failed.error != nil && !failed.running)
   }
 }

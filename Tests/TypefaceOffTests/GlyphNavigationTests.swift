@@ -159,6 +159,12 @@ import TypefaceCore
   private var key = true
   override var isKeyWindow: Bool { key }
 
+  override func fieldEditor(_ createFlag: Bool, for object: Any?) -> NSText? {
+    let editor = super.fieldEditor(createFlag, for: object)
+    (editor as? NSTextView)?.enabledTextCheckingTypes = 0
+    return editor
+  }
+
   func setKey(_ value: Bool) {
     key = value
     NotificationCenter.default.post(

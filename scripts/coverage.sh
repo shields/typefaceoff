@@ -36,9 +36,11 @@ set -- "$core" -object "$app"
 # Every SwiftPM test bundle has its own executable. Include tooling modules that
 # are intentionally not linked into the font-engine test process.
 tool="$bin/UIFuzzTests.xctest/Contents/MacOS/UIFuzzTests"
-if test -x "$tool"; then
-    set -- "$@" -object "$tool"
+if ! test -x "$tool"; then
+    echo "UIFuzzTests.xctest is missing from $bin, so UIFuzzSupport would go unmeasured." >&2
+    exit 1
 fi
+set -- "$@" -object "$tool"
 xcrun llvm-cov report "$@" -instr-profile="$profile" -ignore-filename-regex="$exclude"
 report=.build/coverage/all-sources.json
 xcrun llvm-cov export "$@" -instr-profile="$profile" -ignore-filename-regex="$exclude" >"$report"
@@ -46,9 +48,10 @@ if ! jq -e '
     [.data[].files[]] |
     any(.filename | contains("/Sources/TypefaceCore/")) and
     any(.filename | contains("/Sources/TypefaceOff/")) and
+    any(.filename | contains("/Sources/UIFuzzSupport/")) and
     all(.summary.lines.covered == .summary.lines.count)
 ' "$report" >/dev/null; then
-    echo "Coverage must include core and app sources, with 100% line coverage for every file." >&2
+    echo "Coverage must include core, app, and fuzzing-support sources, with 100% line coverage for every file." >&2
     # Include function locations so compiler-generated gaps can be diagnosed in CI.
     jq -r '
         .data[].functions[] | select(.count == 0) |

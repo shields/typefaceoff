@@ -152,7 +152,8 @@ struct MatchSheet: View {
     return VStack(alignment: .leading, spacing: 8) {
       Text(verbatim: "\(label) · \(number(config.size)) pt")
         .font(.caption).foregroundStyle(.secondary).accessibilityLabel(label)
-      SpecimenText(config: scaled, text: "Hamburg", inset: .zero)
+      SpecimenText(
+        config: scaled, text: "Hamburg", inset: .zero, accessibilityName: "\(label) specimen")
     }.frame(maxWidth: .infinity)
   }
 }

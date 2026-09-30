@@ -6,6 +6,17 @@ import Testing
 @Suite(.serialized) @MainActor struct WindowLifecycleTests {
   @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
     #expect(NSApp.activationPolicy() == .prohibited)
+    NSApp.deactivate()
+    let launchDeadline = ContinuousClock.now + .seconds(10)
+    while !NSApp.windows.contains(where: { $0.title == "Helvetica Neue vs. Arial" }) {
+      try #require(
+        ContinuousClock.now < launchDeadline,
+        "The app did not create its initial comparison window")
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let initial = try #require(NSApp.windows.first { $0.title == "Helvetica Neue vs. Arial" })
+    initial.orderFront(nil)
+    try await settle(initial)
     #expect(!NSApp.isActive)
     #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Helvetica Neue vs. Arial" })
     let fileMenu = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)
@@ -52,6 +63,7 @@ import Testing
     defer { fresh.close() }
     #expect(try sizeField(in: fresh).stringValue == "22")
     #expect(fresh.undoManager?.canUndo == false)
+    #expect(!NSApp.isActive)
   }
 
   private func newWindow(_ menu: NSMenu) async throws -> NSWindow {

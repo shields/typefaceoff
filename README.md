@@ -117,30 +117,77 @@ incorrect, crashing, hanging, and slow action sequences under `.build/ui-fuzz`.
 Campaigns alternate live UI exploration with coverage-directed trace mutations.
 Exploration discovers enabled, visible controls after each action and balances
 clicks, button presses, menus, text entry, sliders, scrolling, dragging, and
-keyboard input. Font seeds cover both sides without queuing every installed
-family; mutations still sample the full font registry. Existing campaigns adopt
-the same schedule when resumed. Discovered actions record their accessibility
-paths, roles, and labels for replay, including controls with duplicate labels.
+keyboard input. Discovery and control lookup follow the same focused window, so
+a second window opened with ⌘N never supplies another window’s controls. Font
+seeds cover both sides without queuing every installed family; mutations still
+sample the full font registry. Existing campaigns adopt the same schedule when
+resumed. Discovered actions record their accessibility paths, roles, and names
+for replay. The numeric fields, scroll areas, and controls that both inspectors
+repeat carry accessibility identifiers such as `Font B Size field`, which
+discovery prefers to a title or description, so those controls are told apart
+without their paths; earlier traces still resolve by their recorded labels.
 Progress reports use `measured-ms` for the action sequence and resulting UI
 work; `total-ms` also includes app startup, shutdown, and coverage collection.
-The action count shows completed/attempted actions. Campaigns pause while the
-screen is locked or the desktop session is otherwise unavailable, because a
-locked session hides app windows from Accessibility, and resume as soon as the
-desktop returns. When the workbench controls are unavailable, campaigns retry
-with a delay that grows from five to 60 seconds. These retries do not advance
-the campaign or enter its corpus; `availability.json` and its associated run
-retain the latest availability failure. Crashes, hangs, and correctness failures
-are still preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'`
-for a bounded campaign. Replay or reduce a finding with
-`make fuzz-replay CASE=…` or `make fuzz-minimize CASE=…`; `make fuzz-benchmark`
-remeasures the corpus in an optimized build without coverage instrumentation and
-excludes failed or incomplete executions from its timings. Set
-`FUZZ_ARTIFACTS=…` to keep a separate campaign or replay directory. The driver
-requires an active, unlocked desktop session and macOS Accessibility and
-event-posting permission. On first use, the driver stays open while you enable
+The action count shows completed/attempted actions, followed by `skips=N` when
+an execution skipped picks. Campaigns pause while the screen is locked or the
+desktop session is otherwise unavailable, because a locked session hides app
+windows from Accessibility, and resume as soon as the desktop returns. When the
+workbench controls are unavailable, campaigns retry with a delay that grows from
+five to 60 seconds. These retries do not advance the campaign or enter its
+corpus; `availability.json` and its associated run retain the latest
+availability failure. Crashes, hangs, and correctness failures are still
+preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a
+bounded campaign. Replay or reduce a finding with `make fuzz-replay CASE=…` or
+`make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
+optimized build without coverage instrumentation and excludes failed or
+incomplete executions from its timings. Set `FUZZ_ARTIFACTS=…` to keep a
+separate campaign or replay directory. The driver requires an active, unlocked
+desktop session and macOS Accessibility and event-posting permission. On first
+use, the driver stays open while you enable
 `.build/fuzz-driver/UIFuzzDriver.app` in System Settings, then relaunches itself
 and continues automatically. Its stable bundle identity keeps the permission
 valid across rebuilds.
+
+Before each live exploration action, a campaign waits for the app to go quiet:
+no open work, and `--quiescence-ms` (200 by default, at most 1000; zero disables
+the wait) since the previous action, counting its delay. No wait lasts longer
+than one second, an execution stops waiting after eight seconds in all, and the
+report counts the waits that gave up in `idle-wait-timeouts`. The driver then
+looks the chosen control up again by its recorded path and then by name within
+the focused window, with up to three attempts in half a second. If the control
+is gone, the driver skips the pick, discovers again, and chooses another;
+skipped picks leave the executed trace, so replays and the corpus never contain
+them. An execution skips at most `--max-skips-per-run` picks (five by default;
+zero ends it at the first miss), at most two in a row, and each control once.
+Every other failure ends the execution as before, including a tree that could
+not be read completely, and so does a missing control in a recorded trace,
+because replays, reductions, benchmarks, and mutations must reproduce it. A
+stale path whose name still matches several controls is reported as
+`Ambiguous control:` instead of `Control not found:`.
+
+`skip-ledger.json` in the artifacts folder counts, across executions, how often
+each control was found or missing; unnamed controls count together by role. A
+named control that goes missing three times in a row, or any control that goes
+missing at least five times on half of its attempts, is reported once as a
+`Persistent stale control:` finding that ends its execution.
+`make fuzz-minimize` cannot reduce it, because it summarizes many executions.
+The ledger starts over when the app binary changes or with
+`--reset-skip-ledger`, and a campaign lists its 10 most-missed controls when it
+stops.
+
+A finding’s detail gives the attempts, the app’s pending work, the window
+searched, and the picks skipped earlier. Each run’s folder under `runs/` holds
+`driver.jsonl`, which records the driver’s waits, discoveries, lookups, skips,
+and failures on the same clock as the app’s telemetry, and
+`diagnostics-<n>.json` for the first skip and for the control or action failure
+that ends the execution: the tree the driver searched in document order, the
+application’s top-level elements, the app’s telemetry, and which controls
+discovery would have offered. A side file that cannot be written is a finding.
+The detail still ends with `Visible accessibility elements:`, which now lists up
+to 100 named elements of that tree in document order, hidden ones included,
+instead of a sorted list from every window. Discovery reads more of the tree,
+and `measured-ms` leaves out waits and skipped picks, so timings and those
+listings are not comparable with reports from earlier campaigns.
 
 `make fuzz-vm` runs the same campaign in a macOS 27 virtual machine whose
 session never locks, so it continues while this Mac is locked and keeps its

@@ -7,17 +7,36 @@ import UIFuzzSupport
 
 enum DriverError: Error, CustomStringConvertible {
   case applicationDidNotLaunch
-  case controlMissing(String)
+  case resolution(ResolutionFailure)
   case actionFailed(String, AXError)
 
   var description: String {
     switch self {
     case .applicationDidNotLaunch: "The app did not expose an accessibility window"
-    case .controlMissing(let target): "Control not found: \(target)"
+    case .resolution(let failure): failure.description
     case .actionFailed(let action, let error):
       "Accessibility action \(action) failed: \(error.rawValue)"
     }
   }
+}
+
+extension DriverError {
+  var resolutionFailure: ResolutionFailure? {
+    if case .resolution(let failure) = self { failure } else { nil }
+  }
+}
+
+struct AXResolution {
+  var resolution: Resolution<AXNode>
+  var attempts: Int
+  /// Reads that failed for a reason other than "no value", summed over the attempts.
+  var readErrors: Int
+}
+
+struct AXControl {
+  var element: AXUIElement
+  var step: ResolutionStep
+  var attempts: Int
 }
 
 struct AXDriver {
@@ -57,11 +76,11 @@ struct AXDriver {
       detail: "The app's workbench controls are unavailable to Accessibility.")
   }
 
+  /// One attempt: the caller polls and has already checked availability.
   var hasWorkbenchControls: Bool {
-    let windows = attribute(kAXWindowsAttribute, of: application) as? [AXUIElement] ?? []
-    return windows.contains { window in
-      firstDescendant(of: window) { names(of: $0).contains("Shared point size") } != nil
-    }
+    let request = ResolutionRequest(target: "Shared point size", excludesMenuBar: true)
+    return try! resolve(request, retry: .once, idle: { _ in true }, checkpoint: {})
+      .resolution.node != nil
   }
 
   static func waitForPermissions() {
@@ -125,29 +144,32 @@ struct AXDriver {
     fatalError("Could not restart ui-fuzz while waiting for permission: \(message)")
   }
 
-  func perform(_ action: FuzzAction) throws {
+  func perform(
+    _ action: FuzzAction, on element: AXUIElement?, idle: (TimeInterval) -> Bool
+  ) throws {
     try DesktopSession.current().requireAvailable()
+    precondition(element != nil || !action.kind.needsTarget)
     switch action.kind {
     case .press:
-      let element = try require(action)
+      let element = element!
       try perform(kAXPressAction as String, on: element)
     case .setValue:
-      let element = try require(action)
+      let element = element!
       try focus(element)
       let result = AXUIElementSetAttributeValue(
         element, kAXValueAttribute as CFString, (action.value ?? "") as CFTypeRef)
       guard result == .success else { throw DriverError.actionFailed("set value", result) }
       if action.commitValue != false { try postKey(code: 36, modifiers: 0) }
     case .increment:
-      try perform(kAXIncrementAction as String, on: require(action))
+      try perform(kAXIncrementAction as String, on: element!)
     case .decrement:
-      try perform(kAXDecrementAction as String, on: require(action))
+      try perform(kAXDecrementAction as String, on: element!)
     case .showMenu:
-      try perform(kAXShowMenuAction as String, on: require(action))
+      try perform(kAXShowMenuAction as String, on: element!)
     case .shortcut, .key:
       try postKey(code: action.keyCode ?? 0, modifiers: action.modifiers ?? 0)
     case .scroll:
-      let target = try require(action)
+      let target = element!
       let point = try center(of: target).unwrap(
         DriverError.actionFailed("locate scroll target", .noValue))
       guard
@@ -160,8 +182,8 @@ struct AXDriver {
     case .pause:
       break
     case .selectFont:
-      let familyButton = try require(action)
-      let search = try revealFontSearch(byPressing: familyButton)
+      let familyButton = element!
+      let search = try revealFontSearch(byPressing: familyButton, idle: idle)
       try focus(search)
       let result = AXUIElementSetAttributeValue(
         search, kAXValueAttribute as CFString, (action.value ?? "") as CFTypeRef)
@@ -169,12 +191,12 @@ struct AXDriver {
       Thread.sleep(forTimeInterval: 0.05)
       try postKey(code: 36, modifiers: 0)
     case .click:
-      let point = try center(of: require(action)).unwrap(
+      let point = try center(of: element!).unwrap(
         DriverError.actionFailed("locate click target", .noValue))
       try postMouse(.leftMouseDown, at: point)
       try postMouse(.leftMouseUp, at: point)
     case .drag:
-      let start = try center(of: require(action)).unwrap(
+      let start = try center(of: element!).unwrap(
         DriverError.actionFailed("locate drag target", .noValue))
       let end = CGPoint(x: start.x + (action.deltaX ?? 0), y: start.y + (action.deltaY ?? 0))
       try postMouse(.leftMouseDown, at: start)
@@ -190,61 +212,36 @@ struct AXDriver {
     }
   }
 
-  func snapshot() -> [String] {
-    descendants(of: application).compactMap { element in
-      let role = stringAttribute(kAXRoleAttribute, of: element) ?? "?"
-      let name = names(of: element).sorted().first ?? ""
-      return name.isEmpty ? nil : "\(role):\(name)"
-    }.sorted()
-  }
-
-  private func require(_ target: String?, waiting timeout: TimeInterval = 2) throws -> AXUIElement {
-    guard let target else { throw DriverError.controlMissing("<missing target>") }
-    let deadline = ProcessInfo.processInfo.systemUptime + timeout
-    repeat {
-      if let result = firstDescendant(of: application, matching: { names(of: $0).contains(target) })
-      {
-        return result
-      }
-      if ProcessInfo.processInfo.systemUptime < deadline {
-        Thread.sleep(forTimeInterval: 0.05)
-      }
-    } while ProcessInfo.processInfo.systemUptime < deadline
-    throw DriverError.controlMissing(target)
-  }
-
-  private func require(_ action: FuzzAction) throws -> AXUIElement {
-    guard let path = action.targetPath else { return try require(action.target) }
-    let deadline = ProcessInfo.processInfo.systemUptime + 2
-    repeat {
-      if let element = element(at: path),
-        action.targetRole == stringAttribute(kAXRoleAttribute, of: element),
-        action.target.map({ names(of: element).contains($0) }) ?? true
-      {
-        return element
-      }
-      // SwiftUI can insert siblings during layout. A unique label and role still
-      // identify the same control; duplicate or unnamed controls must match the path.
-      if let target = action.target {
-        let matches = descendants(of: application).filter {
-          stringAttribute(kAXRoleAttribute, of: $0) == action.targetRole
-            && names(of: $0).contains(target)
-        }
-        if matches.count == 1 { return matches[0] }
-      }
-      Thread.sleep(forTimeInterval: 0.05)
-    } while ProcessInfo.processInfo.systemUptime < deadline
-    throw DriverError.controlMissing(action.target ?? "\(path)")
-  }
-
-  private func element(at path: [Int]) -> AXUIElement? {
-    var element = application
-    for index in path {
-      let elements = children(of: element)
-      guard elements.indices.contains(index) else { return nil }
-      element = elements[index]
+  /// Finds the control a request names on a fresh capture of the tree per attempt. A control that
+  /// is not found is reported in the result, not thrown, because the caller decides whether a
+  /// failure is skippable; only the availability check can throw.
+  func resolve(
+    _ request: ResolutionRequest, retry: ResolutionRetry, idle: (TimeInterval) -> Bool,
+    checkpoint: () throws -> Void = { try DesktopSession.current().requireAvailable() }
+  ) throws -> AXResolution {
+    let clock = SystemClock()
+    let budget: TimeInterval = retry == .recorded ? 3 : 1.5
+    // A request that names nothing can never be found, so waiting would only delay the failure.
+    let retry = request.target == nil && request.path == nil ? ResolutionRetry.once : retry
+    var readErrors = 0
+    let (resolution, attempts) = try retry.run(
+      clock: clock, idle: idle, checkpoint: checkpoint
+    ) { () -> Resolution<AXNode> in
+      let reads = AXReads()
+      let root = AXNode(application, reads: reads)
+      let resolver = AccessibilityResolver(
+        application: root, focusedWindow: { root.focusedWindow() }, clock: clock,
+        budgetSeconds: budget)
+      defer { readErrors += reads.errors }
+      return resolver.resolve(request)
     }
-    return element
+    return AXResolution(resolution: resolution, attempts: attempts, readErrors: readErrors)
+  }
+
+  func captureDump(_ context: TreeDump.Context) -> TreeDump {
+    let root = AXNode(application, reads: AXReads())
+    return TreeDump.capture(
+      context, application: root, focusedWindow: { root.focusedWindow() }, clock: SystemClock())
   }
 
   private func perform(_ action: String, on element: AXUIElement) throws {
@@ -252,12 +249,18 @@ struct AXDriver {
     guard result == .success else { throw DriverError.actionFailed(action, result) }
   }
 
-  private func revealFontSearch(byPressing familyButton: AXUIElement) throws -> AXUIElement {
+  private func revealFontSearch(
+    byPressing familyButton: AXUIElement, idle: (TimeInterval) -> Bool
+  ) throws -> AXUIElement {
+    var failure = ResolutionFailure.missing("Search installed fonts")
     for _ in 0..<3 {
       try perform(kAXPressAction as String, on: familyButton)
-      if let search = try? require("Search installed fonts", waiting: 1) { return search }
+      let request = ResolutionRequest(target: "Search installed fonts")
+      let result = try resolve(request, retry: .reveal, idle: idle).resolution
+      if let search = result.node?.element { return search }
+      failure = result.failure(for: request) ?? failure
     }
-    throw DriverError.controlMissing("Search installed fonts")
+    throw DriverError.resolution(failure)
   }
 
   private func focus(_ element: AXUIElement) throws {
@@ -298,52 +301,8 @@ struct AXDriver {
     event.postToPid(processIdentifier)
   }
 
-  private func descendants(of root: AXUIElement) -> [AXUIElement] {
-    var pending = [root]
-    var result: [AXUIElement] = []
-    var visited = Set<CFHashCode>()
-    while let element = pending.popLast(), result.count < 10_000 {
-      let identity = CFHash(element)
-      guard visited.insert(identity).inserted else { continue }
-      result.append(element)
-      pending.append(contentsOf: children(of: element).reversed())
-    }
-    return result
-  }
-
-  /// Stop as soon as a control is found; enumerating every system menu can itself stall AppKit.
-  private func firstDescendant(
-    of root: AXUIElement, matching predicate: (AXUIElement) -> Bool
-  ) -> AXUIElement? {
-    var pending = [root]
-    var visited = Set<CFHashCode>()
-    while let element = pending.popLast(), visited.count < 10_000 {
-      guard visited.insert(CFHash(element)).inserted else { continue }
-      if predicate(element) { return element }
-      // Window controls precede the menu bar in the application's accessibility children.
-      pending.append(contentsOf: children(of: element).reversed())
-    }
-    return nil
-  }
-
-  private func names(of element: AXUIElement) -> Set<String> {
-    Set(
-      [kAXIdentifierAttribute, kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute]
-        .compactMap { stringAttribute($0, of: element) }.filter { !$0.isEmpty })
-  }
-
   private func center(of element: AXUIElement) -> CGPoint? {
-    guard let positionValue = attribute(kAXPositionAttribute, of: element),
-      let sizeValue = attribute(kAXSizeAttribute, of: element),
-      CFGetTypeID(positionValue) == AXValueGetTypeID(),
-      CFGetTypeID(sizeValue) == AXValueGetTypeID()
-    else { return nil }
-    var position = CGPoint.zero
-    var size = CGSize.zero
-    guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &position),
-      AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
-    else { return nil }
-    return CGPoint(x: position.x + size.width / 2, y: position.y + size.height / 2)
+    AXNode(element, reads: AXReads()).frame.map { CGPoint(x: $0.midX, y: $0.midY) }
   }
 
   private func stringAttribute(_ name: String, of element: AXUIElement) -> String? {
@@ -364,8 +323,4 @@ func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
     return nil
   }
   return value
-}
-
-func children(of element: AXUIElement) -> [AXUIElement] {
-  attribute(kAXChildrenAttribute, of: element) as? [AXUIElement] ?? []
 }

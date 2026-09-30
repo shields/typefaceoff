@@ -1,25 +1,40 @@
 import ApplicationServices
+import CoreGraphics
 import Foundation
 import UIFuzzSupport
 
 private struct VisibleElement {
-  var element: AXUIElement
+  var node: AXNode
   var path: [Int]
   var role: String
+
+  var element: AXUIElement { node.element }
+}
+
+struct DiscoveryStats {
+  var elements: Int
+  /// Standard windows only: the menu bar and overlays are top-level children too.
+  var windows: Int
+  var scope: WindowScopeSource
+  var readErrors: Int
 }
 
 extension AXDriver {
-  func availableActions() -> [FuzzAction] {
-    var elements = visibleElements()
+  func availableActions(observe: (DiscoveryStats) -> Void) -> [FuzzAction] {
+    let reads = AXReads()
+    let application = AXNode(self.application, reads: reads)
+    let topLevel = application.children.map {
+      TopLevelChild(identity: $0.identity, role: $0.role, subrole: $0.subrole)
+    }
+    let scope = WindowScope(children: topLevel, focused: application.focusedWindow())
+    let offered = visibleElements(of: application, topLevel: topLevel, scope: scope)
     // Sheets, popovers, and open menus receive input before the workbench behind them.
-    let modal = elements.filter { ["AXSheet", "AXPopover", "AXMenu"].contains($0.role) }
-      .max { $0.path.count < $1.path.count }
-    if let modal { elements = elements.filter { $0.path.starts(with: modal.path) } }
-    var result = ActionExplorer.keyboardActions(includeShortcuts: modal == nil)
+    let retained = ModalScope.retained(paths: offered.map(\.path), roles: offered.map(\.role))
+    let elements = retained.indices.map { offered[$0] }
+    var result = ActionExplorer.keyboardActions(includeShortcuts: retained.modal == nil)
     for node in elements {
       let element = node.element
-      let target = [kAXIdentifierAttribute, kAXTitleAttribute, kAXDescriptionAttribute]
-        .compactMap { attribute($0, of: element) as? String }.first { !$0.isEmpty }
+      let target = node.node.discoveryTarget
       var supported: CFArray?
       AXUIElementCopyActionNames(element, &supported)
       let names = supported as? [String] ?? []
@@ -59,69 +74,32 @@ extension AXDriver {
             : nil)
       }
     }
+    observe(
+      DiscoveryStats(
+        elements: elements.count, windows: scope.standardWindowCount, scope: scope.source,
+        readErrors: reads.errors))
     return result
   }
 
-  private func visibleElements() -> [VisibleElement] {
-    var pending: [(AXUIElement, [Int], CGRect?)] = [(application, [], nil)]
-    var visited = Set<CFHashCode>()
+  private func visibleElements(
+    of application: AXNode, topLevel: [TopLevelChild<AXIdentity>], scope: WindowScope<AXIdentity>
+  ) -> [VisibleElement] {
+    var pending: [(AXNode, [Int], CGRect?)] = [(application, [], nil)]
+    var visited = Set<AXIdentity>()
     var result: [VisibleElement] = []
-    let focusedWindow = attribute(kAXFocusedWindowAttribute, of: application)
-    while let (element, path, parentClip) = pending.popLast(), visited.count < 10_000 {
-      guard visited.insert(CFHash(element)).inserted,
-        attribute("AXHidden", of: element) as? Bool != true
+    while let (node, path, parentClip) = pending.popLast(), visited.count < 10_000 {
+      guard visited.insert(node.identity).inserted,
+        case .keep(let emits, let clip) = VisibilityRules.disposition(
+          node.visibilityInput, parentClip: parentClip)
       else { continue }
-      let role = attribute(kAXRoleAttribute, of: element) as? String ?? ""
-      let subrole = attribute(kAXSubroleAttribute, of: element) as? String ?? ""
-      // Keep the campaign in the workbench; window chrome and process-management menus
-      // would close or hide the app rather than exercise its controls.
-      if ["AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton"].contains(
-        subrole)
-      {
-        continue
-      }
-      if role == "AXMenuBarItem",
-        !["Edit", "View", "Comparison"].contains(
-          attribute(kAXTitleAttribute, of: element) as? String ?? "")
-      {
-        continue
-      }
-      if role == "AXWindow", subrole == "AXStandardWindow", let focusedWindow,
-        !CFEqual(element, focusedWindow)
-      {
-        continue
-      }
-      let frame = frame(of: element)
-      var clip = parentClip
-      if ["AXWindow", "AXSheet", "AXPopover", "AXMenu", "AXScrollArea"].contains(role) {
-        guard let frame, !frame.isEmpty else { continue }
-        // Menus and popovers may extend outside their parent window.
-        clip =
-          ["AXMenu", "AXPopover"].contains(role) ? frame : parentClip?.intersection(frame) ?? frame
-      }
-      if let frame, !frame.isEmpty,
-        attribute(kAXEnabledAttribute, of: element) as? Bool != false,
-        clip?.contains(CGPoint(x: frame.midX, y: frame.midY)) ?? true
-      {
-        result.append(VisibleElement(element: element, path: path, role: role))
-      }
-      for (index, child) in children(of: element).enumerated().reversed() {
+      if emits { result.append(VisibleElement(node: node, path: path, role: node.role)) }
+      for (index, child) in node.children.enumerated().reversed() {
+        if path.isEmpty, !scope.discoveryIncludes(index: index, child: topLevel[index]) {
+          continue
+        }
         pending.append((child, path + [index], clip))
       }
     }
     return result
-  }
-
-  private func frame(of element: AXUIElement) -> CGRect? {
-    guard let position = attribute(kAXPositionAttribute, of: element),
-      let size = attribute(kAXSizeAttribute, of: element),
-      CFGetTypeID(position) == AXValueGetTypeID(), CFGetTypeID(size) == AXValueGetTypeID()
-    else { return nil }
-    var origin = CGPoint.zero
-    var extent = CGSize.zero
-    guard AXValueGetValue(position as! AXValue, .cgPoint, &origin),
-      AXValueGetValue(size as! AXValue, .cgSize, &extent)
-    else { return nil }
-    return CGRect(origin: origin, size: extent)
   }
 }

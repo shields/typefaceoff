@@ -10,6 +10,7 @@ struct SpecimenText: NSViewRepresentable {
   var highlights: Set<String> = []
   var highlightKinds: [String: String] = [:]
   var side: Side = .a
+  var accessibilityName: String?
   var scrollPosition: SpecimenScrollPosition?
   var select: (String) -> Void = { _ in }
 
@@ -42,7 +43,10 @@ struct SpecimenText: NSViewRepresentable {
     view.textContainer?.widthTracksTextView = true
     view.textContainerInset = inset
     view.backgroundColor = .white
-    view.setAccessibilityLabel("Font \(side.rawValue.uppercased()) specimen")
+    view.setAccessibilityLabel("\(side.fontName) specimen")
+    let name = accessibilityName ?? "\(side.fontName) specimen"
+    if accessibilityName != nil { view.setAccessibilityIdentifier(name) }
+    scroll.setAccessibilityIdentifier("\(name) scroll area")
     scroll.documentView = view
     context.coordinator.position.attach(scroll)
     return scroll

@@ -55,9 +55,32 @@ struct Run: ParsableCommand {
   @Option(help: "Maximum UTF-16 code units in generated specimen text.")
   var maxTextUnits = 100_000
 
+  @Option(
+    help:
+      "Milliseconds the app must be quiet before a live exploration action is discovered, at most 1000. Zero disables the wait."
+  )
+  var quiescenceMs = 200
+
+  @Option(
+    help:
+      "Live exploration actions one execution may skip when their control cannot be found. Zero ends the execution at the first one."
+  )
+  var maxSkipsPerRun = 5
+
+  @Flag(help: "Discard the skip ledger, which counts failures to find controls across executions.")
+  var resetSkipLedger = false
+
   mutating func run() throws {
     guard maxActions > 0 else { throw ValidationError("--max-actions must be positive.") }
     guard maxTextUnits >= 0 else { throw ValidationError("--max-text-units cannot be negative.") }
+    // No wait outlasts `IdleWait.beforeDiscovery`, so a longer quiet period mostly times out.
+    let longestQuiescenceMs = Int(IdleWait.beforeDiscovery * 1000)
+    guard (0...longestQuiescenceMs).contains(quiescenceMs) else {
+      throw ValidationError("--quiescence-ms must be between 0 and \(longestQuiescenceMs).")
+    }
+    guard maxSkipsPerRun >= 0 else {
+      throw ValidationError("--max-skips-per-run cannot be negative.")
+    }
     AXDriver.waitForPermissions()
     let stop = StopController()
     stop.install()
@@ -80,7 +103,16 @@ struct Run: ParsableCommand {
       }
     }
     var state = try ArtifactLoader.corpusState(at: artifactURL.appending(path: "campaign.json"))
-    let runner = SequenceRunner(configuration: common.runnerConfiguration, mutator: mutator)
+    var runnerConfiguration = common.runnerConfiguration
+    runnerConfiguration.quiescenceSeconds = Double(quiescenceMs) / 1000
+    let runner = SequenceRunner(configuration: runnerConfiguration, mutator: mutator)
+    let ledgerURL = artifactURL.appending(path: "skip-ledger.json")
+    let opened = SkipLedger.opening(
+      existing: resetSkipLedger ? SkipLedger() : try SkipLedger.load(from: ledgerURL),
+      appFingerprint: try appFingerprint(runnerConfiguration.binary), reset: resetSkipLedger,
+      policy: SkipPolicy(maximumPerRun: maxSkipsPerRun))
+    if let notice = opened.notice { outputLine(notice) }
+    runner.skipLedger = opened.ledger
     var slowest = try loadSlowCandidates(artifactURL)
     // An availability report that cannot be decoded would otherwise stop the campaign at its
     // first desktop outage.
@@ -109,8 +141,12 @@ struct Run: ParsableCommand {
         ?? mutator.campaignTrace(
           execution: state.executions, corpus: corpus, seed: random.next())
       pendingTrace = trace
+      let ledgerBeforeRun = runner.skipLedger
       let report = runner.execute(
         trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
+      // The trace of an execution cut short by an outage runs again, so its counts are dropped.
+      if report.needsAvailabilityRecovery { runner.skipLedger = ledgerBeforeRun }
+      try runner.skipLedger?.save(to: ledgerURL)
       if report.needsAvailabilityRecovery {
         try preserveAvailability(report, artifacts: artifactURL)
         let unavailable = report.findings.first(where: { $0.kind == .unavailable })!
@@ -142,8 +178,9 @@ struct Run: ParsableCommand {
       let findingKinds = report.findings.map(\.kind.rawValue).joined(separator: ",")
       let inputs = Dictionary(grouping: report.trace.actions, by: \.kind.rawValue)
         .sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.count)" }.joined(separator: ",")
+      let skips = Int(report.metadata["skipped-actions"] ?? "") ?? 0
       outputLine(
-        "#\(state.executions) mode=\(trace.origin) actions=\(report.actionMilliseconds.count)/\(report.trace.actions.count) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
+        "#\(state.executions) mode=\(trace.origin) actions=\(report.actionMilliseconds.count)/\(report.trace.actions.count)\(ResolutionMetadata.progressSuffix(skips: skips)) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
           + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
           + " inputs=\(inputs)"
           + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
@@ -151,6 +188,10 @@ struct Run: ParsableCommand {
         report, findingFile: artifactURL.appending(path: "findings/crash/\(identifier).json").path)
     }
     outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")
+    if let lines = runner.skipLedger?.summary(), !lines.isEmpty {
+      outputLine("controls that failed to resolve most often:")
+      for line in lines { outputLine("  \(line)") }
+    }
   }
 }
 
@@ -178,8 +219,15 @@ struct Minimize: ParsableCommand {
     AXDriver.waitForPermissions()
     let original = try loadTraceOrReport(URL(fileURLWithPath: casePath))
     let runner = SequenceRunner(configuration: common.runnerConfiguration)
-    guard let target = original.report?.findings.first else {
-      throw ValidationError("Minimization requires an execution report containing a finding.")
+    guard let target = original.report?.findings.first(where: { !$0.isSideFileFailure }) else {
+      throw ValidationError(
+        "Minimization requires an execution report containing a finding other than a failure to write one of the fuzzer's own files."
+      )
+    }
+    guard !target.signature.hasPrefix(ResolutionSignature.persistent) else {
+      throw ValidationError(
+        "A persistent stale control finding summarizes many executions, so one run cannot reproduce it."
+      )
     }
     let baseline = original.report?.measuredMilliseconds
     let minimized = TraceReducer.reduce(original.trace) { actions in
@@ -192,9 +240,7 @@ struct Minimize: ParsableCommand {
         return (Statistics.median(values) ?? 0) >= baseline * 0.9
       }
       let report = runner.execute(candidate)
-      return report.findings.contains {
-        $0.kind == target.kind && $0.signature == target.signature
-      }
+      return report.findings.contains { $0.reproduces(target) }
     }
     let output = URL(fileURLWithPath: common.artifacts).appending(path: "minimized.json")
     try TraceIO.save(minimized, to: output)
@@ -321,6 +367,15 @@ private func parseDuration(_ value: String) throws -> TimeInterval {
     throw ValidationError("Invalid duration: \(value)")
   }
   return result * multiplier
+}
+
+private func appFingerprint(_ binary: URL) throws -> String {
+  let attributes = try FileManager.default.attributesOfItem(atPath: binary.path)
+  guard let modified = attributes[.modificationDate] as? Date,
+    let size = attributes[.size] as? NSNumber
+  else { throw ValidationError("Cannot read the modification time and size of \(binary.path).") }
+  return SkipLedger.fingerprint(
+    path: binary.path, modified: modified.timeIntervalSince1970, size: size.intValue)
 }
 
 private func saveState(_ state: CorpusState, to url: URL) throws {

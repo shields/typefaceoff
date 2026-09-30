@@ -5,7 +5,7 @@ import Testing
 
 @Suite struct StderrScanTests {
   private let warning =
-    "WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future."
+    "WARNING: Application dropped a request in its fixture delegate. This warning will become an assert in the future."
 
   private func nslog(_ message: String, time: String, pid: Int, thread: Int) -> String {
     "2026-09-29 \(time) TypefaceOff[\(pid):\(thread)] \(message)"
@@ -136,8 +136,15 @@ import Testing
     #expect(StderrScan.finding(in: "benign noise", allowing: ["benign noise"]) == nil)
   }
 
-  @Test func theBuiltInAllowlistIsEmpty() {
-    #expect(StderrScan.allowedSubstrings.isEmpty)
+  @Test func theSwiftUIListReentrancyWarningIsNotEvidence() throws {
+    let prefix = "2026-09-29 18:25:46.414 TypefaceOff[21700:4473054] "
+    let warning =
+      prefix + "WARNING: Application performed a reentrant operation in its NSTableView delegate. "
+      + "This warning will become an assert in the future."
+    #expect(StderrScan.finding(in: warning) == nil)
+    #expect(StderrScan.finding(in: warning + "\n" + warning) == nil)
+    let finding = try #require(StderrScan.finding(in: warning + "\nsomething else"))
+    #expect(finding.signature == "app-stderr: something else")
   }
 
   @Test func truncationIsSaidInTheDetail() throws {

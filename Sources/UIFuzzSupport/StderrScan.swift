@@ -17,7 +17,12 @@ public enum StderrScan {
 
   /// Substrings of normalized lines that are known to be harmless and are not evidence. Each entry
   /// needs a comment saying why the line is benign.
-  public static let allowedSubstrings: [String] = []
+  public static let allowedSubstrings: [String] = [
+    // SwiftUI's List logs this on macOS 27 when it fills past the viewport, in both pickers. The
+    // app has no table delegate of its own. It becomes an assert in a future release, and a
+    // crash is then a finding by itself.
+    "performed a reentrant operation in its NSTableView delegate"
+  ]
 
   public static let defaultReadLimit = 4 << 20
 

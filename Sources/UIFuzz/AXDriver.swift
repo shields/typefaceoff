@@ -287,6 +287,10 @@ struct AXDriver {
     }
   }
 
+  func dismissOverlay() throws {
+    try postKey(code: 53, modifiers: 0)
+  }
+
   private func postKey(code: UInt16, modifiers: UInt64) throws {
     try activateIfNeeded()
     let source = CGEventSource(stateID: .combinedSessionState)

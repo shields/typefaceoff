@@ -282,8 +282,9 @@ merge, so clicks were still inert. Artifacts were in the worktree's
   deployment target is 15.0, so it needs an availability check) and
   `NSWindow.preventsApplicationTerminationWhenModal = false`; with either the
   quit exits in about 40 ms. Left alone: a user's Cmd-Q with a sheet open does
-  nothing, which is the platform default that protects sheet edits. Whether to
-  change it is a product decision. The driver dismisses overlays instead.
+  nothing, which is the platform default that protects sheet edits. Decided
+  2026-09-30: the app stays as it is and the driver dismisses overlays before it
+  quits.
 
 ## Merged to main: wave 4
 

@@ -5,6 +5,7 @@ public enum PruneReason: String, Codable, Sendable {
   case hidden
   case windowChrome
   case menuBarItem
+  case systemUI
   case emptyFrame
 }
 
@@ -32,6 +33,11 @@ public enum VisibilityRules {
     if chromeSubroles.contains(input.subrole) { return .prune(.windowChrome) }
     if input.role == "AXMenuBarItem", !allowedMenus.contains(input.title) {
       return .prune(.menuBarItem)
+    }
+    if input.role == "AXMenuItem",
+      SystemMenuItems.opensSystemUI(identifier: input.identifier, title: input.title)
+    {
+      return .prune(.systemUI)
     }
     let frame = input.frame
     var clip = parentClip

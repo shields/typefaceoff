@@ -344,6 +344,55 @@ import Testing
     expectFound(resolveStale(scene, tieBreak: true), scene.resetA, .visibleName)
   }
 
+  struct Menus {
+    var system: FakeNode
+    var submenuItem: FakeNode
+    var own: FakeNode
+    var window: FakeNode
+    var application: FakeNode
+  }
+
+  func menus() -> Menus {
+    let system = world.menuItem("_performStandardShareMenuItem:", title: "Open")
+    let submenuItem = world.menuItem("rewrite", title: "Open")
+    let writingTools = world.menuItem(
+      "__NSTextViewContextSubmenuIdentifierWritingTools", title: "Writing Tools",
+      children: [world.node("AXMenu", frame: FakeWorld.windowFrame, children: [submenuItem])])
+    let own = world.menuItem("open", title: "Open")
+    let menu = world.node(
+      "AXMenu", frame: FakeWorld.windowFrame, children: [system, writingTools, own])
+    let window = world.window(children: [menu])
+    return Menus(
+      system: system, submenuItem: submenuItem, own: own, window: window,
+      application: world.application([window]))
+  }
+
+  @Test func menuItemsThatOpenSystemUIAreNotVisibleTwins() {
+    let scene = menus()
+    let stale = request("Open", path: [0, 9], role: "AXMenuItem", tieBreak: true)
+    expectFound(
+      world.resolver(scene.application, focused: scene.window).resolve(stale), scene.own,
+      .visibleName)
+    expectAmbiguous(
+      world.resolver(scene.application, focused: scene.window).resolve(
+        request("Open", path: [0, 9], role: "AXMenuItem")), matches: 3, offered: 1)
+  }
+
+  @Test func aRecordedPathStillReachesAMenuItemThatDiscoveryNoLongerOffers() {
+    let scene = menus()
+    expectFound(
+      world.resolver(scene.application, focused: scene.window).resolve(
+        request("_performStandardShareMenuItem:", path: [0, 0, 0], role: "AXMenuItem")),
+      scene.system, .path)
+    expectFound(
+      world.resolver(scene.application, focused: scene.window).resolve(
+        request("_performStandardShareMenuItem:", path: [0, 9], role: "AXMenuItem")),
+      scene.system, .uniqueName)
+    expectFound(
+      world.resolver(scene.application, focused: scene.window).resolve(
+        request("rewrite", path: [0, 0, 1, 0, 0], role: "AXMenuItem")), scene.submenuItem, .path)
+  }
+
   @Test func theTieBreakReadsOnlyTheCandidatesAncestorChains() {
     let scene = inspectors()
     scene.resetB.isHidden = true

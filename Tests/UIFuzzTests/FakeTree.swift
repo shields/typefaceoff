@@ -52,6 +52,15 @@ final class FakeWorld {
       isEnabled: enabled, isHidden: hidden, childNodes: children)
   }
 
+  func menuItem(
+    _ identifier: String, title: String = "", frame: CGRect? = FakeWorld.controlFrame,
+    children: [FakeNode] = []
+  ) -> FakeNode {
+    node(
+      "AXMenuItem", attributes: AccessibilityAttributes(identifier: identifier, title: title),
+      frame: frame, children: children)
+  }
+
   func window(name: String = "", children: [FakeNode]) -> FakeNode {
     node(
       "AXWindow", subrole: "AXStandardWindow", name: name, frame: FakeWorld.windowFrame,
@@ -137,8 +146,10 @@ final class FakeNode: AccessibilityNode {
   var visibilityInput: VisibilityInput {
     world.record(identity, "visibility")
     return VisibilityInput(
-      role: fakeRole, subrole: fakeSubrole, title: fakeAttributes.title, frame: frame,
-      isEnabled: isEnabled, isHidden: isHidden)
+      role: fakeRole, subrole: fakeSubrole,
+      identifier: fakeRole == "AXMenuItem" ? fakeAttributes.identifier : "",
+      title: fakeRole == "AXMenuBarItem" || fakeRole == "AXMenuItem" ? fakeAttributes.title : "",
+      frame: frame, isEnabled: isEnabled, isHidden: isHidden)
   }
 
   var children: [FakeNode] {

@@ -53,6 +53,61 @@ import Testing
       })
   }
 
+  func menuItem(
+    _ identifier: String, _ title: String, children: [FakeNode] = []
+  ) -> FakeNode {
+    world.menuItem(identifier, title: title, frame: Self.insideMenu, children: children)
+  }
+
+  func menu(open: Bool = true, _ items: [FakeNode]) -> FakeNode {
+    world.node("AXMenu", frame: open ? Self.menuFrame : nil, children: items)
+  }
+
+  /// The submenus under Writing Tools and Speech are open, so only pruning those items keeps their
+  /// children out.
+  func textContextMenu(fontMenuOpen: Bool = false) -> FakeNode {
+    world.node(
+      "AXMenu", name: "Text menu", frame: Self.menuFrame,
+      children: [
+        menuItem("_rvMenuItemAction", "Look Up “Hamburg”"),
+        menuItem("", ""),
+        menuItem("_NS:7", "Cut"),
+        menuItem("_NS:23", "Copy"),
+        menuItem(
+          "__NSTextViewContextSubmenuIdentifierWritingTools", "Writing Tools",
+          children: [menu([menuItem("rewrite", "Rewrite")])]),
+        menuItem(
+          "_NS:356", "Speech",
+          children: [
+            menu([menuItem("_NS:85", "Start Speaking"), menuItem("_NS:91", "Stop Speaking")])
+          ]),
+        menuItem(
+          "_NS:315", "Font",
+          children: [
+            menu(
+              open: fontMenuOpen,
+              [
+                menuItem("__NSTextViewContextSubmenuItemIdentifierShowFont", "Show Fonts"),
+                menuItem("_NS:50", "Bold"),
+              ])
+          ]),
+        menuItem("_NS:142", "Smart Quotes"),
+      ])
+  }
+
+  func openMenuBar(_ title: String, items: [FakeNode]) -> FakeNode {
+    world.node(
+      "AXMenuBar", frame: nil,
+      children: [
+        world.node(
+          "AXMenuBarItem", attributes: AccessibilityAttributes(title: title),
+          frame: Self.barItemFrame,
+          children: [
+            world.node("AXMenu", name: "\(title) menu", frame: Self.menuFrame, children: items)
+          ])
+      ])
+  }
+
   func discover(_ application: FakeNode, focused: FakeNode?) -> DiscoveryCapture<FakeNode> {
     Discovery.capture(application: application, focusedWindow: { focused?.identity })
   }
@@ -267,6 +322,59 @@ import Testing
         application: world.application([holderWindow, menuBar()]), focused: holder,
         source: .overlay, focus: .notFound, root: [0, 1], rootRole: "AXSheet",
         offered: Self.sheetControls))
+
+    let contextWindow = world.window(name: "Workbench", children: [workbench(), textContextMenu()])
+    result.append(
+      Scenario(
+        name: "a text context menu offers its own items and none that open system UI",
+        application: world.application([contextWindow, menuBar()]), focused: contextWindow,
+        source: .focused, focus: .standardWindow, root: [0, 1], rootRole: "AXMenu",
+        offered: ["Text menu", "<AXMenuItem>", "_NS:7", "_NS:23", "_NS:315", "_NS:142"]))
+
+    let fontWindow = world.window(
+      name: "Workbench", children: [workbench(), textContextMenu(fontMenuOpen: true)])
+    result.append(
+      Scenario(
+        name: "an open Font submenu offers Bold but not Show Fonts",
+        application: world.application([fontWindow, menuBar()]), focused: fontWindow,
+        source: .focused, focus: .standardWindow, root: [0, 1, 6, 0], rootRole: "AXMenu",
+        offered: ["<AXMenu>", "_NS:50"]))
+
+    let editWindow = world.window(name: "Workbench", children: [workbench()])
+    let editBar = openMenuBar(
+      "Edit",
+      items: [
+        menuItem("undo:", "Undo"), menuItem("cut:", "Cut"), menuItem("", "Find character…"),
+        menuItem(
+          "__NSTextViewContextSubmenuIdentifierWritingTools", "Writing Tools",
+          children: [menu([menuItem("showWritingTools:", "Proofread")])]),
+        menuItem(
+          "_NSMenuItemAutoFillIdentifier", "AutoFill",
+          children: [menu([menuItem("_handleInsertFromContactsCommand:", "Contact…")])]),
+        menuItem("startDictation:", "Start Dictation…"),
+        menuItem("orderFrontCharacterPalette:", "Emoji & Symbols"),
+      ])
+    result.append(
+      Scenario(
+        name: "the Edit menu offers its editing items and none that open system UI",
+        application: world.application([editWindow, editBar]), focused: editWindow,
+        source: .focused, focus: .standardWindow, root: [1, 0, 0], rootRole: "AXMenu",
+        offered: ["Edit menu", "undo:", "cut:", "Find character…"]))
+
+    let appleWindow = world.window(name: "Workbench", children: [workbench()])
+    let appleBar = openMenuBar(
+      "Apple",
+      items: [
+        menuItem("_lockScreenRequested:", "Lock Screen"),
+        menuItem("_logOutRequested:", "Log Out…"),
+        menuItem("_forceQuitPanelRequested:", "Force Quit…"),
+      ])
+    result.append(
+      Scenario(
+        name: "an open Apple menu is pruned with all of its items",
+        application: world.application([appleWindow, appleBar]), focused: appleWindow,
+        source: .focused, focus: .standardWindow, root: nil, rootRole: nil,
+        offered: ["Workbench", "Font A Size", "Font B Size"]))
 
     return result
   }

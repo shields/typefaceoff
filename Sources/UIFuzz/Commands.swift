@@ -121,6 +121,7 @@ struct Run: ParsableCommand {
     if let notice = opened.notice { outputLine(notice) }
     runner.skipLedger = opened.ledger
     var slowest = try loadSlowCandidates(artifactURL)
+    var findingArchive = try FindingArchive.open(in: artifactURL)
     // An availability report that cannot be decoded would otherwise stop the campaign at its
     // first desktop outage.
     _ = try ArtifactLoader.existingReport(at: artifactURL.appending(path: "availability.json"))
@@ -155,6 +156,7 @@ struct Run: ParsableCommand {
       if report.needsAvailabilityRecovery { runner.skipLedger = ledgerBeforeRun }
       try runner.skipLedger?.save(to: ledgerURL)
       if report.needsAvailabilityRecovery {
+        try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
         try preserveAvailability(report, artifacts: artifactURL)
         let unavailable = report.findings.first(where: { $0.kind == .unavailable })!
         if unavailable.signature != DesktopSession.unavailableSignature
@@ -173,12 +175,15 @@ struct Run: ParsableCommand {
       backoff.recovered()
       pendingTrace = nil
       let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
+      if !delta.isInteresting {
+        try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
+      }
       let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
       if delta.isInteresting, let admitted = CorpusAdmission.trace(for: report) {
         corpus.append(admitted)
         try TraceIO.save(admitted, to: corpusURL.appending(path: "\(identifier).json"))
       }
-      try preserveFindings(report, identifier: identifier, artifacts: artifactURL)
+      let findingFiles = try findingArchive.preserve(report, execution: identifier)
       slowest = try preserveSlowCandidate(
         report, identifier: identifier, artifacts: artifactURL, current: slowest)
       try saveState(state, to: artifactURL.appending(path: "campaign.json"))
@@ -192,7 +197,11 @@ struct Run: ParsableCommand {
           + " inputs=\(inputs)"
           + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
       try launchFailures.record(
-        report, findingFile: artifactURL.appending(path: "findings/crash/\(identifier).json").path)
+        report,
+        findingFile: findingFiles[
+          FindingIdentity(
+            kind: .crash, signature: ProcessLiveness.launchTerminationSignature)
+        ]?.path ?? "")
     }
     outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")
     if let lines = runner.skipLedger?.summary(), !lines.isEmpty {
@@ -393,14 +402,6 @@ private func saveState(_ state: CorpusState, to url: URL) throws {
   try encoder.encode(state).write(to: url, options: .atomic)
 }
 
-private func preserveFindings(_ report: ExecutionReport, identifier: String, artifacts: URL) throws
-{
-  for kind in Set(report.findings.map(\.kind)) where kind != .slow {
-    let output = artifacts.appending(path: "findings/\(kind.rawValue)/\(identifier).json")
-    try TraceIO.save(report, to: output)
-  }
-}
-
 /// Keep the latest availability evidence, including desktop outages such as a locked screen, not
 /// thousands of duplicate reports and raw profiles.
 private func preserveAvailability(_ report: ExecutionReport, artifacts: URL) throws {
@@ -429,6 +430,8 @@ private func preserveSlowCandidate(
     next.count < slowCandidateLimit || report.measuredMilliseconds > (next.map(\.0).min() ?? 0)
   else { return next }
   var slow = report
+  slow.coverage = []
+  slow.countBuckets = []
   slow.findings.append(
     ExecutionFinding(
       kind: .slow, signature: "campaign-tail",

@@ -121,6 +121,19 @@ import Testing
     #expect(failure.file == url)
   }
 
+  @Test func findingOccurrenceIndexIsNilWhenMissingAndNamesACorruptFile() throws {
+    let folder = try makeFolder()
+    let url = folder.appending(path: FindingArchive.indexName)
+    #expect(try ArtifactLoader.findingOccurrenceIndex(at: url) == nil)
+    try JSONEncoder().encode(FindingOccurrenceIndex()).write(to: url)
+    #expect(try ArtifactLoader.findingOccurrenceIndex(at: url) == FindingOccurrenceIndex())
+    try Data("[]".utf8).write(to: url)
+    let failure = try #require(throws: ArtifactLoadError.self) {
+      _ = try ArtifactLoader.findingOccurrenceIndex(at: url)
+    }
+    #expect(failure.file == url)
+  }
+
   @Test func slowCandidatesAreRankedAndOnlyDecodedExcessIsDeleted() throws {
     let folder = try makeFolder()
     #expect(

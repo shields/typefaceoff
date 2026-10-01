@@ -2,10 +2,10 @@ import Foundation
 
 public struct LaunchLoopError: Error, LocalizedError, CustomStringConvertible, Equatable {
   public let count: Int
-  public let lastFindingFile: String
+  public let findingFile: String
 
   public var description: String {
-    "The app cannot start: \(count) consecutive executions exited during launch. Last finding: \(lastFindingFile). Check the app build (code signature, missing libraries, a crash at startup) before restarting the campaign."
+    "The app cannot start: \(count) consecutive executions exited during launch. Finding report: \(findingFile). Check the app build (code signature, missing libraries, a crash at startup) before restarting the campaign."
   }
 
   public var errorDescription: String? { description }
@@ -25,14 +25,13 @@ public struct LaunchFailureStreak: Sendable {
     self.threshold = threshold
   }
 
-  /// The caller has already written `findingFile`, the evidence for `report`.
   public mutating func record(_ report: ExecutionReport, findingFile: String) throws {
     let failed = report.findings.contains {
       $0.kind == .crash && $0.signature == ProcessLiveness.launchTerminationSignature
     }
     count = failed ? count + 1 : 0
     if count >= threshold {
-      throw LaunchLoopError(count: count, lastFindingFile: findingFile)
+      throw LaunchLoopError(count: count, findingFile: findingFile)
     }
   }
 }

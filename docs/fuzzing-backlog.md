@@ -728,10 +728,11 @@ MB, 88% of it duplicated coverage arrays.
 ### Storage (VR7, VI7, B9)
 
 `coverage.profdata` is 75% of `runs/` (about 1.5 GB for 1,071 runs) and finding
-files are mostly coverage arrays; nothing prunes. The free-space guard from the
-three-hour follow-up prevents a full volume from producing empty executions but
-does not control long-term growth. Keep profdata only for runs that added
-coverage.
+files are mostly coverage arrays. Resolved 2026-10-01: the campaign removes both
+profile formats from runs that add no region or hit-count coverage, writes a
+coverage-free representative report only for a new finding kind and signature,
+and records occurrence counts with first and latest execution metadata. Resuming
+an older campaign compacts its existing finding reports into the same layout.
 
 ### App performance (C2, VP4, C3, VP2, E11, VP8, VP9, VP10, C4, E12)
 

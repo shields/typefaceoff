@@ -28,7 +28,7 @@ import Testing
     try streak.record(launchFailure, findingFile: "a.json")
     try streak.record(launchFailure, findingFile: "b.json")
     #expect(streak.count == 2)
-    #expect(throws: LaunchLoopError(count: 3, lastFindingFile: "c.json")) {
+    #expect(throws: LaunchLoopError(count: 3, findingFile: "c.json")) {
       try streak.record(launchFailure, findingFile: "c.json")
     }
   }
@@ -75,10 +75,10 @@ import Testing
   }
 
   @Test func errorNamesTheStreakTheFileAndTheProblem() {
-    let error = LaunchLoopError(count: 5, lastFindingFile: "/tmp/findings/crash/00000007-ab.json")
+    let error = LaunchLoopError(count: 5, findingFile: "/tmp/findings/crash/00000007-ab.json")
     #expect(
       error.description
-        == "The app cannot start: 5 consecutive executions exited during launch. Last finding: /tmp/findings/crash/00000007-ab.json. Check the app build (code signature, missing libraries, a crash at startup) before restarting the campaign."
+        == "The app cannot start: 5 consecutive executions exited during launch. Finding report: /tmp/findings/crash/00000007-ab.json. Check the app build (code signature, missing libraries, a crash at startup) before restarting the campaign."
     )
     #expect(error.errorDescription == error.description)
     #expect(error.localizedDescription == error.description)

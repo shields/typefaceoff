@@ -86,7 +86,7 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
 }
 
 public struct ExecutionFinding: Codable, Equatable, Sendable {
-  public enum Kind: String, Codable, Sendable {
+  public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
     case crash
     case hang
     case correctness

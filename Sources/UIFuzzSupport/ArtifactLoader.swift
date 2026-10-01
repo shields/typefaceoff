@@ -51,6 +51,10 @@ public enum ArtifactLoader {
     try decodeIfPresent(ExecutionReport.self, at: url, decoder: reportDecoder())
   }
 
+  public static func findingOccurrenceIndex(at url: URL) throws -> FindingOccurrenceIndex? {
+    try decodeIfPresent(FindingOccurrenceIndex.self, at: url, decoder: reportDecoder())
+  }
+
   /// Reports that rank below `keeping` are deleted; a file that is not a slow report throws and is
   /// left in place.
   public static func slowCandidates(in directory: URL, keeping limit: Int) throws -> [(

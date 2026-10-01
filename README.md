@@ -141,8 +141,14 @@ controls are unavailable, campaigns retry with a delay that grows from five to
 failure. Crashes, hangs, and correctness failures are still preserved during an
 outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign.
 Before every execution, the driver requires 512 MiB free on both the artifact
-and temporary volumes; change the threshold with `--minimum-free-space-mib`.
-Replay or reduce a finding with `make fuzz-replay CASE=…` or
+and temporary volumes; change the threshold with `--minimum-free-space-mib`. The
+campaign keeps `.profraw` and `coverage.profdata` only for executions that add
+region or hit-count coverage. It writes a compact representative report only
+when a finding kind and signature first appears, while
+`finding-occurrences.json` records its count and first and latest executions and
+times. The first resume of an older campaign builds this index, removes repeat
+reports, and strips duplicated coverage sets from the reports it retains. Replay
+or reduce a finding with `make fuzz-replay CASE=…` or
 `make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
 optimized build without coverage instrumentation and excludes failed or
 incomplete executions from its timings. Set `FUZZ_ARTIFACTS=…` to keep a

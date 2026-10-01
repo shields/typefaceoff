@@ -454,23 +454,24 @@ reading ever occurs and whether a sheet needs an extra poll to leave the tree).
   leaves the tree always reaches the sheet is unmeasured; the old delay hid any
   race.
 
-## AXPress -25200 on Match… (app patch applied 2026-09-30)
+## AXPress -25200 on Match… (fixed 2026-09-30)
 
-The app patch stores the specimen label and identifier in `SpecimenNSTextView`
-and serves them through getter overrides. The existing labels, identifiers,
-scroll-area identifiers, and value setter are preserved. The existing
-accessibility-name tests pass unchanged; a new test verifies that an unnamed
-specimen retains AppKit's accessibility defaults. `make fmt`, `make lint`,
-`make fuzz-build`, and `make coverage` pass, with 100% line coverage in every
-measured source file. LGTMCP approved the patch.
+App commit `578141e` stores the specimen label and identifier in
+`SpecimenNSTextView` and serves them through getter overrides. The existing
+labels, identifiers, scroll-area identifiers, and value setter are preserved.
+The existing accessibility-name tests pass unchanged; a new test verifies that
+an unnamed specimen retains AppKit's accessibility defaults. `make fmt`,
+`make lint`, `make fuzz-build`, and `make coverage` pass, with 100% line
+coverage in every measured source file. LGTMCP approved the patch.
 
-Required live verification and landing are pending. The new side-by-side
-45-press runs could not reach either app's controls because the macOS session
-was locked (`CGSSessionScreenIsLocked = 1`). Every launch was discarded, and no
-valid presses occurred. Repeat both runs on an unlocked desktop, record their
-numbers and the app commit here, and land only after the required review. The
-earlier investigation's A/B results below are separate from this pending
-verification. The AppKit error slot is private state, so the live A/B is the
+A fresh side-by-side live A/B on macOS 27.0.1 verified the patch: the unmodified
+app returned `-25200` on 30 of 45 valid presses, and the patched app returned
+success on all 45. Each run used 15 launches, three presses per launch, a 300 ms
+gap, no activation, and the Cancel button to dismiss the sheet. All 90 presses
+opened the sheet; both runs reported zero real failures and zero no-effect
+presses. The summaries and per-press records are in
+`.build/probes/axpress-25200/{baseline,patched}-unlocked/records.jsonl` in the
+fix worktree. The AppKit error slot is private state, so this live A/B is the
 regression proof; the unit tests check the accessibility-name contract.
 
 The setter audit also found `setAccessibilityLabel` on `NSSearchField` in
@@ -479,11 +480,11 @@ There is no evidence of the same failure there, so those calls are unchanged.
 The remaining setters target plain `NSView` or `NSScrollView` subclasses, apart
 from the specimen value setter that the investigation ruled out.
 
-`AXUIElementPerformAction(AXPress)` on `Match…` sometimes returns -25200
-(`kAXErrorFailure`, the generic code) although the sheet opens. 13 of 82
-`Match…` presses in the current-driver campaigns failed, and 0 of 3,598 presses
-of every other control did; 12 of the 13 had no sheet opener earlier in their
-run. `Match…` is a content button in the `controls` stack
+Before the fix, `AXUIElementPerformAction(AXPress)` on `Match…` sometimes
+returned -25200 (`kAXErrorFailure`, the generic code) although the sheet opened.
+13 of 82 `Match…` presses in the current-driver campaigns failed, and 0 of 3,598
+presses of every other control did; 12 of the 13 had no sheet opener earlier in
+their run. `Match…` is a content button in the `controls` stack
 (`WorkbenchView.swift:155`), not a toolbar item (the toolbar holds only the two
 inspector toggles), so the toolbar-proxy explanation in
 `WorkbenchInteractionTests.swift` does not apply.

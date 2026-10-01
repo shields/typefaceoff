@@ -90,6 +90,7 @@ prepare_guest() {
     vm_ssh "admin@$ip" "
         set -e
         until [ -d $(quote "$shares/repo") ]; do sleep 1; done
+        defaults write com.apple.CrashReporter DialogType -string none
         ln -sfn $(quote "$shares/xcode") ~/Xcode.app
         xcrun llvm-profdata --version >/dev/null 2>&1 || echo $password | sudo -S -p '' sh -c '
             xcode-select --switch /Users/admin/Xcode.app/Contents/Developer

@@ -526,6 +526,46 @@ accessibility server then returns for an unrelated press. Raw investigation
 logs, the `lldb` traces, the repro apps, and the driver are in
 `.build/probes/axpress-25200` (untracked, in the investigation worktree).
 
+## Three-hour VM campaign (2026-09-30)
+
+The resumed campaign attempted 1,135 executions in three hours, numbered 1,096
+through 2,230 after a 24-execution warmup. It produced no hangs. Its useful
+findings were one app crash, a custom-text blind spot, repeated mouse-delivery
+failures, and a full guest volume near the end:
+
+- One trace crashed in AppKit while `NSTabPickerViewController` deallocated and
+  tried to remove an `effectiveAppearance` observer that was not registered. The
+  reducer took it from 26 actions to five: open View, click
+  `toggleTabOverview:`, create a tab, drag `Font A Size`, and press Escape. A
+  standalone SwiftUI app with one slider reproduces the same exception on macOS
+  27.0 (26A428), with both native and forced-dark appearance, so there is no
+  Typeface/Off state or appearance dependency in the reduced cause.
+- 628 executions produced automation reports. Mouse routing rejected 507
+  attempts because another process or no element was under the intended point,
+  most often at the glyph canvas. A later instrumented probe identified a
+  UserNotificationCenter crash dialog covering that point after deliberate crash
+  reproductions; that explains the probe, not necessarily all 507 earlier
+  failures. Mouse findings now include the hit point, pid, and application name
+  while retaining their stable signature. VM startup disables interactive crash
+  dialogs, while `.ips` reports continue to be written.
+- The generator attempted the 100,000-UTF-16 custom specimen 23 times, but no
+  telemetry snapshot showed it applied. The old three-action sequence could be
+  split or run without an open editor. `setSpecimen` is now one atomic action
+  that dismisses existing overlays, opens the editor, sets the bounded value,
+  and presses Apply. A VM replay applied all 100,000 units in 4.76 seconds with
+  no finding and a 1.6-second longest main-thread heartbeat gap.
+- The guest's local temporary volume filled during 41 attempts in the final two
+  seconds. The driver now checks the artifact and temporary volumes before every
+  app launch and stops the campaign below 512 MiB free. A VM probe with an
+  intentionally impossible threshold stopped before launch and named the volume,
+  available bytes, and required bytes.
+
+The two correctness reports were not two independent app defects: one was the
+crash's stderr and one was output from a macOS Services action that launched
+Terminal. Coverage state in this resumed campaign contains region identities
+from several binaries and cannot be read as clean coverage for any one binary;
+use a fresh artifact directory for the next measurement.
+
 ## Not started
 
 ### Startup self-test (judgment finding)
@@ -537,20 +577,6 @@ typed length; a killed dummy child is seen exiting within 100 ms. Use
 `precondition` or `try!` on executed lines. This would have caught three of the
 four blind spots in the first minute. It depends on the mouse, liveness, and
 custom-text fixes landing first.
-
-### Custom-text stress path (VP5, VB5)
-
-99.6% of snapshots (4,795 of 4,816) have `textUTF16 = 22191`. The generator
-emits `setValue` on `Custom specimen text` without opening the editor sheet, so
-none of the 100,000-unit texts ever land (58 attempts, 38 failed, none applied
-at 4,096 units or more). Make it one compound action kind (open editor, set
-value, press Apply) like `selectFont` (`AXDriver.swift`), so `mutate()`,
-`constrained()`, and `TraceReducer` cannot split it. `constrained()`
-(`Generation.swift:139-150`) must bound the new action or `--max-text-units` is
-bypassed. It touches `Trace.swift` and `AXDriver.swift`, which the merged
-resolver rewrote; no longer blocked, but re-read them first. Note that discovery
-now offers only an open editor sheet's controls (not yet seen in a live run), so
-the compound action may simplify.
 
 ### Runtime warnings and the dead exit status (VB1, F2, remainder)
 
@@ -702,8 +728,10 @@ MB, 88% of it duplicated coverage arrays.
 ### Storage (VR7, VI7, B9)
 
 `coverage.profdata` is 75% of `runs/` (about 1.5 GB for 1,071 runs) and finding
-files are mostly coverage arrays; nothing prunes. Keep profdata only for runs
-that added coverage.
+files are mostly coverage arrays; nothing prunes. The free-space guard from the
+three-hour follow-up prevents a full volume from producing empty executions but
+does not control long-term growth. Keep profdata only for runs that added
+coverage.
 
 ### App performance (C2, VP4, C3, VP2, E11, VP8, VP9, VP10, C4, E12)
 

@@ -85,10 +85,7 @@ public struct TraceMutator: Sendable {
         FuzzAction(kind: .press, target: "Cancel"),
       ],
       [
-        FuzzAction(
-          kind: .shortcut, keyCode: 14, modifiers: command | shift, delayMilliseconds: 400),
-        FuzzAction(kind: .setValue, target: "Custom specimen text", value: "Hamburg 🦄 e\u{301}"),
-        FuzzAction(kind: .press, target: "Apply", delayMilliseconds: 400),
+        FuzzAction(kind: .setSpecimen, value: "Hamburg 🦄 e\u{301}", delayMilliseconds: 400)
       ],
       [
         FuzzAction(kind: .shortcut, keyCode: 19, modifiers: command),
@@ -153,7 +150,9 @@ public struct TraceMutator: Sendable {
   public func constrained(_ input: FuzzTrace) -> FuzzTrace {
     var result = input
     result.actions = input.actions.prefix(max(0, maximumActions)).map { action in
-      guard action.kind == .setValue, action.target == "Custom specimen text",
+      guard
+        action.kind == .setSpecimen
+          || (action.kind == .setValue && action.target == "Custom specimen text"),
         let value = action.value
       else { return action }
       var bounded = action
@@ -198,7 +197,7 @@ public struct TraceMutator: Sendable {
         value: glyphs[Int(random.next() % UInt64(glyphs.count))], delayMilliseconds: delay)
     case 4:
       return FuzzAction(
-        kind: .setValue, target: "Custom specimen text", value: text(using: &random),
+        kind: .setSpecimen, value: text(using: &random),
         delayMilliseconds: delay)
     case 5:
       let shortcuts = ActionExplorer.shortcuts

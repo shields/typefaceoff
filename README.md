@@ -122,22 +122,27 @@ a second window opened with ⌘N never supplies another window’s controls. Fon
 seeds cover both sides without queuing every installed family; mutations still
 sample the full font registry. Existing campaigns adopt the same schedule when
 resumed. Discovered actions record their accessibility paths, roles, and names
-for replay. The numeric fields, scroll areas, and controls that both inspectors
-repeat carry accessibility identifiers such as `Font B Size field`, which
-discovery prefers to a title or description, so those controls are told apart
-without their paths; earlier traces still resolve by their recorded labels.
-Progress reports use `measured-ms` for the action sequence and resulting UI
-work; `total-ms` also includes app startup, shutdown, and coverage collection.
-The action count shows completed/attempted actions, followed by `skips=N` when
-an execution skipped picks. Campaigns pause while the screen is locked or the
-desktop session is otherwise unavailable, because a locked session hides app
-windows from Accessibility, and resume as soon as the desktop returns. When the
-workbench controls are unavailable, campaigns retry with a delay that grows from
-five to 60 seconds. These retries do not advance the campaign or enter its
-corpus; `availability.json` and its associated run retain the latest
-availability failure. Crashes, hangs, and correctness failures are still
-preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a
-bounded campaign. Replay or reduce a finding with `make fuzz-replay CASE=…` or
+for replay. Generated custom specimens use one action that opens the editor,
+sets the text, and applies it, so reduction cannot leave only part of the edit
+and `--max-text-units` bounds the text that actually reaches the renderer. The
+numeric fields, scroll areas, and controls that both inspectors repeat carry
+accessibility identifiers such as `Font B Size field`, which discovery prefers
+to a title or description, so those controls are told apart without their paths;
+earlier traces still resolve by their recorded labels. Progress reports use
+`measured-ms` for the action sequence and resulting UI work; `total-ms` also
+includes app startup, shutdown, and coverage collection. The action count shows
+completed/attempted actions, followed by `skips=N` when an execution skipped
+picks. Campaigns pause while the screen is locked or the desktop session is
+otherwise unavailable, because a locked session hides app windows from
+Accessibility, and resume as soon as the desktop returns. When the workbench
+controls are unavailable, campaigns retry with a delay that grows from five to
+60 seconds. These retries do not advance the campaign or enter its corpus;
+`availability.json` and its associated run retain the latest availability
+failure. Crashes, hangs, and correctness failures are still preserved during an
+outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign.
+Before every execution, the driver requires 512 MiB free on both the artifact
+and temporary volumes; change the threshold with `--minimum-free-space-mib`.
+Replay or reduce a finding with `make fuzz-replay CASE=…` or
 `make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
 optimized build without coverage instrumentation and excludes failed or
 incomplete executions from its timings. Set `FUZZ_ARTIFACTS=…` to keep a
@@ -197,7 +202,9 @@ while `make fuzz`, `make fuzz-replay`, `make fuzz-minimize`, or
 guest. Before each click, drag, or scroll the driver activates the app and waits
 for Accessibility to report the app under the target point. When the Dock,
 another app’s window, or nothing is there, such as a control off the display,
-the action fails as an automation finding instead of clicking elsewhere.
+the action fails as an automation finding instead of clicking elsewhere. The
+finding keeps a stable signature and records the point, process id, and process
+name that received the hit test.
 
 `make fuzz-vm` runs the same campaign in a macOS 27 virtual machine whose
 session never locks, so it continues while this Mac is locked and keeps its
@@ -210,10 +217,12 @@ coverage tools, and stops when the campaign does. Run `make fuzz-vm-setup` once
 first: it clones Cirrus Labs' `macos-golden-gate-vanilla` image (about 35 GB) as
 `typefaceoff-fuzz`, shows the guest's window while you allow UIFuzzDriver in its
 Accessibility settings, and runs a one-second campaign to confirm the driver
-works. Guest timings are comparable to this Mac's but are not interchangeable
-with them. A headless guest's display boots at 1024x768 points, narrower than
-the workbench window, so each campaign first switches it to 1920x1080 points,
-which fits the window and every control.
+works. Campaign setup suppresses interactive CrashReporter dialogs in the guest;
+diagnostic reports are still written and copied into crash findings. Guest
+timings are comparable to this Mac's but are not interchangeable with them. A
+headless guest's display boots at 1024x768 points, narrower than the workbench
+window, so each campaign first switches it to 1920x1080 points, which fits the
+window and every control.
 
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`

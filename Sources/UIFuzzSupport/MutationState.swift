@@ -115,6 +115,9 @@ struct WorkbenchState: Equatable, Sendable {
         popover = nil
       }
     case .selectFont: popover = .closed
+    case .setSpecimen:
+      sheet = .closed
+      popover = .closed
     case .increment, .decrement, .scroll, .pause, .showMenu: break
     }
     // The character search popover closes when the view leaves glyph mode.

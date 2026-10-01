@@ -38,6 +38,7 @@ struct RunnerConfiguration {
   var artifacts: URL
   var watchdogSeconds: TimeInterval = 10
   var completionSeconds: TimeInterval = 30
+  var minimumFreeSpaceBytes: UInt64 = 512 * 1_048_576
   var collectCoverage = true
   /// How long the app must be quiet before a live pick is discovered; zero disables the wait.
   var quiescenceSeconds: TimeInterval = 0.2
@@ -58,8 +59,13 @@ final class SequenceRunner {
     explorer = ActionExplorer(mutator: mutator)
   }
 
-  func execute(_ input: FuzzTrace, explorationActions: Int = 0) -> ExecutionReport {
+  func execute(_ input: FuzzTrace, explorationActions: Int = 0) throws -> ExecutionReport {
     precondition(explorationActions == 0 || skipLedger != nil)
+    try FileManager.default.createDirectory(
+      at: configuration.artifacts, withIntermediateDirectories: true)
+    for directory in [configuration.artifacts, FileManager.default.temporaryDirectory] {
+      try StorageSpace.require(at: directory, minimumBytes: configuration.minimumFreeSpaceBytes)
+    }
     let startedAt = Date()
     let start = ProcessInfo.processInfo.systemUptime
     let runID = UUID().uuidString.lowercased()
@@ -362,7 +368,8 @@ final class SequenceRunner {
             let text = String(describing: error)
             let detail = terminalDetail(
               action: action, request: ResolutionRequest(action, allowVisibleTieBreak: false),
-              error: text, reason: (error as? DriverError)?.resolutionFailure?.reason,
+              error: (error as? DriverError)?.detail ?? text,
+              reason: (error as? DriverError)?.resolutionFailure?.reason,
               ambiguous: false, attempts: lastAttempts, elapsed: lastResolveSeconds,
               stop: .notSkippable)
             findings.append(

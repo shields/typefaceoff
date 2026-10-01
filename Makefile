@@ -25,7 +25,7 @@ STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
 
 .PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
-.PHONY: axpress-repro-build axpress-repro
+.PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 
 project:
 	xcodegen generate --spec project.yml
@@ -116,6 +116,12 @@ axpress-repro-build:
 axpress-repro:
 	$(MAKE) -C scripts/repros/axpress-25200 BUILD_DIR="$(CURDIR)/.build/apple-axpress-repro" reproduce
 
+tab-picker-repro-build:
+	$(MAKE) -C scripts/repros/tab-picker BUILD_DIR="$(CURDIR)/.build/apple-tab-picker-repro" build
+
+tab-picker-repro:
+	$(MAKE) -C scripts/repros/tab-picker BUILD_DIR="$(CURDIR)/.build/apple-tab-picker-repro" reproduce
+
 # Needs network access on first run; downloads are cached in .build.
 frequencies:
 	mkdir -p .build/character-frequencies
@@ -168,6 +174,7 @@ profile-startup: startup-build
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift scripts
 	plutil -lint scripts/repros/axpress-25200/Info.plist
+	plutil -lint scripts/repros/tab-picker/Info.plist
 	bunx --no-install prettier --check .
 	shellcheck scripts/*.sh
 	shfmt -i 4 -d scripts

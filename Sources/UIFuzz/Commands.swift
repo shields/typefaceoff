@@ -24,16 +24,23 @@ struct CommonOptions: ParsableArguments {
   @Option(help: "Seconds allowed for the latest asynchronous UI work to finish.")
   var completionTimeout = 30.0
 
+  @Option(help: "Minimum free disk space in MiB on the artifact and temporary volumes.")
+  var minimumFreeSpaceMib: UInt64 = 512
+
   mutating func validate() throws {
     guard watchdog > 0, completionTimeout > 0 else {
       throw ValidationError("Watchdog and completion timeouts must be positive.")
+    }
+    guard minimumFreeSpaceMib <= UInt64.max / 1_048_576 else {
+      throw ValidationError("--minimum-free-space-mib is too large.")
     }
   }
 
   var runnerConfiguration: RunnerConfiguration {
     RunnerConfiguration(
       app: URL(fileURLWithPath: app), artifacts: URL(fileURLWithPath: artifacts),
-      watchdogSeconds: watchdog, completionSeconds: completionTimeout)
+      watchdogSeconds: watchdog, completionSeconds: completionTimeout,
+      minimumFreeSpaceBytes: minimumFreeSpaceMib * 1_048_576)
   }
 }
 
@@ -142,7 +149,7 @@ struct Run: ParsableCommand {
           execution: state.executions, corpus: corpus, seed: random.next())
       pendingTrace = trace
       let ledgerBeforeRun = runner.skipLedger
-      let report = runner.execute(
+      let report = try runner.execute(
         trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
       // The trace of an execution cut short by an outage runs again, so its counts are dropped.
       if report.needsAvailabilityRecovery { runner.skipLedger = ledgerBeforeRun }
@@ -203,7 +210,7 @@ struct Replay: ParsableCommand {
   mutating func run() throws {
     AXDriver.waitForPermissions()
     let trace = try loadTraceOrReport(URL(fileURLWithPath: casePath)).trace
-    let report = SequenceRunner(configuration: common.runnerConfiguration).execute(trace)
+    let report = try SequenceRunner(configuration: common.runnerConfiguration).execute(trace)
     let output = URL(fileURLWithPath: common.artifacts).appending(path: "replay.json")
     try TraceIO.save(report, to: output)
     printReport(report, output: output)
@@ -230,16 +237,16 @@ struct Minimize: ParsableCommand {
       )
     }
     let baseline = original.report?.measuredMilliseconds
-    let minimized = TraceReducer.reduce(original.trace) { actions in
+    let minimized = try TraceReducer.reduce(original.trace) { actions in
       var candidate = original.trace
       candidate.actions = actions
       if target.kind == .slow, let baseline {
-        let reports = (0..<3).map { _ in runner.execute(candidate) }
+        let reports = try (0..<3).map { _ in try runner.execute(candidate) }
         guard reports.allSatisfy(\.isBenchmarkSample) else { return false }
         let values = reports.map(\.measuredMilliseconds)
         return (Statistics.median(values) ?? 0) >= baseline * 0.9
       }
-      let report = runner.execute(candidate)
+      let report = try runner.execute(candidate)
       return report.findings.contains { $0.reproduces(target) }
     }
     let output = URL(fileURLWithPath: common.artifacts).appending(path: "minimized.json")
@@ -268,7 +275,7 @@ struct Benchmark: ParsableCommand {
     var results: [[String: Any]] = []
     var failedSamples = 0
     for trace in traces {
-      let reports = (0..<repetitions).map { _ in runner.execute(trace) }
+      let reports = try (0..<repetitions).map { _ in try runner.execute(trace) }
       let successful = reports.filter(\.isBenchmarkSample)
       let failed = reports.filter { !$0.isBenchmarkSample }
       failedSamples += failed.count

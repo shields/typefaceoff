@@ -9,7 +9,7 @@ enum DriverError: Error, CustomStringConvertible {
   case applicationDidNotLaunch
   case resolution(ResolutionFailure)
   case actionFailed(String, AXError)
-  case mouseNotDelivered(String)
+  case mouseNotDelivered(reason: String, point: CGPoint, hitProcess: pid_t)
 
   var description: String {
     switch self {
@@ -17,8 +17,14 @@ enum DriverError: Error, CustomStringConvertible {
     case .resolution(let failure): failure.description
     case .actionFailed(let action, let error):
       "Accessibility action \(action) failed: \(error.rawValue)"
-    case .mouseNotDelivered(let reason): "The mouse event would not reach the app: \(reason)"
+    case .mouseNotDelivered(let reason, _, _): "The mouse event would not reach the app: \(reason)"
     }
+  }
+
+  var detail: String {
+    guard case .mouseNotDelivered(_, let point, let process) = self else { return description }
+    let name = NSRunningApplication(processIdentifier: process)?.localizedName ?? "unknown"
+    return "\(description); point=(\(point.x), \(point.y)), hit process=\(process) (\(name))"
   }
 }
 
@@ -193,6 +199,21 @@ struct AXDriver {
       guard result == .success else { throw DriverError.actionFailed("set font search", result) }
       Thread.sleep(forTimeInterval: 0.05)
       try postKey(code: 36, modifiers: 0)
+    case .setSpecimen:
+      let dismissed = QuitPreparation.run(
+        clock: SystemClock(), openOverlay: openOverlay, dismiss: dismissOverlay)
+      if let failure = dismissed.failure { throw failure }
+      guard !dismissed.overlayRemaining else {
+        throw DriverError.actionFailed("dismiss overlay before editing specimen", .cannotComplete)
+      }
+      try postKey(code: 14, modifiers: UInt64((1 << 20) | (1 << 17)))
+      let text = try requireRevealed("Custom specimen text", idle: idle)
+      try focus(text)
+      let result = AXUIElementSetAttributeValue(
+        text, kAXValueAttribute as CFString, (action.value ?? "") as CFTypeRef)
+      guard result == .success else { throw DriverError.actionFailed("set specimen text", result) }
+      let apply = try requireRevealed("Apply", idle: idle)
+      try perform(kAXPressAction as String, on: apply)
     case .click:
       let point = try center(of: element!).unwrap(
         DriverError.actionFailed("locate click target", .noValue))
@@ -274,6 +295,17 @@ struct AXDriver {
     guard result == .success else { throw DriverError.actionFailed("focus", result) }
   }
 
+  private func requireRevealed(
+    _ target: String, idle: (TimeInterval) -> Bool
+  ) throws -> AXUIElement {
+    let request = ResolutionRequest(target: target, excludesMenuBar: true)
+    let result = try resolve(request, retry: .reveal, idle: idle).resolution
+    guard let element = result.node?.element else {
+      throw DriverError.resolution(result.failure(for: request)!)
+    }
+    return element
+  }
+
   private func activateIfNeeded() throws {
     // Setting AXFrontmost can time out while AppKit is tracking a menu. Avoid
     // that synchronous accessibility write when delivering input into menus or sheets.
@@ -328,26 +360,29 @@ struct AXDriver {
     let deadline = ProcessInfo.processInfo.systemUptime + 1.5
     while true {
       let current = routing(at: point, using: systemWide)
-      if current == .target { return }
-      guard current.mayResolve, ProcessInfo.processInfo.systemUptime < deadline else {
-        throw DriverError.mouseNotDelivered(current.reason)
+      if current.routing == .target { return }
+      guard current.routing.mayResolve, ProcessInfo.processInfo.systemUptime < deadline else {
+        throw DriverError.mouseNotDelivered(
+          reason: current.routing.reason, point: point, hitProcess: current.process)
       }
       Thread.sleep(forTimeInterval: 0.02)
     }
   }
 
-  private func routing(at point: CGPoint, using systemWide: AXUIElement) -> MouseRouting {
+  private func routing(at point: CGPoint, using systemWide: AXUIElement) -> (
+    routing: MouseRouting, process: pid_t
+  ) {
     var element: AXUIElement?
     let result = AXUIElementCopyElementAtPosition(
       systemWide, Float(point.x), Float(point.y), &element)
-    if result == .cannotComplete { return .unanswered }
+    if result == .cannotComplete { return (.unanswered, 0) }
     var process: pid_t = 0
     // The hit test fails with kAXErrorFailure off every display and returns kAXErrorNoValue in a
     // gap on one; either way nothing can receive the event.
     guard result == .success, let element, AXUIElementGetPid(element, &process) == .success else {
-      return .nothing
+      return (.nothing, 0)
     }
-    return MouseRouting(hitProcess: process, target: processIdentifier)
+    return (MouseRouting(hitProcess: process, target: processIdentifier), process)
   }
 
   /// A document view such as the specimen text reports its whole content as its frame, most of it

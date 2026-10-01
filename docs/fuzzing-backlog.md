@@ -77,13 +77,13 @@ Follow-ups the branches surfaced:
 
 - Mutation: track whether font B exists (Match `Tracking`/`Weight` and Font B
   requirements) and inspector visibility; `Zoom in`/`Zoom out` are disabled at
-  the zoom limits, so pressing them gives `AXPress -25200`, which is not
-  modelled; corpus entry `00000256` still contains Cmd-W and 35 of 10,600
-  mutated plans inherit it; revisit the "mode unknown after a canvas click or
-  drag" rule once mouse delivery works; update the requirement table if
-  accessibility names such as `Font A family` change. The acceptance scripts
-  (`.build/analysis/model.py`, `acceptance.py`) are untracked and worth moving
-  to `scripts/` if the check should be repeatable.
+  the zoom limits, which is not modelled (a disabled press returns success and
+  does nothing, so it only wastes an action); corpus entry `00000256` still
+  contains Cmd-W and 35 of 10,600 mutated plans inherit it; revisit the "mode
+  unknown after a canvas click or drag" rule once mouse delivery works; update
+  the requirement table if accessibility names such as `Font A family` change.
+  The acceptance scripts (`.build/analysis/model.py`, `acceptance.py`) are
+  untracked and worth moving to `scripts/` if the check should be repeatable.
 - Liveness: `require()` polls for up to 2 s after the app dies mid-action, so
   the resolver should check `ProcessLiveness.isAlive` in its polling loops;
   `forceTerminate` failing to remove the process is not reported; four exit-gap
@@ -389,14 +389,8 @@ Artifacts were in the worktree's `.build/smoke4-ui-fuzz`.
   carried on in the workbench. The font popover was explored too (`cancel`,
   `Search Unicode characters`, Escape).
 - One automation finding, `AXPress failed: -25200` on a press of `Match…` at
-  action 21 of 32. The sheet had opened, as in the earlier analysis: the SwiftUI
-  accessibility proxy reports failure after the action is dispatched. About one
-  in nine presses of it does this (3 of 26 before; 1 of the 2 presses in the
-  last two smoke tests), and it ends the run, so it costs the sheet exploration
-  the button exists to reach. Proposed: read `AXEnabled` on -25200, count an
-  enabled control's press as dispatched but unconfirmed in the ledger and run
-  metadata, and continue; a disabled control (Zoom at its limit) becomes a skip.
-  It turns a fail-fast error into a counted one, so it waits for a decision.
+  action 21 of 32. The sheet had opened, so the press worked and the error is
+  false. The cause is found: see "AXPress -25200 on Match…" below.
 - One forced quit (`quit-overlays-dismissed` 3, `quit-overlay-remaining` true,
   `quit-dismiss-ms` 1.8 s). The run opened the Match sheet, a context menu on
   its text area, pressed `Writing Tools`
@@ -461,6 +455,59 @@ reading ever occurs and whether a sheet needs an extra poll to leave the tree).
   race.
 
 ## Not started
+
+### AXPress -25200 on Match… (investigated 2026-09-30, fix not applied)
+
+`AXUIElementPerformAction(AXPress)` on `Match…` sometimes returns -25200
+(`kAXErrorFailure`, the generic code) although the sheet opens. 13 of 82
+`Match…` presses in the current-driver campaigns failed, and 0 of 3,598 presses
+of every other control did; 12 of the 13 had no sheet opener earlier in their
+run. `Match…` is a content button in the `controls` stack
+(`WorkbenchView.swift:155`), not a toolbar item (the toolbar holds only the two
+inspector toggles), so the toolbar-proxy explanation in
+`WorkbenchInteractionTests.swift` does not apply.
+
+Cause, measured on macOS 27.0.1: AppKit's accessibility server returns, as the
+result of a request, whatever sits in a single process-wide error slot when the
+request ends, and ignores the `Bool` that `accessibilityPerformPress` returns.
+SwiftUI runs the button's closure and then renders the view graph inside the
+same request, so the Match sheet's content is built before the call returns.
+`SpecimenText.makeNSView` calls `setAccessibilityLabel` and
+`setAccessibilityIdentifier` on a `SpecimenNSTextView`, and AppKit records
+"AXDescription/AXIdentifier attribute unimplemented by element" (-25200) for
+each. When nothing later in the request clears the slot, that code becomes the
+press result. `lldb` shows the four setter errors recorded inside the request
+with no clear before the final one in every failing press. Replacing the two
+setters with `accessibilityLabel()` and `accessibilityIdentifier()` overrides on
+`SpecimenNSTextView` removed the failures: 0 of 45 against 30 of 45 in the real
+app, and 0 of 21 against 15 of 15 in an interleaved A/B on an unattached driver,
+with identical accessibility trees for the main window and the open sheet.
+`Edit text` never fails because its sheet has no `SpecimenText`. Minimal SwiftUI
+apps reproduce it only with a content button that presents a sheet whose content
+sets an `NSTextView` label or identifier (48 of 48); toolbar variants and
+variants without the setter never fail (0 of 1,712 and 0 of 234).
+
+Not explained: why the press succeeds in some states. After an earlier sheet
+cycle it fails essentially always, and a never-activated first press succeeds,
+but an activated, settled first press failed 16 of 16 in one driver and
+succeeded 81 of 81 in another, so it depends on activation or timing in a way
+nobody pinned down. Whether every historical failure has this cause is about 75%
+likely: the one non-`Match…` failure in the old host campaign (the `Text` radio)
+is unattributed, and one failing press (run `3ec69dda`) left the tree unreadable
+for 660 ms while the sheet was presented.
+
+Options: (1) patch the app (`SpecimenText.swift`, two setters become stored
+values served by overrides; the labels and identifiers the fuzzer and
+`AccessibilityIdentifierTests` rely on do not change; needs `make test-app` and
+the coverage gate); (2) a driver rule that counts an enabled press that returns
+-25200 as unconfirmed and confirms the effect after the idle settle, never
+retrying the press (it can only be confirmed by the next discover showing the
+new overlay, `AXEnabled` is true in every failure, and the tree can be
+unreadable right after the press); (3) a Feedback Assistant report against
+AppKit (a documented setter records an error that the accessibility server then
+returns for an unrelated press). Raw logs, the `lldb` traces, the repro apps,
+and the driver are in `.build/probes/axpress-25200` (untracked, in the
+worktree).
 
 ### Startup self-test (judgment finding)
 
@@ -547,9 +594,8 @@ Known limits:
 - Modal precedence is by path depth, a proxy for z-order, not by z-order.
 - `Resolver.isOffered` ignores modal scope, so a same-named control behind the
   sheet can make a stale live pick ambiguous.
-- A press that closes a sheet may report `AXPress` -25200 and end the run as an
-  automation finding. Watch the next live run for `AXPress failed` on `Cancel`,
-  `Apply`, and `Cancel matching` before trusting the abort rate.
+- `Cancel` and `Apply` presses closed sheets without an `AXPress` failure in the
+  smoke tests; the only observed -25200 is the one on `Match…` below.
 - Discovery under a sheet walks the whole window, which took 90-237 ms in the
   smoke test's discovers without a sheet.
 
@@ -672,16 +718,11 @@ independent configuration.
   should press Escape (or skip the polite quit and force-terminate) when a sheet
   may be open, which recovers about 2 s on 13% of runs; coverage survives the
   forced exit (`coverage.profdata` was written in all 141 forced runs).
-- The three `AXPress failed: -25200` on `Match...` are a harness artifact: the
-  button was enabled (fonts available), the sheet was presented (its controls
-  are in all three failure snapshots), and the SwiftUI accessibility proxy
-  reported failure after dispatching the action, as
-  `WorkbenchInteractionTests.swift` documents ("Callers verify the resulting
-  model or view state"). 3 of 26 presses with no prior sheet failed. A driver
-  fix would read `AXEnabled` on `-25200` and report a distinct finding without
-  aborting the run; it changes fail-fast semantics for 0.3% of runs, so it stays
-  low priority. `Zoom in`/`Zoom out` at the limits are the other cause: those
-  buttons really are disabled.
+- The `AXPress failed: -25200` on `Match...` are not a harness artifact and not
+  the toolbar proxy `WorkbenchInteractionTests.swift` describes (`Match…` is not
+  a toolbar item); see "AXPress -25200 on Match…" below. The claim that
+  `Zoom in`/`Zoom out` at their limits return -25200 is refuted: a disabled
+  press returns success.
 - Shared size and Character fields commit only on Return, and out-of-range size
   is silently clamped to 10-144 (`Comparison.swift:42`; `setValue "0"` produced
   size 10 in finding 1). Commit-on-blur, a visible clamp, or rejection are

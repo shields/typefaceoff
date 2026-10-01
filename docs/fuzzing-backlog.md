@@ -520,12 +520,11 @@ is unattributed, and one failing press (run `3ec69dda`) left the tree unreadable
 for 660 ms while the sheet was presented.
 
 The driver remains fail-fast on AX errors. A
-[Feedback Assistant report draft](apple-bugs/axpress-25200.md) and standalone
-sample are prepared against AppKit: a documented setter records an error that
-the accessibility server then returns for an unrelated press. The report has not
-been submitted. Raw investigation logs, the `lldb` traces, the repro apps, and
-the driver are in `.build/probes/axpress-25200` (untracked, in the investigation
-worktree).
+[Feedback Assistant report](apple-bugs/axpress-25200.md) was submitted as
+**FB25013978** against AppKit: a documented setter records an error that the
+accessibility server then returns for an unrelated press. Raw investigation
+logs, the `lldb` traces, the repro apps, and the driver are in
+`.build/probes/axpress-25200` (untracked, in the investigation worktree).
 
 ## Not started
 

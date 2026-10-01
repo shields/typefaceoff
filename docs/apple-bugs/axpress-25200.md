@@ -1,5 +1,7 @@
 # AXPress returns kAXErrorFailure when a SwiftUI sheet sets NSTextView accessibility metadata
 
+Submitted as **FB25013978**.
+
 Suggested Feedback Assistant topic: Developer Technologies & SDKs, macOS, AppKit
 accessibility. SwiftUI is involved in presenting the sheet.
 
@@ -130,6 +132,4 @@ its sheet opened.
   Typeface/Off A/B. These are supporting observations, not measurements of the
   reduced attachment.
 
-Submit through the Mac Feedback Assistant app while the issue is reproducible so
-it can collect the relevant diagnostics. This draft has not been submitted.
 [Apple's bug-reporting guidance](https://developer.apple.com/feedback-assistant/).

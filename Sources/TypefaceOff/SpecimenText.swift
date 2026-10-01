@@ -43,9 +43,9 @@ struct SpecimenText: NSViewRepresentable {
     view.textContainer?.widthTracksTextView = true
     view.textContainerInset = inset
     view.backgroundColor = .white
-    view.setAccessibilityLabel("\(side.fontName) specimen")
+    view.axLabel = "\(side.fontName) specimen"
     let name = accessibilityName ?? "\(side.fontName) specimen"
-    if accessibilityName != nil { view.setAccessibilityIdentifier(name) }
+    if accessibilityName != nil { view.axIdentifier = name }
     scroll.setAccessibilityIdentifier("\(name) scroll area")
     scroll.documentView = view
     context.coordinator.position.attach(scroll)
@@ -263,9 +263,19 @@ final class SpecimenScrollView: NSScrollView {
 }
 
 final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
+  // Do not call setAccessibilityLabel or setAccessibilityIdentifier on this view: AppKit records
+  // an "attribute unimplemented" error that a press which creates the view returns as -25200.
+  var axLabel: String?
+  var axIdentifier: String?
   var select: (String) -> Void = { _ in }
   var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
+
+  override func accessibilityLabel() -> String? { axLabel ?? super.accessibilityLabel() }
+  // AppKit's empty identifier for unnamed text views preserves label-based name matching.
+  override func accessibilityIdentifier() -> String {
+    axIdentifier ?? super.accessibilityIdentifier()
+  }
 
   #if TYPEFACEOFF_STARTUP_BENCHMARK
     override func draw(_ dirtyRect: NSRect) {

@@ -115,6 +115,13 @@ import TypefaceCore
     #expect(identifiers.isDisjoint(with: reserved))
   }
 
+  @Test func specimenWithoutMetadataKeepsAppKitAccessibilityDefaults() {
+    let baseline = NSTextView(frame: .zero)
+    let specimen = SpecimenNSTextView(frame: .zero)
+    #expect(specimen.accessibilityLabel() == baseline.accessibilityLabel())
+    #expect(specimen.accessibilityIdentifier() == baseline.accessibilityIdentifier())
+  }
+
   @Test func scrollAreaIdentifiersLandOnScrollViewsOnly() async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))

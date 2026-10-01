@@ -454,9 +454,30 @@ reading ever occurs and whether a sheet needs an extra poll to leave the tree).
   leaves the tree always reaches the sheet is unmeasured; the old delay hid any
   race.
 
-## Not started
+## AXPress -25200 on Match… (app patch applied 2026-09-30)
 
-### AXPress -25200 on Match… (investigated 2026-09-30, fix not applied)
+The app patch stores the specimen label and identifier in `SpecimenNSTextView`
+and serves them through getter overrides. The existing labels, identifiers,
+scroll-area identifiers, and value setter are preserved. The existing
+accessibility-name tests pass unchanged; a new test verifies that an unnamed
+specimen retains AppKit's accessibility defaults. `make fmt`, `make lint`,
+`make fuzz-build`, and `make coverage` pass, with 100% line coverage in every
+measured source file. LGTMCP approved the patch.
+
+Required live verification and landing are pending. The new side-by-side
+45-press runs could not reach either app's controls because the macOS session
+was locked (`CGSSessionScreenIsLocked = 1`). Every launch was discarded, and no
+valid presses occurred. Repeat both runs on an unlocked desktop, record their
+numbers and the app commit here, and land only after the required review. The
+earlier investigation's A/B results below are separate from this pending
+verification. The AppKit error slot is private state, so the live A/B is the
+regression proof; the unit tests check the accessibility-name contract.
+
+The setter audit also found `setAccessibilityLabel` on `NSSearchField` in
+`PickerSearchField`, which the font and character picker buttons can create.
+There is no evidence of the same failure there, so those calls are unchanged.
+The remaining setters target plain `NSView` or `NSScrollView` subclasses, apart
+from the specimen value setter that the investigation ruled out.
 
 `AXUIElementPerformAction(AXPress)` on `Match…` sometimes returns -25200
 (`kAXErrorFailure`, the generic code) although the sheet opens. 13 of 82
@@ -471,21 +492,22 @@ Cause, measured on macOS 27.0.1: AppKit's accessibility server returns, as the
 result of a request, whatever sits in a single process-wide error slot when the
 request ends, and ignores the `Bool` that `accessibilityPerformPress` returns.
 SwiftUI runs the button's closure and then renders the view graph inside the
-same request, so the Match sheet's content is built before the call returns.
-`SpecimenText.makeNSView` calls `setAccessibilityLabel` and
+same request, so the Match sheet's content is built before the call returns. In
+the unmodified app, `SpecimenText.makeNSView` calls `setAccessibilityLabel` and
 `setAccessibilityIdentifier` on a `SpecimenNSTextView`, and AppKit records
 "AXDescription/AXIdentifier attribute unimplemented by element" (-25200) for
 each. When nothing later in the request clears the slot, that code becomes the
 press result. `lldb` shows the four setter errors recorded inside the request
 with no clear before the final one in every failing press. Replacing the two
 setters with `accessibilityLabel()` and `accessibilityIdentifier()` overrides on
-`SpecimenNSTextView` removed the failures: 0 of 45 against 30 of 45 in the real
-app, and 0 of 21 against 15 of 15 in an interleaved A/B on an unattached driver,
-with identical accessibility trees for the main window and the open sheet.
-`Edit text` never fails because its sheet has no `SpecimenText`. Minimal SwiftUI
-apps reproduce it only with a content button that presents a sheet whose content
-sets an `NSTextView` label or identifier (48 of 48); toolbar variants and
-variants without the setter never fail (0 of 1,712 and 0 of 234).
+`SpecimenNSTextView` removed the failures during the investigation: 0 of 45
+against 30 of 45 in the real app, and 0 of 21 against 15 of 15 in an interleaved
+A/B on an unattached driver, with identical accessibility trees for the main
+window and the open sheet. `Edit text` never fails because its sheet has no
+`SpecimenText`. Minimal SwiftUI apps reproduce it only with a content button
+that presents a sheet whose content sets an `NSTextView` label or identifier (48
+of 48); toolbar variants and variants without the setter never fail (0 of 1,712
+and 0 of 234).
 
 Not explained: why the press succeeds in some states. After an earlier sheet
 cycle it fails essentially always, and a never-activated first press succeeds,
@@ -496,18 +518,13 @@ likely: the one non-`Match…` failure in the old host campaign (the `Text` radi
 is unattributed, and one failing press (run `3ec69dda`) left the tree unreadable
 for 660 ms while the sheet was presented.
 
-Options: (1) patch the app (`SpecimenText.swift`, two setters become stored
-values served by overrides; the labels and identifiers the fuzzer and
-`AccessibilityIdentifierTests` rely on do not change; needs `make test-app` and
-the coverage gate); (2) a driver rule that counts an enabled press that returns
--25200 as unconfirmed and confirms the effect after the idle settle, never
-retrying the press (it can only be confirmed by the next discover showing the
-new overlay, `AXEnabled` is true in every failure, and the tree can be
-unreadable right after the press); (3) a Feedback Assistant report against
-AppKit (a documented setter records an error that the accessibility server then
-returns for an unrelated press). Raw logs, the `lldb` traces, the repro apps,
-and the driver are in `.build/probes/axpress-25200` (untracked, in the
-worktree).
+The driver remains fail-fast on AX errors. A Feedback Assistant report against
+AppKit remains a user decision: a documented setter records an error that the
+accessibility server then returns for an unrelated press. Raw investigation
+logs, the `lldb` traces, the repro apps, and the driver are in
+`.build/probes/axpress-25200` (untracked, in the investigation worktree).
+
+## Not started
 
 ### Startup self-test (judgment finding)
 
@@ -720,7 +737,7 @@ independent configuration.
   forced exit (`coverage.profdata` was written in all 141 forced runs).
 - The `AXPress failed: -25200` on `Match...` are not a harness artifact and not
   the toolbar proxy `WorkbenchInteractionTests.swift` describes (`Match…` is not
-  a toolbar item); see "AXPress -25200 on Match…" below. The claim that
+  a toolbar item); see "AXPress -25200 on Match…" above. The claim that
   `Zoom in`/`Zoom out` at their limits return -25200 is refuted: a disabled
   press returns success.
 - Shared size and Character fields commit only on Return, and out-of-range size

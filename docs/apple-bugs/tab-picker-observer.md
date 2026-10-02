@@ -1,6 +1,6 @@
 # NSTabPickerViewController removes an unregistered effectiveAppearance observer
 
-Status: ready for Feedback Assistant submission; not submitted.
+Status: submitted to Apple as FB25026374.
 
 Suggested Feedback Assistant topic: Developer Technologies & SDKs, macOS,
 AppKit. SwiftUI supplies the window and scene.

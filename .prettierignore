@@ -1,4 +1,7 @@
 .build/
+.claude/
+.playwright-mcp/
+.worktrees/
 TypefaceOff.xcodeproj/
 Config/
 node_modules/

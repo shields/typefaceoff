@@ -229,14 +229,16 @@ the screen is locked unless Keychain Access is set to lock it. The guest runs
 headless with only the system's fonts, uses this Mac's Xcode read-only for
 coverage tools, and stops when the campaign does. Run `make fuzz-vm-setup` once
 first: it clones Cirrus Labs' `macos-golden-gate-vanilla` image (about 35 GB) as
-`typefaceoff-fuzz`, shows the guest's window while you allow UIFuzzDriver in its
-Accessibility settings, and runs a one-second campaign to confirm the driver
-works. Campaign setup suppresses interactive CrashReporter dialogs in the guest;
-diagnostic reports are still written and copied into crash findings. Guest
-timings are comparable to this Mac's but are not interchangeable with them. A
-headless guest's display boots at 1024x768 points, narrower than the workbench
-window, so each campaign first switches it to 1920x1080 points, which fits the
-window and every control.
+`typefaceoff-fuzz`, expands its virtual disk to 100 GB, shows the guest's window
+while you allow UIFuzzDriver in its Accessibility settings, and runs a
+one-second campaign to confirm the driver works. The disk image is sparse, so
+the full virtual capacity is not allocated on the host. Both setup and each
+campaign expand an older, smaller fuzz VM before booting it. Campaign setup
+suppresses interactive CrashReporter dialogs in the guest; diagnostic reports
+are still written and copied into crash findings. Guest timings are comparable
+to this Mac's but are not interchangeable with them. A headless guest's display
+boots at 1024x768 points, narrower than the workbench window, so each campaign
+first switches it to 1920x1080 points, which fits the window and every control.
 
 `Sources/TypefaceCore` is a Swift package for font discovery, shaping,
 measurements, calibrated edits, matching, and ranking. `Sources/TypefaceOff`

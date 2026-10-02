@@ -128,7 +128,7 @@ import Testing
     let needing: Set<FuzzAction.Kind> = [
       .press, .setValue, .increment, .decrement, .showMenu, .scroll, .selectFont, .click, .drag,
     ]
-    #expect(FuzzAction.Kind.allCases.count == 13)
+    #expect(FuzzAction.Kind.allCases.count == 14)
     for kind in FuzzAction.Kind.allCases { #expect(kind.needsTarget == needing.contains(kind)) }
     #expect(!FuzzAction.Kind.shortcut.needsTarget)
     #expect(!FuzzAction.Kind.key.needsTarget)

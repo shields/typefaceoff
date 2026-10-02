@@ -190,6 +190,28 @@ struct AXDriver {
       event.post(tap: .cgSessionEventTap)
     case .pause:
       break
+    case .showInspector:
+      guard let target = action.target else {
+        throw DriverError.actionFailed("identify inspector", .illegalArgument)
+      }
+      let code: UInt16
+      switch target {
+      case "Font A family": code = 18
+      case "Font B family": code = 19
+      default: throw DriverError.actionFailed("identify inspector", .illegalArgument)
+      }
+      let dismissed = QuitPreparation.run(
+        clock: SystemClock(), openOverlay: openOverlay, dismiss: dismissOverlay)
+      if let failure = dismissed.failure { throw failure }
+      guard !dismissed.overlayRemaining else {
+        throw DriverError.actionFailed("dismiss overlay before showing inspector", .cannotComplete)
+      }
+      let request = ResolutionRequest(target: target, excludesMenuBar: true)
+      let visible = try resolve(request, retry: .once, idle: idle).resolution
+      if visible.node == nil {
+        try postKey(code: code, modifiers: UInt64((1 << 20) | (1 << 19)))
+      }
+      _ = try requireRevealed(target, idle: idle)
     case .selectFont:
       let familyButton = element!
       let search = try revealFontSearch(byPressing: familyButton, idle: idle)

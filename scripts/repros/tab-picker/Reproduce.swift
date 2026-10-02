@@ -42,18 +42,25 @@ func find(_ root: AXUIElement, named name: String, depth: Int = 0) throws -> AXU
   return nil
 }
 
-func waitFor(_ name: String, in root: AXUIElement) throws -> AXUIElement {
-  print("Waiting for \(name)")
+func waitFor(_ names: [String], in root: AXUIElement) throws -> AXUIElement {
+  let description = names.joined(separator: " or ")
+  print("Waiting for \(description)")
   let deadline = ProcessInfo.processInfo.systemUptime + 5
   while ProcessInfo.processInfo.systemUptime < deadline {
     do {
-      if let found = try find(root, named: name) { return found }
+      for name in names {
+        if let found = try find(root, named: name) { return found }
+      }
     } catch let error as ReproFailure where error.accessibilityError == .cannotComplete {
       if ProcessInfo.processInfo.systemUptime >= deadline { throw error }
     }
     Thread.sleep(forTimeInterval: 0.05)
   }
-  throw ReproFailure(description: "Timed out waiting for \(name)")
+  throw ReproFailure(description: "Timed out waiting for \(description)")
+}
+
+func waitFor(_ name: String, in root: AXUIElement) throws -> AXUIElement {
+  try waitFor([name], in: root)
 }
 
 func center(_ node: AXUIElement) throws -> CGPoint {
@@ -105,10 +112,8 @@ struct Reproduce {
     Thread.sleep(forTimeInterval: 0.3)
     let view = try waitFor("View", in: app)
     precondition(AXUIElementPerformAction(view, kAXPressAction as CFString) == .success)
-    let overview = try waitFor("toggleTabOverview:", in: app)
-    let point = try center(overview)
-    mouse(.leftMouseDown, at: point)
-    mouse(.leftMouseUp, at: point)
+    let overview = try waitFor(["toggleTabOverview:", "Show All Tabs"], in: app)
+    precondition(AXUIElementPerformAction(overview, kAXPressAction as CFString) == .success)
     let newTab = try waitFor("New Tab", in: app)
     let newPoint = try center(newTab)
     mouse(.leftMouseDown, at: newPoint)

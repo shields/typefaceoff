@@ -2,7 +2,7 @@ BUILD_DIR ?= $(CURDIR)/.build
 APP = $(BUILD_DIR)/TabPickerRepro.app
 EXECUTABLE = $(APP)/Contents/MacOS/TabPickerRepro
 CLIENT = $(BUILD_DIR)/reproduce
-SWIFT_FLAGS = -swift-version 6 -warnings-as-errors -O -module-cache-path "$(BUILD_DIR)/ModuleCache"
+SWIFT_FLAGS = -swift-version 6 -warnings-as-errors -O -target "$(shell uname -m)-apple-macos15.0" -module-cache-path "$(BUILD_DIR)/ModuleCache"
 
 .PHONY: build reproduce lint fmt
 

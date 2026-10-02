@@ -1,6 +1,6 @@
 # NSTabPickerViewController removes an unregistered effectiveAppearance observer
 
-Status: prepared for Feedback Assistant; not submitted.
+Status: ready for Feedback Assistant submission; not submitted.
 
 Suggested Feedback Assistant topic: Developer Technologies & SDKs, macOS,
 AppKit. SwiftUI supplies the window and scene.
@@ -16,18 +16,28 @@ The attached app contains one `Text`, one `Slider`, and no AppKit integration.
 The attached Accessibility client performs the reduced five-action sequence and
 requires the expected signal, making the attachment self-checking.
 
-## Environment
+## Environment and regression range
 
-| Component    | Tested version         |
+The same app and client binaries were built once with Xcode 27 and a macOS 15
+deployment target, then run in arm64 virtual machines:
+
+| macOS  | Build  | Forced dark appearance | Native appearance     |
+| ------ | ------ | ---------------------- | --------------------- |
+| 15.7.7 | 24G720 | No crash, 2 of 2 runs  | No crash, 2 of 2 runs |
+| 26.6.2 | 25G83  | No crash, 2 of 2 runs  | No crash, 2 of 2 runs |
+| 27.0   | 26A428 | Crash, 2 of 2 runs     | Crash, 2 of 2 runs    |
+
+| Component    | Version                |
 | ------------ | ---------------------- |
-| macOS        | 27.0, build 26A428     |
 | Xcode        | 27.0, build 27A266a    |
 | Swift        | Apple Swift 6.4.0.34.1 |
-| Architecture | arm64 virtual machine  |
+| Architecture | arm64                  |
 
-The result was reproduced twice with `.preferredColorScheme(.dark)` and twice
-with native appearance. The original application crash and the standalone app
-have the same exception reason and top AppKit frames.
+Every run completed all five UI actions. The control runs printed
+`The app did not crash`; every macOS 27 run terminated with the expected
+`SIGABRT`. This places the regression after macOS 26.6.2 and at or before macOS
+27.0. The original application crash and the standalone app have the same
+exception reason and top AppKit frames.
 
 ## Steps to reproduce
 
@@ -40,7 +50,7 @@ have the same exception reason and top AppKit frames.
 The client performs these actions:
 
 1. Press the View menu.
-2. Click the menu item identified as `toggleTabOverview:`.
+2. Activate the menu item identified as `toggleTabOverview:`.
 3. Click New Tab.
 4. Drag the app's slider.
 5. Press Escape.
@@ -77,6 +87,10 @@ trace. Automated reduction produced the five actions above. Replacing the full
 application with the attached two-control SwiftUI view preserved the crash.
 Removing the forced color scheme also preserved it, ruling out application state
 and explicit appearance as necessary triggers.
+
+Running the exact same binaries on macOS 15.7.7 and 26.6.2 completed the
+sequence without an exception, ruling out the Xcode 27 compiler and SDK as the
+sole trigger.
 
 Any SwiftUI app that receives the standard tabbing menu can expose the sequence
 to a user without implementing tab support itself. The exception is raised by

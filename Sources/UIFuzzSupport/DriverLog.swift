@@ -9,6 +9,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     case resolve
     case skip
     case fail
+    case mouseRecovery = "mouse-recovery"
   }
 
   public var uptime: TimeInterval
@@ -37,6 +38,9 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
   public var unlocated: Bool?
   /// `FuzzAction.Sheet.logName` of the modal root.
   public var sheet: String?
+  public var hitProcess: Int32?
+  public var hitBundleIdentifier: String?
+  public var recovered: Bool?
 
   public init(
     uptime: TimeInterval, event: Kind, action: Int? = nil, control: String? = nil,
@@ -46,7 +50,8 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     elapsedMs: Double? = nil, skipped: Bool? = nil, focusedRole: String? = nil,
     focusedSubrole: String? = nil, focusLocation: FocusLocation? = nil,
     modalRole: String? = nil, modalDepth: Int? = nil, unlocated: Bool? = nil,
-    sheet: String? = nil
+    sheet: String? = nil, hitProcess: Int32? = nil, hitBundleIdentifier: String? = nil,
+    recovered: Bool? = nil
   ) {
     self.uptime = uptime
     self.event = event
@@ -70,6 +75,9 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     self.modalDepth = modalDepth
     self.unlocated = unlocated
     self.sheet = sheet
+    self.hitProcess = hitProcess
+    self.hitBundleIdentifier = hitBundleIdentifier
+    self.recovered = recovered
   }
 
   /// A skipped wait read no telemetry, so it carries none of the wait's figures.

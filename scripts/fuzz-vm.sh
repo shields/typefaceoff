@@ -113,7 +113,7 @@ run_campaign() {
     for argument in "$@"; do
         arguments="$arguments $(quote "$argument")"
     done
-    vm_ssh -t "admin@$ip" "$(quote "$shares/repo/scripts/run-fuzz-driver.sh") ~/typefaceoff/UIFuzzDriver.app \
+    vm_ssh -t "admin@$ip" "env TYPEFACEOFF_FUZZ_VM=1 $(quote "$shares/repo/scripts/run-fuzz-driver.sh") ~/typefaceoff/UIFuzzDriver.app \
         run --app ~/typefaceoff/TypefaceOff.app --artifacts $(quote "$shares/artifacts")$arguments"
 }
 

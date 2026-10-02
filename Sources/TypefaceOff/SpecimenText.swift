@@ -1,4 +1,5 @@
 import AppKit
+import CoreText
 import SwiftUI
 import TypefaceCore
 
@@ -63,6 +64,7 @@ struct SpecimenText: NSViewRepresentable {
     let coordinator = context.coordinator
     let key = RenderKey(config: config, text: text, sample: sample)
     let contentChanged = coordinator.key != key
+    let trackingOnly = coordinator.key.map { key.changesOnlyTracking(from: $0) } == true
     guard contentChanged || coordinator.highlights != highlights || coordinator.side != side else {
       return
     }
@@ -74,9 +76,14 @@ struct SpecimenText: NSViewRepresentable {
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-start")
         #endif
-        let content = Self.makeContent(config: config, text: text, sample: sample)
-        view.textStorage?.setAttributedString(content.text)
-        view.spans = content.spans
+        if trackingOnly, let storage = view.textStorage {
+          Self.updateTracking(config: config, storage: storage, range: view.bodyRange)
+        } else {
+          let content = Self.makeContent(config: config, text: text, sample: sample)
+          view.textStorage?.setAttributedString(content.text)
+          view.spans = content.spans
+          view.bodyRange = content.bodyRange
+        }
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-ready")
         #endif
@@ -108,6 +115,7 @@ struct SpecimenText: NSViewRepresentable {
     var spans: [GlyphSpan] = []
     var support: [String: Bool] = [:]
     var italicSupport: [String: Bool] = [:]
+    var bodyRange = NSRange(location: 0, length: 0)
     if !FontRenderer.isAvailable(config) {
       content.append(
         NSAttributedString(
@@ -153,6 +161,7 @@ struct SpecimenText: NSViewRepresentable {
               .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemOrange,
             ]))
       }
+      bodyRange.location = content.length
       var attributes = FontRenderer.attributes(config)
       attributes[.foregroundColor] = NSColor(calibratedWhite: 0.16, alpha: 1)
       var italicAttributes = attributes
@@ -211,8 +220,23 @@ struct SpecimenText: NSViewRepresentable {
         }
       }
       flushRun()
+      bodyRange.length = content.length - bodyRange.location
     }
-    return SampleContent(text: content, spans: spans)
+    return SampleContent(text: content, spans: spans, bodyRange: bodyRange)
+  }
+
+  static func updateTracking(
+    config: FontConfiguration, storage: NSMutableAttributedString, range: NSRange
+  ) {
+    guard range.length > 0 else { return }
+    let attribute = NSAttributedString.Key(kCTTrackingAttributeName as String)
+    storage.beginEditing()
+    if config.tracking == 0 {
+      storage.removeAttribute(attribute, range: range)
+    } else {
+      storage.addAttribute(attribute, value: config.tracking * config.size, range: range)
+    }
+    storage.endEditing()
   }
 
   final class Coordinator {
@@ -226,8 +250,9 @@ struct SpecimenText: NSViewRepresentable {
   struct SampleContent {
     let text: NSAttributedString
     let spans: [GlyphSpan]
+    let bodyRange: NSRange
   }
-  struct GlyphSpan {
+  struct GlyphSpan: Equatable {
     let range: NSRange
     let glyph: String
     let supported: Bool
@@ -237,6 +262,15 @@ struct SpecimenText: NSViewRepresentable {
     let config: FontConfiguration
     let text: String
     let sample: Sample
+
+    func changesOnlyTracking(from previous: RenderKey) -> Bool {
+      guard text == previous.text, sample == previous.sample,
+        config.tracking != previous.config.tracking
+      else { return false }
+      var unchanged = config
+      unchanged.tracking = previous.config.tracking
+      return unchanged == previous.config
+    }
   }
 }
 
@@ -270,6 +304,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var select: (String) -> Void = { _ in }
   var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
+  var bodyRange = NSRange(location: 0, length: 0)
 
   override func accessibilityLabel() -> String? { axLabel ?? super.accessibilityLabel() }
   // AppKit's empty identifier for unnamed text views preserves label-based name matching.

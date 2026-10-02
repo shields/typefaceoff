@@ -566,17 +566,19 @@ Terminal. Coverage state in this resumed campaign contains region identities
 from several binaries and cannot be read as clean coverage for any one binary;
 use a fresh artifact directory for the next measurement.
 
-## Not started
+## Completed after the three-hour campaign
 
 ### Startup self-test (judgment finding)
 
-Run a short built-in suite before the campaign loop and abort loudly when an
-expectation fails: Cmd-2 gives glyph mode; Cmd-2 then a click on `Glyph canvas`
-gives text mode; Shift-Cmd-E, a value, and Apply make `textUTF16` equal the
-typed length; a killed dummy child is seen exiting within 100 ms. Use
-`precondition` or `try!` on executed lines. This would have caught three of the
-four blind spots in the first minute. It depends on the mouse, liveness, and
-custom-text fixes landing first.
+Resolved 2026-10-02: every campaign runs isolated recorded traces before it
+opens or changes the corpus. Command-2 must produce glyph mode; Command-2 and a
+real click on `Glyph canvas` must produce text mode; the compound editor action
+must apply the exact UTF-16 length; and the process-liveness check must observe
+a killed dummy child within 100 ms. The checks use the campaign's normal runner,
+mouse preparation, telemetry, and shutdown paths. They abort on any finding or
+failed expectation and remove their artifacts after success.
+
+## Not started
 
 ### Runtime warnings and the dead exit status (VB1, F2, remainder)
 

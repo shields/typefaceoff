@@ -89,6 +89,9 @@ struct Run: ParsableCommand {
       throw ValidationError("--max-skips-per-run cannot be negative.")
     }
     AXDriver.waitForPermissions()
+    outputLine("running startup self-test")
+    StartupSelfTest.run(configuration: common.runnerConfiguration)
+    outputLine("startup self-test passed")
     let stop = StopController()
     stop.install()
     let durationSeconds = try duration.map(parseDuration)

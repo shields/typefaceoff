@@ -159,6 +159,14 @@ use, the driver stays open while you enable
 and continues automatically. Its stable bundle identity keeps the permission
 valid across rebuilds.
 
+Before entering the campaign loop, the driver runs a self-test against fresh app
+instances. It requires Command-2 to enter glyph mode, a real click on
+`Glyph canvas` to return to text mode, and an editor submission to update the
+reported UTF-16 text length. It also kills a dummy child process and requires
+the liveness check to see the exit within 100 ms. Any failure stops the driver
+before the corpus or campaign state changes; successful probe artifacts are
+removed.
+
 Before each live exploration action, a campaign waits for the app to go quiet:
 no open work, and `--quiescence-ms` (200 by default, at most 1000; zero disables
 the wait) since the previous action, counting its delay. No wait lasts longer

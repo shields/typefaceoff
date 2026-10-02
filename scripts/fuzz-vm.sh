@@ -1,17 +1,18 @@
 #!/bin/sh
 set -eu
 
-if [ $# -lt 6 ]; then
-    echo "usage: $0 setup|run <vm> <image> <artifacts> <driver-app> <app> [ui-fuzz run options...]" >&2
+if [ $# -lt 7 ]; then
+    echo "usage: $0 setup|run <vm> <image> <disk-gb> <artifacts> <driver-app> <app> [ui-fuzz run options...]" >&2
     exit 64
 fi
 mode=$1
 vm=$2
 image=$3
-artifacts=$4
-driver_app=$5
-app=$6
-shift 6
+disk_gb=$4
+artifacts=$5
+driver_app=$6
+app=$7
+shift 7
 
 state="$PWD/.build/fuzz-vm"
 key="$state/id_ed25519"
@@ -26,6 +27,11 @@ fail() {
     echo "fuzz-vm: $*" >&2
     exit 1
 }
+
+case $disk_gb in
+'' | *[!0-9]*) fail "disk size must be a positive integer in GB" ;;
+esac
+[ "$disk_gb" -gt 0 ] || fail "disk size must be a positive integer in GB"
 
 [ "$xcode" != "$developer_dir" ] || fail "xcode-select -p ($developer_dir) is not inside an Xcode.app"
 
@@ -86,6 +92,17 @@ authorize_key() {
     [ "$status" -eq 0 ] || fail "could not authorize $key in $vm"
 }
 
+ensure_disk_capacity() {
+    current_disk=$(tart get "$vm" --format json | plutil -extract Disk raw -o - -)
+    case $current_disk in
+    '' | *[!0-9]*) fail "could not read $vm disk size" ;;
+    esac
+    if [ "$current_disk" -lt "$disk_gb" ]; then
+        echo "Expanding $vm disk from $current_disk GB to $disk_gb GB."
+        tart set "$vm" --disk-size "$disk_gb"
+    fi
+}
+
 prepare_guest() {
     vm_ssh "admin@$ip" "
         set -e
@@ -128,6 +145,7 @@ setup)
         tart clone "$image" "$vm"
         tart set "$vm" --cpu "$cpus" --memory "$memory" --display 2560x1440pt
     fi
+    ensure_disk_capacity
     start_vm
     authorize_key
     prepare_guest
@@ -138,6 +156,7 @@ run)
     if ! tart get "$vm" >/dev/null 2>&1 || [ ! -f "$key" ]; then
         fail "$vm is not set up; run make fuzz-vm-setup"
     fi
+    ensure_disk_capacity
     start_vm --no-graphics
     prepare_guest
     set_display

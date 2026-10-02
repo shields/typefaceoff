@@ -6,27 +6,40 @@ struct WorkbenchState: Equatable, Sendable {
   enum Mode: Sendable { case text, glyph }
   enum Sheet: Sendable { case closed, editor, match }
   enum Popover: Sendable { case closed, fonts, characters }
+  enum Inspector: String, Sendable {
+    case a = "Font A"
+    case b = "Font B"
+  }
 
   enum Requirement: Equatable, Sendable {
     case mode(Mode)
     case sheet(Sheet?)
     case popover(Popover)
+    case inspector(Inspector)
+    case configuredInspector(Inspector)
   }
 
   var mode: Mode? = .text
   var sheet: Sheet? = .closed
   var popover: Popover? = .closed
   var appearanceLocked: Bool? = true
+  var inspectorAVisible: Bool? = true
+  var inspectorBVisible: Bool? = true
+  var fontBPresent: Bool? = true
+  var fontPickerSide: Inspector?
 
   static let launch = WorkbenchState()
   static let unknown = WorkbenchState(
-    mode: nil, sheet: nil, popover: nil, appearanceLocked: nil)
+    mode: nil, sheet: nil, popover: nil, appearanceLocked: nil,
+    inspectorAVisible: nil, inspectorBVisible: nil, fontBPresent: nil)
 
   private static let command = UInt64(1 << 20)
   private static let shift = UInt64(1 << 17)
+  private static let option = UInt64(1 << 19)
   private static let escape = FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400)
 
   static func requirement(of action: FuzzAction) -> Requirement? {
+    if action.kind == .showInspector { return nil }
     if let sheet = action.sheet {
       switch sheet {
       case .match: return .sheet(.match)
@@ -46,16 +59,28 @@ struct WorkbenchState: Equatable, Sendable {
     case "Apply", "Cancel": return .sheet(nil)
     case "Search installed fonts": return .popover(.fonts)
     case "Search Unicode characters": return .popover(.characters)
-    default: return nil
+    case "Font A inspector", "Font B inspector": return nil
+    case "Font A family": return .inspector(.a)
+    case "Font B family": return .inspector(.b)
+    default:
+      for side in [Inspector.a, .b] where target.hasPrefix("\(side.rawValue) ") {
+        if target.hasPrefix("\(side.rawValue) specimen") { return .mode(.text) }
+        return .configuredInspector(side)
+      }
+      return nil
     }
   }
 
   func satisfies(_ requirement: Requirement) -> Bool {
     switch requirement {
     case .mode(let mode): self.mode == mode
-    case .sheet(let sheet?): self.sheet == sheet
+    case .sheet(let sheet?): self.sheet == sheet && (sheet != .match || fontBPresent == true)
     case .sheet(nil): sheet == .editor || sheet == .match
     case .popover(let popover): self.popover == popover
+    case .inspector(.a): inspectorAVisible == true && sheet == .closed
+    case .inspector(.b): inspectorBVisible == true && sheet == .closed
+    case .configuredInspector(let side):
+      satisfies(.inspector(side)) && popover == .closed && (side != .b || fontBPresent == true)
     }
   }
 
@@ -81,6 +106,14 @@ struct WorkbenchState: Equatable, Sendable {
       actions.append(action)
       apply(action)
     }
+    func prepareFontB() {
+      if inspectorBVisible != true {
+        run(FuzzAction(kind: .showInspector, target: "Font B family", delayMilliseconds: 400))
+      }
+      run(
+        FuzzAction(
+          kind: .selectFont, target: "Font B family", value: "Arial", delayMilliseconds: 400))
+    }
     while popover != .closed || sheet != .closed { run(Self.escape) }
     switch requirement {
     case .mode(let mode):
@@ -89,16 +122,30 @@ struct WorkbenchState: Equatable, Sendable {
           kind: .shortcut, keyCode: mode == .glyph ? 19 : 18, modifiers: Self.command,
           delayMilliseconds: 50))
     case .sheet(let wanted):
+      if wanted == .match && fontBPresent != true { prepareFontB() }
       run(
         FuzzAction(
           kind: .shortcut, keyCode: wanted == .match ? 46 : 14,
           modifiers: Self.command | Self.shift, delayMilliseconds: 400))
     case .popover(let wanted):
+      if wanted == .fonts && inspectorAVisible != true {
+        run(FuzzAction(kind: .showInspector, target: "Font A family", delayMilliseconds: 400))
+      }
       run(
         wanted == .fonts
           ? FuzzAction(kind: .press, target: "Font A family", delayMilliseconds: 400)
           : FuzzAction(
             kind: .shortcut, keyCode: 3, modifiers: Self.command, delayMilliseconds: 400))
+    case .inspector(let side):
+      run(
+        FuzzAction(kind: .showInspector, target: "\(side.rawValue) family", delayMilliseconds: 400))
+    case .configuredInspector(let side):
+      if !satisfies(.inspector(side)) {
+        run(
+          FuzzAction(
+            kind: .showInspector, target: "\(side.rawValue) family", delayMilliseconds: 400))
+      }
+      if side == .b && fontBPresent != true { prepareFontB() }
     }
     precondition(satisfies(requirement))
     return actions
@@ -112,13 +159,29 @@ struct WorkbenchState: Equatable, Sendable {
     case .setValue:
       // Committing a search picks a result, which closes its popover.
       if action.target?.hasPrefix("Search ") == true && action.commitValue != false {
+        if action.target == "Search installed fonts" && fontPickerSide == .b {
+          fontBPresent = nil
+        }
         popover = nil
       }
-    case .selectFont: popover = .closed
+    case .selectFont:
+      if action.target == "Font B family" {
+        fontBPresent = action.value.map { !$0.isEmpty && $0 != "None" }
+      }
+      popover = .closed
+      fontPickerSide = nil
     case .setSpecimen:
       sheet = .closed
       popover = .closed
-    case .increment, .decrement, .scroll, .pause, .showMenu: break
+    case .showInspector:
+      if action.target == "Font A family" { inspectorAVisible = true }
+      if action.target == "Font B family" { inspectorBVisible = true }
+      sheet = .closed
+      popover = .closed
+    case .increment, .decrement:
+      if action.target == "Toggle font A inspector" { inspectorAVisible = nil }
+      if action.target == "Toggle font B inspector" { inspectorBVisible = nil }
+    case .scroll, .pause, .showMenu: break
     }
     // The character search popover closes when the view leaves glyph mode.
     if popover == .characters && mode != .glyph { popover = mode == nil ? nil : .closed }
@@ -129,6 +192,7 @@ struct WorkbenchState: Equatable, Sendable {
     let shift = Self.shift
     if keyCode == 6 && (modifiers == command || modifiers == command | shift) {
       appearanceLocked = nil
+      fontBPresent = nil
     }
     // A window has its own state.
     if keyCode == 45 && modifiers == command { self = .unknown }
@@ -144,7 +208,11 @@ struct WorkbenchState: Equatable, Sendable {
       mode = .glyph
       popover = .characters
     case (14, command | shift): self.sheet = .editor
-    case (46, command | shift): self.sheet = .match
+    case (46, command | shift):
+      if fontBPresent == true { self.sheet = .match }
+      if fontBPresent == nil { self.sheet = nil }
+    case (18, command | Self.option): inspectorAVisible = inspectorAVisible.map { !$0 }
+    case (19, command | Self.option): inspectorBVisible = inspectorBVisible.map { !$0 }
     default: break
     }
   }
@@ -161,6 +229,7 @@ struct WorkbenchState: Equatable, Sendable {
       default: popover = .closed
       }
     case 36:
+      if popover == .fonts && fontPickerSide == .b { fontBPresent = nil }
       // Return presses the Match sheet's default button, Apply, which is disabled until a fit
       // improves, so whether that sheet closes is unknown and the next requirement dismisses it
       // first. The editor sheet counts as closed.
@@ -184,7 +253,9 @@ struct WorkbenchState: Equatable, Sendable {
     case "Glyph": mode = .glyph
     case "Text": mode = .text
     case "Edit text", "Edit sample text…": if sheet == .closed { sheet = .editor }
-    case "Match…", "Match fonts…": if sheet == .closed { sheet = .match }
+    case "Match…", "Match fonts…":
+      if sheet == .closed && fontBPresent == true { sheet = .match }
+      if sheet == .closed && fontBPresent == nil { sheet = nil }
     case "Apply", "Cancel", "Cancel matching", "xmark.circle.fill": sheet = .closed
     case "Search characters":
       mode = .glyph
@@ -193,14 +264,27 @@ struct WorkbenchState: Equatable, Sendable {
       // A mouse click that lands on a character enters glyph mode; an AXPress does not.
       if action.kind != .press { mode = nil }
     case "Font A family", "Font B family":
+      fontPickerSide = target == "Font A family" ? .a : .b
       // An AXPress runs the button's action, which opens the popover and never dismisses one.
       switch (popover, action.kind) {
       case (.closed, _), (.fonts, .press): popover = .fonts
       default: popover = nil
       }
+    case "None":
+      if popover == .fonts && fontPickerSide == .b {
+        fontBPresent = false
+        popover = .closed
+        fontPickerSide = nil
+      }
     case "Unlock appearance": appearanceLocked = false
     case "Lock appearance": appearanceLocked = true
-    case "Undo", "arrow.uturn.backward": appearanceLocked = nil
+    case "Undo", "arrow.uturn.backward":
+      appearanceLocked = nil
+      fontBPresent = nil
+    case "Toggle font A inspector", "Font A inspector":
+      inspectorAVisible = inspectorAVisible.map { !$0 }
+    case "Toggle font B inspector", "Font B inspector":
+      inspectorBVisible = inspectorBVisible.map { !$0 }
     default:
       if target.hasPrefix("Inspect ") { mode = .glyph }
     }

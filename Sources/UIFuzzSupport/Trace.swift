@@ -28,6 +28,7 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
     case pause
     case selectFont
     case setSpecimen
+    case showInspector
     case click
     case drag
     case showMenu
@@ -37,7 +38,7 @@ public struct FuzzAction: Codable, Equatable, Hashable, Sendable {
       case .press, .setValue, .increment, .decrement, .showMenu, .scroll, .selectFont, .click,
         .drag:
         true
-      case .shortcut, .key, .pause, .setSpecimen:
+      case .shortcut, .key, .pause, .setSpecimen, .showInspector:
         false
       }
     }

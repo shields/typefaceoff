@@ -129,6 +129,8 @@ final class SequenceRunner {
     var lastResolveSeconds = 0.0
     var driverLogHandle: FileHandle?
     var driverLogError: (any Error)?
+    var notificationDismissals = 0
+    var recoveredMouseEvents = 0
 
     func log(_ event: DriverEvent) {
       guard driverLogError == nil else { return }
@@ -152,7 +154,20 @@ final class SequenceRunner {
       launchedApplication = application
       launchedProcessIdentifier = application.processIdentifier
       application.activate(options: [.activateAllWindows])
-      let driver = try AXDriver(processIdentifier: application.processIdentifier)
+      let driver = try AXDriver(
+        processIdentifier: application.processIdentifier,
+        allowNotificationDismissal: ProcessInfo.processInfo.environment["TYPEFACEOFF_FUZZ_VM"]
+          == "1",
+        observeMouseRecovery: { outcome in
+          notificationDismissals += outcome.notificationDismissals
+          if outcome.recovered { recoveredMouseEvents += 1 }
+          log(
+            DriverEvent(
+              uptime: clock.now, event: .mouseRecovery, action: executed.actions.count,
+              attempts: outcome.notificationDismissals, elapsedMs: outcome.milliseconds,
+              hitProcess: outcome.hit.process, hitBundleIdentifier: outcome.hit.bundleIdentifier,
+              recovered: outcome.recovered))
+        })
       launchedDriver = driver
 
       let startupDeadline = ProcessInfo.processInfo.systemUptime + configuration.watchdogSeconds
@@ -644,6 +659,8 @@ final class SequenceRunner {
       metadata[key] = value
     }
     metadata["ax-read-errors"] = String(readErrors)
+    metadata["notification-dismissals"] = String(notificationDismissals)
+    metadata["mouse-events-recovered"] = String(recoveredMouseEvents)
     return ExecutionReport(
       trace: executed, startedAt: startedAt,
       durationMilliseconds: (ProcessInfo.processInfo.systemUptime - start) * 1000,

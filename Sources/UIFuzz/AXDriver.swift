@@ -50,9 +50,16 @@ struct AXControl {
 struct AXDriver {
   let processIdentifier: pid_t
   let application: AXUIElement
+  let allowNotificationDismissal: Bool
+  let observeMouseRecovery: (MousePreparation.Outcome) -> Void
 
-  init(processIdentifier: pid_t) throws {
+  init(
+    processIdentifier: pid_t, allowNotificationDismissal: Bool = false,
+    observeMouseRecovery: @escaping (MousePreparation.Outcome) -> Void = { _ in }
+  ) throws {
     self.processIdentifier = processIdentifier
+    self.allowNotificationDismissal = allowNotificationDismissal
+    self.observeMouseRecovery = observeMouseRecovery
     application = AXUIElementCreateApplication(processIdentifier)
     AXUIElementSetMessagingTimeout(application, 0.5)
     var ready = false
@@ -345,8 +352,9 @@ struct AXDriver {
     try postKey(code: 53, modifiers: 0)
   }
 
-  private func postKey(code: UInt16, modifiers: UInt64) throws {
-    try activateIfNeeded()
+  private func postKey(code: UInt16, modifiers: UInt64, recipient: pid_t? = nil) throws {
+    let recipient = recipient ?? processIdentifier
+    if recipient == processIdentifier { try activateIfNeeded() }
     let source = CGEventSource(stateID: .combinedSessionState)
     guard
       let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true),
@@ -355,9 +363,9 @@ struct AXDriver {
     let flags = CGEventFlags(rawValue: modifiers)
     down.flags = flags
     up.flags = flags
-    down.postToPid(processIdentifier)
+    down.postToPid(recipient)
     Thread.sleep(forTimeInterval: 0.02)
-    up.postToPid(processIdentifier)
+    up.postToPid(recipient)
   }
 
   private func postMouse(_ type: CGEventType, at point: CGPoint) throws {
@@ -379,16 +387,64 @@ struct AXDriver {
     let systemWide = AXUIElementCreateSystemWide()
     AXUIElementSetMessagingTimeout(systemWide, 0.5)
     defer { AXUIElementSetMessagingTimeout(systemWide, 0) }
-    let deadline = ProcessInfo.processInfo.systemUptime + 1.5
-    while true {
-      let current = routing(at: point, using: systemWide)
-      if current.routing == .target { return }
-      guard current.routing.mayResolve, ProcessInfo.processInfo.systemUptime < deadline else {
-        throw DriverError.mouseNotDelivered(
-          reason: current.routing.reason, point: point, hitProcess: current.process)
-      }
-      Thread.sleep(forTimeInterval: 0.02)
+    let outcome = try MousePreparation.run(
+      clock: SystemClock(), allowNotificationDismissal: allowNotificationDismissal,
+      hitTest: {
+        let current = routing(at: point, using: systemWide)
+        return MousePreparation.Hit(
+          routing: current.routing, process: current.process,
+          bundleIdentifier: NSRunningApplication(processIdentifier: current.process)?
+            .bundleIdentifier)
+      },
+      dismissNotification: { process in
+        guard
+          NSRunningApplication(processIdentifier: process)?.bundleIdentifier
+            == MousePreparation.notificationCenterBundleIdentifier
+        else { return false }
+        if try closeNotification(at: point, using: systemWide, process: process) { return true }
+        try postKey(code: 53, modifiers: 0, recipient: process)
+        return true
+      }, checkpoint: { try DesktopSession.current().requireAvailable() })
+    if outcome.notificationDismissals > 0 { observeMouseRecovery(outcome) }
+    if !outcome.recovered {
+      throw DriverError.mouseNotDelivered(
+        reason: outcome.hit.routing.reason, point: point, hitProcess: outcome.hit.process)
     }
+  }
+
+  private func closeNotification(
+    at point: CGPoint, using systemWide: AXUIElement, process: pid_t
+  ) throws -> Bool {
+    var hit: AXUIElement?
+    let result = AXUIElementCopyElementAtPosition(
+      systemWide, Float(point.x), Float(point.y), &hit)
+    guard result == .success, var element = hit else { return false }
+    for _ in 0..<8 {
+      var owner: pid_t = 0
+      guard AXUIElementGetPid(element, &owner) == .success, owner == process else { return false }
+      var actions: CFArray?
+      let read = AXUIElementCopyActionNames(element, &actions)
+      // Missing actions and stale elements allow Escape; messaging failures must stay visible.
+      switch read {
+      case .success, .actionUnsupported, .noValue: break
+      case .invalidUIElement: return false
+      default:
+        throw DriverError.actionFailed("read notification actions", read)
+      }
+      if let close = MousePreparation.closeAction(in: actions as? [String] ?? []) {
+        let result = AXUIElementPerformAction(element, close as CFString)
+        switch result {
+        case .success: return true
+        case .actionUnsupported, .invalidUIElement: return false
+        default: throw DriverError.actionFailed(close, result)
+        }
+      }
+      guard let parent = attribute(kAXParentAttribute, of: element),
+        CFGetTypeID(parent) == AXUIElementGetTypeID()
+      else { return false }
+      element = parent as! AXUIElement
+    }
+    return false
   }
 
   private func routing(at point: CGPoint, using systemWide: AXUIElement) -> (

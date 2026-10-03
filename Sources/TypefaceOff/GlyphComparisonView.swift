@@ -185,6 +185,7 @@ final class GlyphDrawingView: NSView {
   private var comparison = Comparison()
   private var envelope = GlyphMeasurementPlaceholder.defaultBounds
   private var envelopeKey: EnvelopeKey?
+  private var renderGeneration: UInt64 = 0
   private var overlayCache: (key: OverlayKey, outline: GlyphOverlayOutline?)?
   private var dragLocation: NSPoint?
   private let red = NSColor(calibratedRed: 0.76, green: 0.32, blue: 0.31, alpha: 1)
@@ -285,10 +286,15 @@ final class GlyphDrawingView: NSView {
   }
 
   func update(_ value: Comparison) {
+    renderGeneration = FuzzDiagnostics.shared.nextGeneration()
     comparison = value
     let key = EnvelopeKey(a: value.a, b: value.b, text: value.text)
     if envelopeKey != key {
-      let measured = FontRenderer.envelope(a: value.a, b: value.b, sample: value.text)
+      let measured = FuzzDiagnostics.shared.measure(
+        "glyph-envelope", text: value.text, generation: renderGeneration
+      ) {
+        FontRenderer.envelope(a: value.a, b: value.b, sample: value.text)
+      }
       envelope = measured.bounds.union(CGRect(x: 0, y: 0, width: measured.advance, height: 1))
       envelopeKey = key
     }
@@ -308,7 +314,14 @@ final class GlyphDrawingView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
-    defer { FuzzDiagnostics.shared.rendered("glyph") }
+    FuzzDiagnostics.shared.measure(
+      "glyph-drawing", text: comparison.selectedGlyph, generation: renderGeneration
+    ) {
+      drawGlyph(dirtyRect)
+    }
+  }
+
+  private func drawGlyph(_ dirtyRect: NSRect) {
     guard let context = NSGraphicsContext.current?.cgContext, bounds.width > 0, bounds.height > 0
     else { return }
     NSColor.white.setFill()

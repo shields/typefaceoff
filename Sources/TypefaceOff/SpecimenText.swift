@@ -68,6 +68,7 @@ struct SpecimenText: NSViewRepresentable {
     guard contentChanged || coordinator.highlights != highlights || coordinator.side != side else {
       return
     }
+    view.renderGeneration = FuzzDiagnostics.shared.nextGeneration()
     coordinator.key = key
     coordinator.highlights = highlights
     coordinator.side = side
@@ -76,13 +77,17 @@ struct SpecimenText: NSViewRepresentable {
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-start")
         #endif
-        if trackingOnly, let storage = view.textStorage {
-          Self.updateTracking(config: config, storage: storage, range: view.bodyRange)
-        } else {
-          let content = Self.makeContent(config: config, text: text, sample: sample)
-          view.textStorage?.setAttributedString(content.text)
-          view.spans = content.spans
-          view.bodyRange = content.bodyRange
+        FuzzDiagnostics.shared.measure(
+          "specimen-shaping", text: text, generation: view.renderGeneration
+        ) {
+          if trackingOnly, let storage = view.textStorage {
+            Self.updateTracking(config: config, storage: storage, range: view.bodyRange)
+          } else {
+            let content = Self.makeContent(config: config, text: text, sample: sample)
+            view.textStorage?.setAttributedString(content.text)
+            view.spans = content.spans
+            view.bodyRange = content.bodyRange
+          }
         }
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-ready")
@@ -100,12 +105,15 @@ struct SpecimenText: NSViewRepresentable {
           forCharacterRange: span.range)
       }
       if contentChanged {
-        if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
+        view.ensureSpecimenLayout()
         view.refreshToolTips()
-        view.setAccessibilityValue(text)
+        FuzzDiagnostics.shared.measure(
+          "specimen-accessibility", text: text, generation: view.renderGeneration
+        ) {
+          view.setAccessibilityValue(text)
+        }
       }
     }
-    FuzzDiagnostics.shared.rendered("specimen")
   }
 
   static func makeContent(config: FontConfiguration, text: String, sample: Sample = .custom)
@@ -285,10 +293,8 @@ final class SpecimenScrollView: NSScrollView {
     // TextKit may adjust the origin while reflowing. Restore only after layout finishes.
     position.preserveDuringUpdate {
       super.tile()
-      if let view = documentView as? NSTextView, let container = view.textContainer,
-        contentView.bounds.width > 0
-      {
-        view.layoutManager?.ensureLayout(for: container)
+      if let view = documentView as? SpecimenNSTextView, contentView.bounds.width > 0 {
+        view.ensureSpecimenLayout()
         // AppKit calls updateTrackingAreas after geometry changes. Rebuilding tooltips
         // here repeats that work for every intermediate tile during window layout.
       }
@@ -305,6 +311,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var highlightKinds: [String: String] = [:]
   var spans: [SpecimenText.GlyphSpan] = []
   var bodyRange = NSRange(location: 0, length: 0)
+  var renderGeneration: UInt64 = 0
 
   override func accessibilityLabel() -> String? { axLabel ?? super.accessibilityLabel() }
   // AppKit's empty identifier for unnamed text views preserves label-based name matching.
@@ -312,12 +319,24 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
     axIdentifier ?? super.accessibilityIdentifier()
   }
 
-  #if TYPEFACEOFF_STARTUP_BENCHMARK
-    override func draw(_ dirtyRect: NSRect) {
+  override func draw(_ dirtyRect: NSRect) {
+    FuzzDiagnostics.shared.measure(
+      "specimen-drawing", text: string, generation: renderGeneration
+    ) {
       super.draw(dirtyRect)
-      StartupDiagnostics.specimenDrawn(self)
     }
-  #endif
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
+      StartupDiagnostics.specimenDrawn(self)
+    #endif
+  }
+
+  func ensureSpecimenLayout() {
+    FuzzDiagnostics.shared.measure(
+      "specimen-layout", text: string, generation: renderGeneration
+    ) {
+      if let textContainer { layoutManager?.ensureLayout(for: textContainer) }
+    }
+  }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
@@ -325,6 +344,14 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   }
 
   func refreshToolTips() {
+    FuzzDiagnostics.shared.measure(
+      "specimen-tooltips", text: string, generation: renderGeneration
+    ) {
+      rebuildToolTips()
+    }
+  }
+
+  private func rebuildToolTips() {
     removeAllToolTips()
     guard let layoutManager, let textContainer, let textStorage else { return }
     // A full chapter has thousands of glyphs. Track only the visible characters;

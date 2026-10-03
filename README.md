@@ -151,13 +151,56 @@ reports, and strips duplicated coverage sets from the reports it retains. Replay
 or reduce a finding with `make fuzz-replay CASE=…` or
 `make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
 optimized build without coverage instrumentation and excludes failed or
-incomplete executions from its timings. Set `FUZZ_ARTIFACTS=…` to keep a
-separate campaign or replay directory. The driver requires an active, unlocked
-desktop session and macOS Accessibility and event-posting permission. On first
-use, the driver stays open while you enable
-`.build/fuzz-driver/UIFuzzDriver.app` in System Settings, then relaunches itself
-and continues automatically. Its stable bundle identity keeps the permission
-valid across rebuilds.
+incomplete executions from its timings. Benchmarking waits for quiescence after
+every action. Use `make fuzz-benchmark CASE=…` for an outlier report, or
+`CORPUS=…` for a directory of traces or reports.
+`actionLatencyMedianMilliseconds` contains the median interaction latency for
+each action; `actionMedianMilliseconds` retains the resolution-plus-dispatch
+measurement. A coverage-instrumented replay can also wait between actions with
+`FUZZ_ARGS='--wait-for-quiescence'`. Set `FUZZ_ARTIFACTS=…` to keep a separate
+campaign or replay directory. The driver requires an active, unlocked desktop
+session and macOS Accessibility and event-posting permission. On first use, the
+driver stays open while you enable `.build/fuzz-driver/UIFuzzDriver.app` in
+System Settings, then relaunches itself and continues automatically. Its stable
+bundle identity keeps the permission valid across rebuilds.
+
+Every execution appends a compact record to `executions.jsonl`, including
+availability retries and failures. `action-timings.jsonl` contains one lifecycle
+record for every attempted action, including skipped picks. Its zero-based
+`index` counts attempts, so it can differ from the retained trace index after a
+skip. Timestamps use the same seconds-since-boot clock as app telemetry;
+`start-uptime` and `startedAt` in the execution record anchor it to wall time.
+Resolution and dispatch have separate start and return timestamps. Dispatch
+covers the whole driver operation, including internal reveals in compound
+actions such as `setSpecimen`. Missing dispatch timestamps identify unresolved
+attempts.
+
+Settlement requires no open work and a main-thread heartbeat at least 200 ms
+after dispatch returns and after the latest app activity. `quiescentAt` is the
+first heartbeat that proves this condition. `result` is `settled`,
+`nextActionStarted`, `timeout`, or `appExited`. Ordinary fuzzing retains its
+action pacing: a new attempt closes the preceding measurement even if work is
+pending. The records are reconstructed once from app event timestamps at
+execution end, so delayed telemetry writes do not change pending-work snapshots
+at dispatch return or settlement. `pendingAtEnd` also preserves unfinished work
+on timeout, exit, or interruption. Heartbeat gaps are clipped to each
+measurement's interval, including the unfinished gap when the main thread stops
+responding. Latency includes the 200 ms quiet period and heartbeat sampling
+(normally 50 ms).
+
+Specimen shaping, TextKit layout, accessibility-value rebuilding, tooltips,
+specimen drawing, glyph envelopes, and glyph drawing emit paired `work-begin`
+and `work-end` events with UTF-16 text length and a process-wide generation ID.
+Related layout, tooltip, and drawing work shares its view update's generation.
+
+`campaign-events.jsonl` records execution boundaries, periodic driver and
+desktop observations, desktop transitions, availability retries, heartbeat gaps,
+sleep/wake and session notifications, and the stop reason. Guest events carry
+guest uptime; the VM wrapper adds host boot age, VM elapsed time, VM lifecycle,
+and SSH connection boundaries to the same append-only file. Observation gaps
+include wall and uptime deltas where available; a suspected suspension is
+labeled as such, since a missing observation alone cannot establish its cause.
+These journals survive availability-artifact cleanup and campaign resumption.
 
 Before entering the campaign loop, the driver runs a self-test against fresh app
 instances. It requires Command-2 to enter glyph mode, a real click on

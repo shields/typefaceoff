@@ -138,6 +138,7 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
   public var startedAt: Date
   public var durationMilliseconds: Double
   public var workloadDurationMilliseconds: Double?
+  public var actionTimings: [ActionTiming]?
   public var actionMilliseconds: [Double]
   public var coverage: Set<String>
   public var countBuckets: Set<String>
@@ -168,7 +169,8 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
   public init(
     trace: FuzzTrace, startedAt: Date, durationMilliseconds: Double,
     workloadDurationMilliseconds: Double? = nil,
-    actionMilliseconds: [Double], coverage: Set<String> = [], countBuckets: Set<String> = [],
+    actionMilliseconds: [Double], actionTimings: [ActionTiming]? = nil, coverage: Set<String> = [],
+    countBuckets: Set<String> = [],
     findings: [ExecutionFinding] = [], exitStatus: Int32? = nil,
     terminatedByWatchdog: Bool = false, metadata: [String: String] = [:]
   ) {
@@ -177,6 +179,7 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
     self.durationMilliseconds = durationMilliseconds
     self.workloadDurationMilliseconds = workloadDurationMilliseconds
     self.actionMilliseconds = actionMilliseconds
+    self.actionTimings = actionTimings
     self.coverage = coverage
     self.countBuckets = countBuckets
     self.findings = findings
@@ -187,19 +190,43 @@ public struct ExecutionReport: Codable, Equatable, Sendable {
 }
 
 public enum TraceIO {
+  private struct Header: Decodable {
+    let version: Int
+  }
+
   public static func load(_ url: URL) throws -> FuzzTrace {
     // The version is decoded alone so a trace of another schema reports it even when the rest of
     // the file does not decode.
-    struct Header: Decodable {
-      let version: Int
-    }
     let data = try Data(contentsOf: url)
     let decoder = JSONDecoder()
     let version = try decoder.decode(Header.self, from: data).version
+    try validateVersion(version)
+    return try decoder.decode(FuzzTrace.self, from: data)
+  }
+
+  public static func loadTraceOrReport(_ url: URL) throws -> (
+    trace: FuzzTrace, report: ExecutionReport?
+  ) {
+    struct ReportHeader: Decodable {
+      let trace: Header
+    }
+    let data = try Data(contentsOf: url)
+    let decoder = JSONDecoder()
+    let reportHeader = try? decoder.decode(ReportHeader.self, from: data)
+    let version = try reportHeader?.trace.version ?? decoder.decode(Header.self, from: data).version
+    try validateVersion(version)
+    if reportHeader == nil {
+      return (try decoder.decode(FuzzTrace.self, from: data), nil)
+    }
+    decoder.dateDecodingStrategy = .iso8601
+    let report = try decoder.decode(ExecutionReport.self, from: data)
+    return (report.trace, report)
+  }
+
+  private static func validateVersion(_ version: Int) throws {
     guard version == FuzzTrace.schemaVersion else {
       throw TraceError.unsupportedVersion(version)
     }
-    return try decoder.decode(FuzzTrace.self, from: data)
   }
 
   public static func save(_ trace: FuzzTrace, to url: URL) throws {

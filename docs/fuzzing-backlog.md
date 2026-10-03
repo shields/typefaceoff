@@ -673,13 +673,18 @@ problem).
 
 ### Campaign event log, ledger, and provenance (B1, VR4, VI4, VI5, VI6, F7, F8, F11)
 
-- Append-only `campaign-events.jsonl` (process start with pid, seed, argv, build
-  id; desktop transitions; availability attempts; stop reason), written with
-  `try!` on a line that also runs normally. The overnight 2026-09-28 outage was
-  a 7.5-hour retry loop on execution 20 that no artifact records; the lock cause
-  is already closed by `d03d52f` and `91baf55`, the persistence is not.
-- Per-execution ledger (`executions.jsonl`) with timings, so questions about
-  coverage growth and waste need no re-run.
+- Implemented 2026-10-02: append-only `campaign-events.jsonl` with execution
+  boundaries, desktop and availability transitions, heartbeat gaps, uptime,
+  suspension/session notifications, VM host observations, SSH boundaries, and
+  stop reason; `executions.jsonl` with one compact record per execution. Build
+  provenance below remains open.
+- Implemented 2026-10-02: `action-timings.jsonl` with every attempt's
+  resolution, dispatch, quiescence timestamp/result, bounded heartbeat gap, and
+  pending work at dispatch return and settlement. Normal pacing stays unchanged;
+  benchmark mode waits for quiescence after every action and accepts individual
+  outliers. Specimen shaping, TextKit layout, accessibility values, tooltips,
+  and glyph envelope/drawing work now have duration spans with text length and
+  generation.
 - Provenance in every report: app commit, binary hash, font catalog identity,
   macOS build, VM image, driver commit. Refuse to resume coverage state across
   app builds.
@@ -695,8 +700,8 @@ The top-20 is a length filter: 19 of the 20 have 30 or more actions against
 The detail text is constant, so a finding carries no time, rank, or action.
 Heartbeat gaps over 800 ms (7 runs) all fall in cold-boot windows or the
 09:44-10:05 window when the host ran `make test` and a fuzz build, so latency
-samples are contaminated by host activity. Proposed: record per-action start
-uptime (Optional field), guest boot age and a host-busy flag in metadata; rank
+samples are contaminated by host activity. Per-action timestamps, quiescence,
+and guest uptime are implemented (see above). Remaining: a host-busy flag; rank
 by per-action or normalized time and put the measurement in the detail; add a
 main-thread-stall criterion (largest heartbeat gap over about 400 ms, attributed
 to an action). Stall findings must not use kind `slow`, because

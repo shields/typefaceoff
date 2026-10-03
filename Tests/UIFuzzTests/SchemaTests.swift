@@ -124,6 +124,64 @@ import Testing
     #expect(throws: TraceIO.TraceError.unsupportedVersion(99)) { try TraceIO.load(bad) }
   }
 
+  @Test func traceOrReportLoadingPreservesSupportedInputs() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let trace = FuzzTrace(seed: 42, actions: [Self.action])
+    let traceURL = directory.appending(path: "trace.json")
+    try TraceIO.save(trace, to: traceURL)
+    let loadedTrace = try TraceIO.loadTraceOrReport(traceURL)
+    #expect(loadedTrace.trace == trace)
+    #expect(loadedTrace.report == nil)
+
+    let report = ExecutionReport(
+      trace: trace, startedAt: Date(timeIntervalSince1970: 123), durationMilliseconds: 10,
+      actionMilliseconds: [5])
+    let reportURL = directory.appending(path: "report.json")
+    try TraceIO.save(report, to: reportURL)
+    let loadedReport = try TraceIO.loadTraceOrReport(reportURL)
+    #expect(loadedReport.trace == trace)
+    #expect(loadedReport.report == report)
+  }
+
+  @Test(arguments: [0, FuzzTrace.schemaVersion + 1])
+  func traceOrReportLoadingRejectsCompatibleFieldsOfAnotherVersion(version: Int) throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var trace = FuzzTrace(seed: 42, actions: [Self.action])
+    trace.version = version
+    let traceURL = directory.appending(path: "trace.json")
+    try TraceIO.save(trace, to: traceURL)
+    let reportURL = directory.appending(path: "report.json")
+    try TraceIO.save(
+      ExecutionReport(
+        trace: trace, startedAt: Date(timeIntervalSince1970: 123), durationMilliseconds: 10,
+        actionMilliseconds: [5]), to: reportURL)
+    for url in [traceURL, reportURL] {
+      #expect(throws: TraceIO.TraceError.unsupportedVersion(version)) {
+        try TraceIO.loadTraceOrReport(url)
+      }
+    }
+  }
+
+  @Test(arguments: [#"{"version":99}"#, #"{"trace":{"version":99}}"#])
+  func traceOrReportLoadingRejectsFutureVersionsBeforeDecodingOtherFields(text: String) throws {
+    let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: url) }
+    try Data(text.utf8).write(to: url)
+    #expect(throws: TraceIO.TraceError.unsupportedVersion(99)) {
+      try TraceIO.loadTraceOrReport(url)
+    }
+  }
+
+  @Test(arguments: [#"{"version":1}"#, #"{"trace":{"version":1}}"#, "{", "[]"])
+  func traceOrReportLoadingRejectsMalformedInputs(text: String) throws {
+    let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: url) }
+    try Data(text.utf8).write(to: url)
+    #expect(throws: DecodingError.self) { try TraceIO.loadTraceOrReport(url) }
+  }
+
   @Test func onlyTargetedKindsNeedATarget() {
     let needing: Set<FuzzAction.Kind> = [
       .press, .setValue, .increment, .decrement, .showMenu, .scroll, .selectFont, .click, .drag,

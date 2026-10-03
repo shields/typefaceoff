@@ -57,9 +57,12 @@ import Testing
     }
     for target in [
       "Swap fonts", "Match…", "Edit text", "Toggle font B inspector", "Search characters",
+      "Font B Optimize tracking", "Font B Optimize size",
     ] {
       #expect(actions.contains { $0.kind == .press && $0.target == target })
     }
+    #expect(
+      !actions.contains { $0.kind == .press && ["Tracking", "Weight"].contains($0.target ?? "") })
     for side in ["A", "B"] {
       #expect(actions.contains { $0.kind == .selectFont && $0.target == "Font \(side) family" })
       for kind: FuzzAction.Kind in [.click, .scroll] {

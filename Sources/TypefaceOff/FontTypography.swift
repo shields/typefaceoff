@@ -34,11 +34,12 @@ struct FontTypography: View {
       HStack {
         Text("Typography").font(.headline)
         Spacer()
-        Button("Reset typography", systemImage: "arrow.counterclockwise") {
+        ResetButton(label: "Reset typography") {
           edit("Reset typography") { $0[side]?.features = [:] }
         }
-        .labelStyle(.iconOnly).buttonStyle(.borderless)
+        .buttonStyle(.borderless)
         .accessibilityIdentifier("\(side.fontName) Reset typography")
+        .disabled(config.features.isEmpty)
         .help("Restore this font’s default typography settings")
       }
       ForEach(FontFeature.Group.allCases, id: \.self) { group in

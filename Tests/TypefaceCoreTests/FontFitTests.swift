@@ -19,6 +19,103 @@ import Testing
     .init(seconds: 60, evaluations: count)
   }
 
+  @Test(arguments: [Double?.none, 1, 36, 288])
+  func leadingMatchesReferenceSpacingAndPreservesOtherSettings(leading: Double?) async throws {
+    var a = FontConfiguration("ArialMT")
+    a.leading = leading
+    var b = a
+    b.leading = leading == nil ? 48 : nil
+    var options = FontFitOptions(config: b)
+    options.axes = []
+    options.features = []
+    options.tracking = false
+    options.leading = true
+    #expect(!options.isEmpty)
+    let domain = FontFitDomain(original: b, options: options)
+    #expect(domain.constrained(a).leading == a.leading)
+    var final: FontFitResult?
+    for try await result in await FontFitEngine().fit(
+      a: a, b: b, options: options, corpus: corpus, catalog: catalog, scale: 1,
+      budget: Self.evaluations(100))
+    { final = result }
+    let result = try #require(final)
+    var expected = b
+    expected.leading = FontRenderer.leading(a)
+    #expect(result.finished && result.improved && result.evaluations == 2)
+    #expect(result.proposed == expected)
+    #expect(result.score.total < 1e-6)
+    options.size = true
+    #expect(FontFitDomain(original: b, options: options).discreteCandidates(reference: a) == nil)
+  }
+
+  @Test(arguments: [0.0, -1, .infinity, .nan])
+  func invalidLeadingFailsBeforePublishingScores(leading: Double) async throws {
+    var a = FontConfiguration("ArialMT")
+    a.leading = leading
+    let engine = FontFitEngine()
+    await #expect(throws: SimilarityError.invalidConfiguration) {
+      for try await _ in await engine.fit(
+        a: a, b: a, options: .init(config: a), corpus: corpus, catalog: catalog)
+      { Issue.record("Invalid leading produced a result") }
+    }
+  }
+
+  @Test(arguments: [Int?.none, 0, 1])
+  func booleanSearchEvaluatesEachChoiceOnceUsingTheFullCorpus(initial: Int?) async throws {
+    var b = FontConfiguration("ArialMT")
+    b.features["ot.kern"] = initial
+    b.leading = 31
+    var options = FontFitOptions(config: b)
+    options.axes = []
+    options.features = ["ot.kern"]
+    options.tracking = false
+    let calls = Mutex<[FontConfiguration]>([])
+    let engine = FontFitEngine { _, candidate, samples, _ in
+      #expect(samples == corpus)
+      calls.withLock { $0.append(candidate) }
+      return Self.score(candidate.features["ot.kern"] == 1 ? 0 : 0.2)
+    }
+    var final: FontFitResult?
+    for try await result in await engine.fit(
+      a: b, b: b, options: options, corpus: corpus, catalog: catalog,
+      budget: Self.evaluations(1000))
+    { final = result }
+    let evaluated = calls.withLock { $0 }
+    #expect(evaluated.count == (initial == nil ? 3 : 2))
+    #expect(Set(evaluated.compactMap { $0.features["ot.kern"] }) == [0, 1])
+    #expect(Set(evaluated).count == evaluated.count)
+    #expect(
+      evaluated.allSatisfy { candidate in
+        var restored = candidate
+        restored.features["ot.kern"] = initial
+        return restored == b
+      })
+    #expect(final?.finished == true && final?.proposed.features["ot.kern"] == 1)
+  }
+
+  @Test func discreteSearchResumesAfterItsBudgetAndRejectsInvalidChoices() async throws {
+    let b = FontConfiguration("ArialMT")
+    var options = FontFitOptions(config: b)
+    options.axes = []
+    options.features = ["ot.kern"]
+    options.tracking = false
+    let engine = FontFitEngine { _, candidate, _, _ in
+      if candidate.features["ot.kern"] == 0 { throw SimilarityError.unsupportedText("Arial", "a") }
+      return Self.score(candidate.features["ot.kern"] == 1 ? 0.1 : 0.2)
+    }
+    for try await result in await engine.fit(
+      a: b, b: b, options: options, corpus: corpus, catalog: catalog,
+      budget: Self.evaluations(1))
+    { #expect(result.evaluations == 1 && result.proposed == b) }
+    var final: FontFitResult?
+    for try await result in await engine.fit(
+      a: b, b: b, options: options, corpus: corpus, catalog: catalog,
+      budget: Self.evaluations(10), refine: true)
+    { final = result }
+    #expect(final?.finished == true && final?.improved == true)
+    #expect(final?.evaluations == 3)
+  }
+
   @Test func constrainedSearchKeepsFaceSizeLocksAndAutomaticShaping() throws {
     var b = FontConfiguration(try #require(FontCatalog().preferredFace(in: "Skia")).id)
     b.tracking = 0.08

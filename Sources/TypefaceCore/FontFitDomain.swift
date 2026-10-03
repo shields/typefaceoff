@@ -5,13 +5,14 @@ public struct FontFitOptions: Hashable, Sendable {
   public var features: Set<String>
   public var tracking = true
   public var size = false
+  public var leading = false
 
   public init(config: FontConfiguration) {
     axes = Set(config.face.axes.map(\.id))
     features = Set(config.face.features.filter { !$0.isAutomatic }.map(\.id))
   }
 
-  public var isEmpty: Bool { axes.isEmpty && features.isEmpty && !tracking && !size }
+  public var isEmpty: Bool { axes.isEmpty && features.isEmpty && !tracking && !size && !leading }
 }
 
 public struct FontFitBudget: Sendable {
@@ -99,6 +100,7 @@ struct FontFitDomain: Sendable {
 
   func constrained(_ proposed: FontConfiguration) -> FontConfiguration {
     var result = original
+    if options.leading { result.leading = proposed.leading }
     for dimension in dimensions {
       result = dimension.setting(result, value: dimension.value(proposed))
     }
@@ -107,6 +109,24 @@ struct FontFitDomain: Sendable {
         result = next
       }
     }
+    return result
+  }
+
+  func discreteCandidates(reference: FontConfiguration) -> [FontConfiguration]? {
+    guard dimensions.isEmpty else { return nil }
+    if options.leading, features.isEmpty {
+      return [matchingLeading(reference)]
+    }
+    guard !options.leading, features.count == 1,
+      features[0].options.map(\.name) == ["Off", "On"]
+    else { return nil }
+    let feature = features[0]
+    return feature.options.compactMap { setting(original, feature: feature, value: $0.value) }
+  }
+
+  func matchingLeading(_ reference: FontConfiguration) -> FontConfiguration {
+    var result = original
+    result.leading = FontRenderer.leading(reference).clamped(to: FontConfiguration.leadingRange)
     return result
   }
 

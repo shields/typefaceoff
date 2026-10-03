@@ -43,14 +43,17 @@ struct MatchSheet: View {
               ) { $0.axes = [axis.id] }
             }
             option(
+              "Size", id: "size", before: "\(number(b.size)) pt",
+              after: "\(number(proposal(b).size)) pt"
+            ) { $0.size = true }
+            option(
+              "Leading", id: "leading", before: leading(b), after: leading(proposal(b))
+            ) { $0.leading = true }
+            option(
               "Tracking", id: "tracking",
               before: "\(number(b.tracking, digits: 3)) em",
               after: "\(number(proposal(b).tracking, digits: 3)) em"
             ) { $0.tracking = true }
-            option(
-              "Size", id: "size", before: "\(number(b.size)) pt",
-              after: "\(number(proposal(b).size)) pt"
-            ) { $0.size = true }
             Divider()
             Text("Typography").font(.headline)
             ForEach(b.face.features.filter { !$0.isAutomatic }) { feature in
@@ -94,6 +97,10 @@ struct MatchSheet: View {
   }
 
   private func proposal(_ b: FontConfiguration) -> FontConfiguration { fit.result?.proposed ?? b }
+
+  private func leading(_ config: FontConfiguration) -> String {
+    config.leading.map { "\(number($0)) pt" } ?? "Auto"
+  }
 
   private var status: some View {
     ScrollView {
@@ -149,6 +156,7 @@ struct MatchSheet: View {
           options.features = []
           options.tracking = false
           options.size = false
+          options.leading = false
           select(&options)
           fit.start(
             .init(a: request.a, b: request.b, text: request.text, options: options, scale: scale))
@@ -165,11 +173,13 @@ struct MatchSheet: View {
     // even after Size fitting moves B away from A's point size.
     var scaled = config
     scaled.size = 29 * config.size / model.comparison.a.size
+    scaled.leading = config.leading.map { 29 * $0 / model.comparison.a.size }
     return VStack(alignment: .leading, spacing: 8) {
       Text(verbatim: "\(label) · \(number(config.size)) pt")
         .font(.caption).foregroundStyle(.secondary).accessibilityLabel(label)
       SpecimenText(
-        config: scaled, text: "Hamburg", inset: .zero, accessibilityName: "\(label) specimen")
+        config: scaled, text: "Hamburg\nHamburg", inset: .zero,
+        accessibilityName: "\(label) specimen")
     }.frame(maxWidth: .infinity)
   }
 }

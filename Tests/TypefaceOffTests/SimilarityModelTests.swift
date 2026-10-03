@@ -19,6 +19,7 @@ import TypefaceCore
     var config = candidate
     if request.options.tracking { config.tracking = 0.025 }
     if request.options.size { config.size += 2 }
+    if request.options.leading { config.leading = 36 }
     for axis in request.options.axes { config.axes[axis] = (config.axes[axis] ?? 0) + 0.1 }
     for feature in request.options.features { config.features[feature] = 0 }
     let improved = config != candidate
@@ -296,8 +297,12 @@ extension SimilarityModelTests {
     try await host.settle { fit.result?.evaluations == 40 }
     expected.size += 2
     #expect(fit.result?.proposed == expected)
-    try await host.press("Font B Optimize tracking")
+    try await host.press("Font B Optimize leading")
     try await host.settle { fit.result?.evaluations == 50 }
+    expected.leading = 36
+    #expect(fit.result?.proposed == expected)
+    try await host.press("Font B Optimize tracking")
+    try await host.settle { fit.result?.evaluations == 60 }
     #expect(fit.result?.proposed == expected)
     #expect(!fit.searchImproved && fit.result?.improved == true)
     #expect(host.isEnabled("Apply"))

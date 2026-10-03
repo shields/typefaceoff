@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Mixed categorical/continuous search. Only full-corpus improvements are published.
 public actor FontFitEngine {
@@ -57,7 +58,27 @@ public actor FontFitEngine {
   private var generation = UUID()
 
   public init(similarity: FontSimilarityEngine = .shared) {
-    evaluate = { try await similarity.compare(a: $0, b: $1, corpus: $2, scale: $3) }
+    let leading = Mutex(LeastRecentlyUsed<FontConfiguration, Double>(capacity: 64 * 1024))
+    evaluate = { a, b, corpus, scale in
+      let score = try await similarity.compare(a: a, b: b, corpus: corpus, scale: scale)
+      let (left, right) = leading.withLock { cache in
+        func value(_ config: FontConfiguration) -> Double {
+          if let explicit = config.leading { return explicit }
+          if let cached = cache.value(for: config) { return cached }
+          let result = FontRenderer.automaticLeading(config)
+          cache.insert(result, bytes: 256, for: config)
+          return result
+        }
+        return (value(a), value(b))
+      }
+      guard left.isFinite, right.isFinite, left > 0, right > 0 else {
+        throw SimilarityError.invalidConfiguration
+      }
+      let spacing = abs(left - right) / max(left, right)
+      return SimilarityScore(
+        geometry: score.geometry, appearance: score.appearance, shapedText: score.shapedText,
+        metrics: (score.metrics + spacing) / 2)
+    }
   }
 
   init(
@@ -117,6 +138,28 @@ public actor FontFitEngine {
       state.priority = domain.priority(text: key.corpus.requiredText)
     }
     continuation.yield(state.result(finished: false))
+    if let candidates = domain.discreteCandidates(reference: key.a) {
+      for candidate in candidates where state.verified[candidate] == nil {
+        try check(request)
+        guard state.evaluations - initialEvaluations < budget.evaluations,
+          ContinuousClock.now < deadline
+        else { break }
+        state.evaluations += 1
+        do {
+          let score = try await evaluate(key.a, candidate, key.corpus, key.scale)
+          try check(request)
+          state.verified[candidate] = score
+          if score.total < state.score.total - SimilarityScore.improvementTolerance {
+            state.best = candidate
+            state.score = score
+          }
+        } catch is SimilarityError { continue }
+      }
+      try check(request)
+      saved = state
+      continuation.yield(state.result(finished: true))
+      return
+    }
     while !key.options.isEmpty, state.score.total > SimilarityScore.improvementTolerance,
       state.evaluations - initialEvaluations < budget.evaluations, ContinuousClock.now < deadline
     {
@@ -259,6 +302,7 @@ public actor FontFitEngine {
     comparison.customText =
       corpus.requiredText.isEmpty ? corpus.runs.joined(separator: " ") : corpus.requiredText
     var result = [b]
+    if domain.options.leading { result.append(domain.matchingLeading(reference)) }
     if let legacy = Matching.proposal(comparison, options: matched, catalog: catalog) {
       result.append(domain.constrained(legacy))
     }

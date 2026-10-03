@@ -77,6 +77,8 @@ import TypefaceCore
     let fit = FontFitModel(load: SimilarityModelTests.fitResult)
     let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 660)
     defer { host.window.close() }
+    try await host.settle()
+    try await host.press("Font B Optimize tracking")
     try await host.settle { fit.result != nil }
     let previews = host.subviews.compactMap { $0 as? SpecimenNSTextView }
     #expect(previews.count == 2)

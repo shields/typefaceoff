@@ -84,14 +84,14 @@ reopen the app to refresh its catalog.
   means closer. Search filters the live results; pending and unsupported
   families remain selectable. Choosing a family carries B’s settings forward as
   usual, so its specimen can differ from the default settings used for ranking.
-- **Match…** searches B’s current face for closer axes, typography, and
-  tracking. Uncheck any setting to lock it; size changes are opt-in. A quick
-  search uses up to three seconds or 256 evaluations; **Refine** resumes for up
-  to 15 seconds or 2,048 additional evaluations. A started comparison can finish
-  after the time budget. **Stop** retains the best verified preview. Cancel
-  discards it, and Apply changes only B in one undoable edit, recalibrating
-  appearance links. Only improvements verified on the full fitting corpus can be
-  applied.
+- **Match…** lists B’s axes, tracking, size, and typography. Click **Optimize**
+  beside a setting to search for its closest value while keeping every other
+  preview setting fixed. Searches start only when clicked, and successive
+  searches build on the preview. Each search uses up to 15 seconds or 2,048
+  evaluations. A started comparison can finish after the time budget. **Stop**
+  retains the best verified preview. Cancel discards it, and Apply changes only
+  B in one undoable edit, recalibrating appearance links. Only improvements
+  verified on the full fitting corpus can be applied.
 - Browsing or searching glyphs, switching views, and toggling highlights
   preserve Undo/Redo. Undoing a font edit keeps the current inspection in view.
 - Launching the app opens a fresh comparison window. Each window is independent;
@@ -136,36 +136,92 @@ and `--max-text-units` bounds the text that actually reaches the renderer. The
 numeric fields, scroll areas, and controls that both inspectors repeat carry
 accessibility identifiers such as `Font B Size field`, which discovery prefers
 to a title or description, so those controls are told apart without their paths;
-earlier traces still resolve by their recorded labels. Progress reports use
-`measured-ms` for the action sequence and resulting UI work; `total-ms` also
-includes app startup, shutdown, and coverage collection. The action count shows
-completed/attempted actions, followed by `skips=N` when an execution skipped
-picks. Campaigns pause while the screen is locked or the desktop session is
-otherwise unavailable, because a locked session hides app windows from
-Accessibility, and resume as soon as the desktop returns. When the workbench
-controls are unavailable, campaigns retry with a delay that grows from five to
-60 seconds. These retries do not advance the campaign or enter its corpus;
-`availability.json` and its associated run retain the latest availability
-failure. Crashes, hangs, and correctness failures are still preserved during an
-outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign.
-Before every execution, the driver requires 512 MiB free on both the artifact
-and temporary volumes; change the threshold with `--minimum-free-space-mib`. The
-campaign keeps `.profraw` and `coverage.profdata` only for executions that add
-region or hit-count coverage. It writes a compact representative report only
-when a finding kind and signature first appears, while
-`finding-occurrences.json` records its count and first and latest executions and
-times. The first resume of an older campaign builds this index, removes repeat
-reports, and strips duplicated coverage sets from the reports it retains. Replay
-or reduce a finding with `make fuzz-replay CASE=…` or
+earlier traces still resolve by their recorded labels. Recorded Match checkbox
+actions resolve to the corresponding Optimize buttons; new Match actions use
+option-specific identifiers. Progress reports use `measured-ms` for the action
+sequence and resulting UI work; `total-ms` also includes app startup, shutdown,
+and coverage collection. The action count shows completed/attempted actions,
+followed by `skips=N` when an execution skipped picks. Campaigns pause while the
+screen is locked or the desktop session is otherwise unavailable, because a
+locked session hides app windows from Accessibility, and resume as soon as the
+desktop returns. When the workbench controls are unavailable, campaigns retry
+with a delay that grows from five to 60 seconds. These retries do not advance
+the campaign or enter its corpus; `availability.json` and its associated run
+retain the latest availability failure. Crashes, hangs, and correctness failures
+are still preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'`
+for a bounded campaign. Before every execution, the driver requires 512 MiB free
+on both the artifact and temporary volumes; change the threshold with
+`--minimum-free-space-mib`. The campaign keeps `.profraw` and
+`coverage.profdata` only for executions that add region or hit-count coverage.
+It writes a compact representative report only when a finding kind and signature
+first appears, while `finding-occurrences.json` records its count and first and
+latest executions and times. The first resume of an older campaign builds this
+index, removes repeat reports, and strips duplicated coverage sets from the
+reports it retains. Replay or reduce a finding with `make fuzz-replay CASE=…` or
 `make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
 optimized build without coverage instrumentation and excludes failed or
-incomplete executions from its timings. Set `FUZZ_ARTIFACTS=…` to keep a
-separate campaign or replay directory. The driver requires an active, unlocked
-desktop session and macOS Accessibility and event-posting permission. On first
-use, the driver stays open while you enable
-`.build/fuzz-driver/UIFuzzDriver.app` in System Settings, then relaunches itself
-and continues automatically. Its stable bundle identity keeps the permission
-valid across rebuilds.
+incomplete executions from its timings. Benchmarking waits for quiescence after
+every action. Use `make fuzz-benchmark CASE=…` for an outlier report, or
+`CORPUS=…` for a directory of traces or reports.
+`actionLatencyMedianMilliseconds` contains the median interaction latency for
+each action; `actionMedianMilliseconds` retains the resolution-plus-dispatch
+measurement. A coverage-instrumented replay can also wait between actions with
+`FUZZ_ARGS='--wait-for-quiescence'`. Set `FUZZ_ARTIFACTS=…` to keep a separate
+campaign or replay directory. The driver requires an active, unlocked desktop
+session and macOS Accessibility and event-posting permission. On first use, the
+driver stays open while you enable `.build/fuzz-driver/UIFuzzDriver.app` in
+System Settings, then relaunches itself and continues automatically. Its stable
+bundle identity keeps the permission valid across rebuilds.
+
+Every execution appends a compact record to `executions.jsonl`, including
+availability retries and failures. `action-timings.jsonl` contains one lifecycle
+record for every attempted action, including skipped picks. Its zero-based
+`index` counts attempts, so it can differ from the retained trace index after a
+skip. Timestamps use the same seconds-since-boot clock as app telemetry;
+`start-uptime` and `startedAt` in the execution record anchor it to wall time.
+Resolution and dispatch have separate start and return timestamps. Dispatch
+covers the whole driver operation, including internal reveals in compound
+actions such as `setSpecimen`. Missing dispatch timestamps identify unresolved
+attempts.
+
+Settlement requires no open work and a main-thread heartbeat at least 200 ms
+after dispatch returns and after the latest app activity. `quiescentAt` is the
+first heartbeat that proves this condition. `result` is `settled`,
+`nextActionStarted`, `timeout`, or `appExited`. Ordinary fuzzing retains its
+action pacing: a new attempt closes the preceding measurement even if work is
+pending. The records are reconstructed once from app event timestamps at
+execution end, so delayed telemetry writes do not change pending-work snapshots
+at dispatch return or settlement. `pendingAtEnd` also preserves unfinished work
+on timeout, exit, or interruption. Heartbeat gaps are clipped to each
+measurement's interval, including the unfinished gap when the main thread stops
+responding. Latency includes the 200 ms quiet period and heartbeat sampling
+(normally 50 ms).
+
+Specimen shaping, TextKit layout, accessibility-value rebuilding, tooltips,
+specimen drawing, glyph envelopes, and glyph drawing emit paired `work-begin`
+and `work-end` events with UTF-16 text length and a process-wide generation ID.
+Related layout, tooltip, and drawing work shares its view update's generation.
+
+`campaign-events.jsonl` records execution boundaries, periodic driver and
+desktop observations, desktop transitions, availability retries, heartbeat gaps,
+sleep/wake and session notifications, and the stop reason. Guest events carry
+guest uptime; the VM wrapper adds host boot age, VM elapsed time, VM lifecycle,
+and SSH connection boundaries to the same append-only file. Observation gaps
+include wall and uptime deltas where available; a suspected suspension is
+labeled as such, since a missing observation alone cannot establish its cause.
+These journals survive availability-artifact cleanup and campaign resumption.
+
+`make benchmark-highlights` replays the checked-in 100,000 UTF-16-unit specimen
+that exposed a slow Shape toggle, then toggles Shape, Spacing, and Frequency. It
+runs seven fresh processes in the optimized build without coverage, prints the
+median latency of each action, and writes
+`.build/highlight-benchmark/benchmark.json`. Action timings include control
+resolution and accessibility dispatch, excluding the trace's fixed pacing
+delays. Set `HIGHLIGHT_RUNS=…` or `HIGHLIGHT_OUTPUT=…` to change repetitions or
+retain a separate result. Set `HIGHLIGHT_APP=…` to test another revision's
+FuzzBenchmark app with the same driver and input. The
+[highlight benchmark notes](docs/highlight-benchmark.md) record the baseline and
+viewport-scoped implementation results.
 
 Before entering the campaign loop, the driver runs a self-test against fresh app
 instances. It requires Command-2 to enter glyph mode, a real click on

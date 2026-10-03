@@ -12,18 +12,21 @@ import TypefaceCore
     .init(geometry: value, appearance: value, shapedText: value, metrics: value)
   }
 
-  nonisolated static func fitResult(_ request: FontFitModel.Request, _ refine: Bool) async throws
+  nonisolated static func fitResult(_ request: FontFitModel.Request, _ candidate: FontConfiguration)
+    async throws
     -> AsyncThrowingStream<FontFitResult, Error>
   {
-    var config = request.b
+    var config = candidate
     if request.options.tracking { config.tracking = 0.025 }
     if request.options.size { config.size += 2 }
     for axis in request.options.axes { config.axes[axis] = (config.axes[axis] ?? 0) + 0.1 }
     for feature in request.options.features { config.features[feature] = 0 }
-    let improved = config != request.b
+    let improved = config != candidate
+    let original = candidate == request.b ? 0.5 : 0.3
     let result = FontFitResult(
-      proposed: config, originalScore: score(0.5), score: score(improved ? 0.3 : 0.5),
-      evaluations: refine ? 20 : 10, finished: true)
+      proposed: config, originalScore: score(original),
+      score: score(improved ? original - 0.1 : original),
+      evaluations: 10, finished: true)
     return AsyncThrowingStream {
       $0.yield(result)
       $0.finish()
@@ -93,7 +96,7 @@ import TypefaceCore
     #expect(model.comparison.b?.postScriptName == b.postScriptName)
     undo.undo()
     #expect(model.comparison == initial)
-    fit.start(request, refine: true)
+    fit.start(request)
     try await waitUntil { !fit.running }
     #expect(fit.result?.evaluations == 20)
     fit.start(nil)
@@ -120,9 +123,117 @@ import TypefaceCore
     try await waitUntil { !failed.running }
     #expect(failed.error != nil && !failed.running)
   }
+
+  @Test func stoppingOrFailingAnotherSearchRetainsTheVerifiedPreview() async throws {
+    let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
+    let calls = Mutex(0)
+    let fit = FontFitModel { request, candidate in
+      calls.withLock { $0 += 1 }
+      if request.options.size { return stream }
+      if !request.options.features.isEmpty { throw SimilarityError.renderingFailed }
+      return try await Self.fitResult(request, candidate)
+    }
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let b = try #require(initial.b)
+    var options = FontFitOptions(config: b)
+    options.axes = []
+    options.features = []
+    func request() -> FontFitModel.Request {
+      .init(a: initial.a, b: b, text: initial.text, options: options, scale: 2)
+    }
+    fit.start(request())
+    try await waitUntil { !fit.running }
+    let preview = try #require(fit.result)
+    options.tracking = false
+    options.size = true
+    fit.start(request())
+    try await waitUntil { calls.withLock { $0 } == 2 }
+    #expect(fit.running && fit.result?.proposed == preview.proposed)
+    fit.stop()
+    continuation.yield(
+      .init(
+        proposed: b, originalScore: Self.score(1), score: Self.score(0), evaluations: 99,
+        finished: true))
+    continuation.finish()
+    try await Task.sleep(for: .milliseconds(20))
+    #expect(
+      fit.result?.proposed == preview.proposed && fit.result?.evaluations == preview.evaluations)
+    options.size = false
+    options.features = ["ot.kern"]
+    fit.start(request())
+    try await waitUntil { !fit.running }
+    #expect(fit.error != nil && fit.result?.proposed == preview.proposed)
+    #expect(fit.apply(to: model, undoManager: nil))
+    #expect(model.comparison.b == preview.proposed && model.comparison.a == initial.a)
+  }
 }
 
 extension SimilarityModelTests {
+  @Test(arguments: [false, true])
+  func matchKeepsItsHeightAndPluralizesEvaluationCounts(fail: Bool) async throws {
+    let model = WorkbenchModel()
+    let b = try #require(model.comparison.b)
+    let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
+    let fit = FontFitModel { _, _ in stream }
+    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    defer {
+      host.window.close()
+      continuation.finish()
+    }
+    func displayedText() -> [String] {
+      (host.elements + host.hitElements).compactMap { element -> String? in
+        guard element.accessibilityRole?() == .staticText else { return nil }
+        return element.accessibilityValue?()
+      }
+    }
+    try await host.settle()
+    let height = host.view.fittingSize.height
+    #expect(height > 0)
+    try await host.press("Font B Optimize tracking")
+    try await host.settle { fit.running }
+    #expect(abs(host.view.fittingSize.height - height) < 0.5)
+    for count in [1, 2] {
+      continuation.yield(
+        .init(
+          proposed: b, originalScore: Self.score(0.5), score: Self.score(0.5),
+          evaluations: count, finished: false))
+      try await host.settle { fit.result?.evaluations == count }
+      let suffix = count == 1 ? "1 evaluation" : "2 evaluations"
+      #expect(displayedText().contains { $0.hasSuffix(suffix) })
+      #expect(abs(host.view.fittingSize.height - height) < 0.5)
+    }
+    if fail {
+      continuation.finish(
+        throwing: SimilarityError.unsupportedText(
+          String(repeating: "Long font name ", count: 40), "a"))
+    } else {
+      continuation.finish()
+    }
+    try await host.settle { !fit.running }
+    #expect((fit.error != nil) == fail)
+    #expect(abs(host.view.fittingSize.height - height) < 0.5)
+  }
+
+  @Test func changingMatchingInputsClearsThePreviewWithoutStartingAnotherSearch() async throws {
+    let model = WorkbenchModel()
+    let fit = FontFitModel(load: Self.fitResult)
+    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    defer { host.window.close() }
+    try await host.press("Font B Optimize tracking")
+    try await host.settle { !fit.running && fit.result != nil }
+    model.comparison.b?.size += 1
+    try await host.settle { fit.result == nil }
+    #expect(!fit.running && !host.isEnabled("Apply"))
+    try await host.press("Font B Optimize size")
+    try await host.settle { !fit.running && fit.result != nil }
+    #expect(fit.result?.proposed.tracking == model.comparison.b?.tracking)
+    #expect(fit.result?.evaluations == 10)
+    model.comparison.b = nil
+    try await host.settle { fit.result == nil }
+    #expect(!fit.running && !host.isEnabled("Apply"))
+  }
+
   @Test func similarityReorderingPreservesKeyboardSelectionAndSearchDoesNotReload() async throws {
     let (stream, continuation) = AsyncThrowingStream<FamilySimilarity, Error>.makeStream()
     let calls = Mutex(0)
@@ -157,31 +268,44 @@ extension SimilarityModelTests {
     #expect(ranking.sort == .name)
   }
 
-  @Test func matchLocksAxesAndFeaturesAndSupportsStopAndRefine() async throws {
+  @Test func matchOptimizesOneSettingAtATimeAndAccumulatesThePreview() async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
     let fit = FontFitModel(load: Self.fitResult)
     let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 750)
     defer { host.window.close() }
-    try await host.settle { fit.result != nil }
-    let axis = try #require(model.comparison.b?.face.axes.first)
-    try await host.press(axis.name)
-    try await host.settle {
-      fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id]
-    }
-    #expect(fit.result?.proposed.axes[axis.id] == model.comparison.b?.axes[axis.id])
-    try await host.press(axis.name)
-    try await host.press("Typography")
     try await host.settle()
-    try await host.press("Kerning")
-    try await host.settle { fit.result != nil && fit.result?.proposed.features["ot.kern"] == nil }
-    #expect(fit.result?.proposed.features["ot.kern"] == nil)
-    try await host.press("Kerning")
-    try await host.settle { !fit.running && fit.result?.proposed.features["ot.kern"] != nil }
-    try await host.press("Refine")
+    #expect(fit.result == nil && !fit.running)
+    #expect(!host.isEnabled("Apply"))
+    let initial = try #require(model.comparison.b)
+    let axis = try #require(model.comparison.b?.face.axes.first)
+    try await host.press("Font B Optimize axis \(axis.id)")
+    try await host.settle { !fit.running && fit.result != nil }
+    var expected = initial
+    expected.axes[axis.id] = (expected.axes[axis.id] ?? 0) + 0.1
+    #expect(fit.result?.proposed == expected)
+    try await host.press("Font B Optimize feature ot.kern")
     try await host.settle { fit.result?.evaluations == 20 }
-    #expect(fit.result?.evaluations == 20)
+    expected.features["ot.kern"] = 0
+    #expect(fit.result?.proposed == expected)
+    try await host.press("Font B Optimize tracking")
+    try await host.settle { fit.result?.evaluations == 30 }
+    expected.tracking = 0.025
+    #expect(fit.result?.proposed == expected)
+    try await host.press("Font B Optimize size")
+    try await host.settle { fit.result?.evaluations == 40 }
+    expected.size += 2
+    #expect(fit.result?.proposed == expected)
+    try await host.press("Font B Optimize tracking")
+    try await host.settle { fit.result?.evaluations == 50 }
+    #expect(fit.result?.proposed == expected)
+    #expect(!fit.searchImproved && fit.result?.improved == true)
+    #expect(host.isEnabled("Apply"))
     #expect(model.comparison.a == model.comparison.b)
+    try await host.press("Apply")
+    #expect(model.comparison.b == expected)
+    host.window.undoManager?.undo()
+    #expect(model.comparison.b == initial)
   }
 
   @Test func matchShowsFailuresAndNoImprovementWithoutEnablingApply() async throws {
@@ -200,6 +324,7 @@ extension SimilarityModelTests {
       }
       let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
       defer { host.window.close() }
+      try await host.press("Font B Optimize tracking")
       try await host.settle { fail ? fit.error != nil : (fit.result != nil && !fit.running) }
       #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
       #expect(model.comparison == comparison)
@@ -212,8 +337,10 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
+    try await host.press("Font B Optimize tracking")
     try await host.settle { fit.running }
     #expect(fit.running)
+    #expect(!host.isEnabled("Font B Optimize size"))
     try await host.press("Stop")
     #expect(!fit.running && model.comparison == comparison)
   }
@@ -243,6 +370,7 @@ extension SimilarityModelTests {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     var b = FontConfiguration(name)
     b.axes = [:]
+    b.features["ot.kern"] = 999
     let model = WorkbenchModel(comparison: Comparison(a: b, b: b))
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }
@@ -251,6 +379,13 @@ extension SimilarityModelTests {
       host.window.close()
       continuation.finish()
     }
+    _ = try await host.element("Font B Optimize feature ot.kern")
+    let values = (host.elements + host.hitElements).compactMap { element -> String? in
+      guard element.accessibilityRole?() == .staticText else { return nil }
+      return element.accessibilityValue?()
+    }
+    #expect(values.contains("999"))
+    try await host.press("Font B Optimize tracking")
     try await host.settle { fit.running }
     #expect(fit.running)
     host.setContent(AnyView(EmptyView()))

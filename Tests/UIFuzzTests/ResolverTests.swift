@@ -81,6 +81,65 @@ import Testing
         request("Size", path: [0, 0, 0])), bench.size, .path)
   }
 
+  @Test func theMatchSeedResolvesButtonsAlongsideStaticOptionLabels() throws {
+    let open = world.node("AXButton", name: "Match…")
+    let label = world.node("AXStaticText", name: "Tracking")
+    let optimize = world.node(
+      "AXButton",
+      attributes: AccessibilityAttributes(
+        identifier: "Font B Optimize tracking", description: "Optimize Tracking"))
+    let cancel = world.node("AXButton", name: "Cancel")
+    let window = world.window(children: [open, label, optimize, cancel])
+    let app = world.application([window])
+    let seed = try #require(
+      TraceMutator().initialCorpus(seed: 1).first { $0.actions.first?.target == "Match…" })
+    #expect(seed.actions.count == 3)
+    for (action, button) in zip(seed.actions, [open, optimize, cancel]) {
+      let request = ResolutionRequest(action, allowVisibleTieBreak: false)
+      expectFound(world.resolver(app, focused: window).resolve(request), button, .firstName)
+    }
+  }
+
+  @Test(arguments: [FuzzAction.Kind.press, .click])
+  func recordedMatchCheckboxesResolveToTheirOptimizeButtons(kind: FuzzAction.Kind) {
+    for title in ["Tracking", "Size", "Weight", "Optical Size", "Kerning"] {
+      let label = world.node("AXStaticText", name: title)
+      let optimize = world.node("AXButton", name: "Optimize \(title)")
+      let window = world.window(children: [label, optimize])
+      let app = world.application([window])
+      let action = FuzzAction(
+        kind: kind, target: title, targetPath: [0, 0], targetRole: "AXCheckBox", sheet: .match)
+      expectFound(
+        world.resolver(app, focused: window).resolve(
+          ResolutionRequest(action, allowVisibleTieBreak: false)), optimize, .uniqueName)
+      if ["Tracking", "Size", "Weight"].contains(title) {
+        let untagged = FuzzAction(kind: kind, target: title)
+        expectFound(
+          world.resolver(app, focused: window).resolve(
+            ResolutionRequest(untagged, allowVisibleTieBreak: false)), optimize, .uniqueName)
+      }
+    }
+  }
+
+  @Test func matchAliasesDoNotRedirectOtherControlsOrActionKinds() {
+    let actions = [
+      FuzzAction(kind: .press, target: "Tracking", sheet: .editor),
+      FuzzAction(kind: .setValue, target: "Tracking", targetRole: "AXTextField"),
+      FuzzAction(kind: .increment, target: "Tracking", targetRole: "AXSlider"),
+      FuzzAction(kind: .press, target: "Kerning", targetRole: "AXCheckBox"),
+      FuzzAction(kind: .press, target: "Size", targetRole: "AXButton", sheet: .match),
+    ]
+    for action in actions {
+      let control = world.node(action.targetRole ?? "AXButton", name: action.target!)
+      let optimize = world.node("AXButton", name: "Optimize \(action.target!)")
+      let window = world.window(children: [optimize, control])
+      let app = world.application([window])
+      expectFound(
+        world.resolver(app, focused: window).resolve(
+          ResolutionRequest(action, allowVisibleTieBreak: false)), control, .firstName)
+    }
+  }
+
   @Test func aRoleMismatchIsNotAPathHit() {
     let bench = workbench()
     let resolver = world.resolver(bench.application, focused: bench.window)

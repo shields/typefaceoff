@@ -9,8 +9,15 @@ final class WorkbenchModel: ObservableObject {
   nonisolated static let installedCatalog = FontCatalog()
 
   @Published var comparison: Comparison {
-    didSet { FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison) }
+    didSet {
+      // Canonically equivalent text can contain different ranking candidates.
+      if !comparison.text.utf8.elementsEqual(oldValue.text.utf8) {
+        specimenGlyphs = Set(comparison.text.map { Array($0.unicodeScalars) })
+      }
+      FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison)
+    }
   }
+  private(set) var specimenGlyphs: Set<[Unicode.Scalar]>
   let catalog: FontCatalog
   let initialWork: InitialFontWork
   private let fuzzWindow: UUID
@@ -27,6 +34,7 @@ final class WorkbenchModel: ObservableObject {
     #endif
     fuzzWindow = UUID()
     self.comparison = comparison
+    specimenGlyphs = Set(comparison.text.map { Array($0.unicodeScalars) })
     initialWork = InitialFontWork(comparison: comparison)
     FuzzDiagnostics.shared.snapshot(window: fuzzWindow, comparison: comparison)
   }

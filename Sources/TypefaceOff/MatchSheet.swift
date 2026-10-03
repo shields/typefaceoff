@@ -7,19 +7,17 @@ struct MatchSheet: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.displayScale) private var scale
-  @State private var options: FontFitOptions
-  @State private var typographyExpanded = false
 
   init(model: WorkbenchModel, fit: FontFitModel = FontFitModel()) {
     self.model = model
     _fit = StateObject(wrappedValue: fit)
-    _options = State(initialValue: FontFitOptions(config: model.comparison.b ?? model.comparison.a))
   }
 
   private var request: FontFitModel.Request? {
     guard let b = model.comparison.b else { return nil }
     return .init(
-      a: model.comparison.a, b: b, text: model.comparison.text, options: options, scale: scale)
+      a: model.comparison.a, b: b, text: model.comparison.text,
+      options: FontFitOptions(config: b), scale: scale)
   }
 
   var body: some View {
@@ -33,52 +31,85 @@ struct MatchSheet: View {
       if let b = model.comparison.b {
         Text(verbatim: "\(model.comparison.a.face.family) → \(b.face.family) · \(b.face.style)")
           .fontWeight(.semibold)
-        Text("Choose which B settings can change. Size stays fixed unless enabled.")
+        Text("Optimize one B setting at a time. Each search keeps your other preview settings.")
           .font(.caption).foregroundStyle(.secondary)
         ScrollView {
           VStack(alignment: .leading, spacing: 12) {
             ForEach(b.face.axes) { axis in
               option(
-                axis.name, value: membership(axis.id, in: $options.axes),
+                axis.name, id: "axis \(axis.id)",
                 before: number(b.axes[axis.id] ?? axis.defaultValue),
-                after: number(proposal(b).axes[axis.id] ?? axis.defaultValue))
+                after: number(proposal(b).axes[axis.id] ?? axis.defaultValue)
+              ) { $0.axes = [axis.id] }
             }
             option(
-              "Tracking", value: $options.tracking,
+              "Tracking", id: "tracking",
               before: "\(number(b.tracking, digits: 3)) em",
-              after: "\(number(proposal(b).tracking, digits: 3)) em")
+              after: "\(number(proposal(b).tracking, digits: 3)) em"
+            ) { $0.tracking = true }
             option(
-              "Size", value: $options.size, before: "\(number(b.size)) pt",
-              after: "\(number(proposal(b).size)) pt")
-            DisclosureGroup("Typography", isExpanded: $typographyExpanded) {
-              VStack(alignment: .leading, spacing: 10) {
-                ForEach(b.face.features.filter { !$0.isAutomatic }) { feature in
-                  option(
-                    feature.name, value: membership(feature.id, in: $options.features),
-                    before: featureName(feature, config: b),
-                    after: featureName(feature, config: proposal(b)))
-                }
-              }.padding(.top, 8)
+              "Size", id: "size", before: "\(number(b.size)) pt",
+              after: "\(number(proposal(b).size)) pt"
+            ) { $0.size = true }
+            Divider()
+            Text("Typography").font(.headline)
+            ForEach(b.face.features.filter { !$0.isAutomatic }) { feature in
+              option(
+                feature.name, id: "feature \(feature.id)",
+                before: featureName(feature, config: b),
+                after: featureName(feature, config: proposal(b))
+              ) { $0.features = [feature.id] }
             }
-          }.padding(12)
-        }.frame(height: typographyExpanded ? 230 : min(230, 120 + Double(b.face.axes.count) * 32))
+          }.padding(12).scrollAreaIdentifier("Match options scroll area")
+        }.frame(height: 230)
           .background(.white).clipShape(RoundedRectangle(cornerRadius: 6))
         HStack(alignment: .top, spacing: 16) {
           preview(model.comparison.a, label: "Reference A")
           preview(proposal(b), label: "Proposed B")
         }.padding(14).frame(height: 120).background(.white)
           .clipShape(RoundedRectangle(cornerRadius: 6))
+        status
+        Text(
+          "Experimental visual heuristic using the current sample and Latin diagnostics. Lower distance is closer; this is not a confidence percentage."
+        )
+        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+      } else {
+        Text("Choose two installed fonts to preview matching.").foregroundStyle(.secondary)
+      }
+      HStack {
+        Spacer()
+        Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+        Button("Apply") {
+          if fit.apply(to: model, undoManager: undoManager) { dismiss() }
+        }.keyboardShortcut(.defaultAction).disabled(fit.result?.improved != true)
+      }
+    }.padding(24).frame(width: 540).background(WorkbenchStyle.sheet)
+      .environment(\.colorScheme, .light).preferredColorScheme(.light)
+      .onChange(of: request) { _, _ in
+        // Publishing FontFitModel's @Published state must not happen synchronously
+        // within this view-update callback, so hop to a new main-actor task first.
+        Task { @MainActor in fit.start(nil) }
+      }
+      .onDisappear { Task { @MainActor in fit.stop() } }
+  }
+
+  private func proposal(_ b: FontConfiguration) -> FontConfiguration { fit.result?.proposed ?? b }
+
+  private var status: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 8) {
         if let error = fit.error {
           Text(verbatim: error).foregroundStyle(.orange).fixedSize(
             horizontal: false, vertical: true)
         } else if let result = fit.result {
+          let unit = result.evaluations == 1 ? "evaluation" : "evaluations"
           Text(
             verbatim:
-              "Distance \(result.originalScore.formattedDistance) → \(result.score.formattedDistance) · \(result.evaluations) evaluations"
+              "Distance \(result.originalScore.formattedDistance) → \(result.score.formattedDistance) · \(result.evaluations) \(unit)"
           )
           .monospacedDigit().font(.caption)
-          if !fit.running && !result.improved {
-            Text("No better settings found in this search.").font(.caption).foregroundStyle(
+          if !fit.running && !fit.searchImproved {
+            Text("No better value found for this setting.").font(.caption).foregroundStyle(
               .secondary)
           }
         }
@@ -90,42 +121,9 @@ struct MatchSheet: View {
             Button("Stop") { fit.stop() }
           }
         }
-        Text(
-          "Experimental visual heuristic using the current sample and Latin diagnostics. Lower distance is closer; this is not a confidence percentage."
-        )
-        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-      } else {
-        Text("Choose two installed fonts to preview matching.").foregroundStyle(.secondary)
-      }
-      HStack {
-        Button("Refine") { fit.start(request, refine: true) }
-          .disabled(fit.running || fit.result == nil || options.isEmpty)
-        Spacer()
-        Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-        Button("Apply") {
-          if fit.apply(to: model, undoManager: undoManager) { dismiss() }
-        }.keyboardShortcut(.defaultAction).disabled(fit.result?.improved != true)
-      }
-    }.padding(24).frame(width: 540).background(WorkbenchStyle.sheet)
-      .environment(\.colorScheme, .light).preferredColorScheme(.light)
-      .onChange(of: request, initial: true) { _, request in
-        // Publishing FontFitModel's @Published state must not happen synchronously
-        // within this view-update callback, so hop to a new main-actor task first.
-        Task { @MainActor in fit.start(request) }
-      }
-      .onDisappear { Task { @MainActor in fit.stop() } }
-  }
-
-  private func proposal(_ b: FontConfiguration) -> FontConfiguration { fit.result?.proposed ?? b }
-
-  private func membership<Value: Hashable>(_ value: Value, in set: Binding<Set<Value>>) -> Binding<
-    Bool
-  > {
-    Binding(
-      get: { set.wrappedValue.contains(value) },
-      set: { enabled in
-        if enabled { set.wrappedValue.insert(value) } else { set.wrappedValue.remove(value) }
-      })
+      }.frame(maxWidth: .infinity, alignment: .leading)
+        .scrollAreaIdentifier("Match status scroll area")
+    }.frame(height: 64)
   }
 
   private func featureName(_ feature: FontFeature, config: FontConfiguration) -> String {
@@ -133,14 +131,32 @@ struct MatchSheet: View {
     return feature.options.first { $0.value == value }?.name ?? String(value)
   }
 
-  private func option(_ title: String, value: Binding<Bool>, before: String, after: String)
+  private func option(
+    _ title: String, id: String, before: String, after: String,
+    select: @escaping (inout FontFitOptions) -> Void
+  )
     -> some View
   {
     HStack {
-      Toggle(title, isOn: value).toggleStyle(.checkbox)
+      Text(verbatim: title)
       Spacer()
       Text(verbatim: before == after ? after : "\(before) → \(after)")
         .monospacedDigit().foregroundStyle(.secondary)
+      Button("Optimize", systemImage: "equal.square") {
+        if let request {
+          var options = request.options
+          options.axes = []
+          options.features = []
+          options.tracking = false
+          options.size = false
+          select(&options)
+          fit.start(
+            .init(a: request.a, b: request.b, text: request.text, options: options, scale: scale))
+        }
+      }.disabled(fit.running)
+        .accessibilityLabel("Optimize \(title)")
+        .accessibilityIdentifier("\(Side.b.fontName) Optimize \(id)")
+        .help("Optimize only \(title.lowercased()) to match font A")
     }
   }
 

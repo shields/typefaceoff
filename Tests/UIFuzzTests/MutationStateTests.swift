@@ -212,6 +212,10 @@ import Testing
     arguments: [
       "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
       "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
+      "Match options scroll area", "Match status scroll area", "Optimize", "equal.square",
+      "Optimize Tracking",
+      "Font B Optimize tracking", "Font B Optimize size", "Font B Optimize axis 2003265652",
+      "Font B Optimize feature ot.kern",
     ])
   func matchSheetControlsNeedTheMatchSheet(name: String) {
     let control = Self.press(name)
@@ -242,13 +246,22 @@ import Testing
     let writingTools = FuzzAction(
       kind: .press, target: "__NSTextViewContextSubmenuIdentifierWritingTools",
       targetRole: "AXMenuItem")
+    let search = FuzzAction(
+      kind: .press, target: "_searchWithGoogleFromMenu:", targetRole: "AXMenuItem")
+    let service = FuzzAction(kind: .press, target: "_processRequest:", targetRole: "AXMenuItem")
+    let services = FuzzAction(kind: .press, target: "Services", targetRole: "AXMenuItem")
     let speech = FuzzAction(kind: .click, target: "Start Speaking", targetRole: "AXMenuItem")
     let copy = FuzzAction(kind: .press, target: "_NS:23", targetRole: "AXMenuItem")
     let button = FuzzAction(kind: .press, target: "Summarize", targetRole: "AXButton")
-    let repaired = Self.repaired([writingTools, copy, speech, button, Self.key(36)])
-    #expect(repaired.map(\.kind) == [.pause, .press, .pause, .press, .key])
-    #expect(repaired[1] == copy)
-    #expect(repaired[3] == button)
+    let repaired = Self.repaired([
+      writingTools, search, service, services, copy, speech, button, Self.key(36),
+    ])
+    #expect(
+      repaired.map(\.kind) == [
+        .pause, .pause, .pause, .pause, .press, .pause, .press, .key,
+      ])
+    #expect(repaired[4] == copy)
+    #expect(repaired[6] == button)
     #expect(
       Self.repaired([writingTools, writingTools], maximumActions: 2).map(\.kind) == [
         .pause, .pause,

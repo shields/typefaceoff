@@ -118,9 +118,15 @@ public enum Differences {
   public static func highlights(
     _ scores: [GlyphDifference], text: String, shape: Bool, spacing: Bool, frequency: Bool
   ) -> Set<String> {
-    // Scalar-exact, like id and candidates: canonical equivalence would count a candidate as
-    // present in text because a different, canonically equal character appears there instead.
-    let present = Set(text.map { Array($0.unicodeScalars) })
+    highlights(
+      scores, present: Set(text.map { Array($0.unicodeScalars) }), shape: shape,
+      spacing: spacing, frequency: frequency)
+  }
+
+  public static func highlights(
+    _ scores: [GlyphDifference], present: Set<[Unicode.Scalar]>, shape: Bool, spacing: Bool,
+    frequency: Bool
+  ) -> Set<String> {
     var selected = Set<String>()
     for isShape in [true, false] where isShape ? shape : spacing {
       selected.formUnion(

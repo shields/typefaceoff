@@ -47,14 +47,15 @@ import Testing
   static let systemIdentifiers = [
     "startDictation:", "orderFrontCharacterPalette:", "showWritingTools:",
     "_handleInsertFromContactsCommand:", "_handleInsertFromCreditCardsCommand:",
-    "_handleInsertFromPasswordsCommand:", "_performStandardShareMenuItem:", "_rvMenuItemAction",
+    "_handleInsertFromPasswordsCommand:", "_processRequest:",
+    "_performStandardShareMenuItem:", "_rvMenuItemAction", "_searchWithGoogleFromMenu:",
     "__NSTextViewContextSubmenuIdentifierWritingTools",
     "__NSTextViewContextSubmenuItemIdentifierShowFont",
     "__NSTextViewContextSubmenuItemIdentifierShowColor", "_NSMenuItemAutoFillIdentifier",
   ]
 
   static let systemTitles = [
-    "Start Speaking", "Stop Speaking", "Speech", "Show Spelling and Grammar",
+    "Start Speaking", "Stop Speaking", "Speech", "Services", "Show Spelling and Grammar",
     "Show Substitutions", "Styles…", "Show Fonts", "Show Colors", "Writing Tools",
     "Show Writing Tools", "Summarize",
   ]

@@ -8,6 +8,7 @@ import TypefaceCore
 
     private let writer: FuzzEventWriter?
     private var timer: Timer?
+    private var generation: UInt64 = 0
     private var glyphGeometries:
       [String: (context: String, glyph: [Unicode.Scalar], baseline: Double)] = [:]
 
@@ -81,8 +82,29 @@ import TypefaceCore
       ])
     }
 
-    func rendered(_ kind: String) {
-      emit(["event": "render", "kind": kind])
+    func nextGeneration() -> UInt64 {
+      generation += 1
+      return generation
+    }
+
+    func measure<T>(
+      _ kind: String, text: String, generation: UInt64, _ body: () -> T
+    ) -> T {
+      let id = UUID().uuidString
+      let length = text.utf16.count
+      let start = ProcessInfo.processInfo.systemUptime
+      emit([
+        "event": "work-begin", "kind": kind, "id": id,
+        "textUTF16": length, "generation": generation,
+      ])
+      defer {
+        emit([
+          "event": "work-end", "kind": kind, "id": id,
+          "textUTF16": length, "generation": generation,
+          "durationSeconds": ProcessInfo.processInfo.systemUptime - start,
+        ])
+      }
+      return body()
     }
 
     func glyphGeometry(
@@ -223,7 +245,11 @@ import TypefaceCore
 
     func endWork(_ identifier: UUID, kind: String, outcome: String = "completed") {}
 
-    func rendered(_ kind: String) {}
+    func nextGeneration() -> UInt64 { 0 }
+
+    func measure<T>(
+      _ kind: String, text: String, generation: UInt64, _ body: () -> T
+    ) -> T { body() }
 
     func glyphGeometry(
       view: String, context: String, glyph: [Unicode.Scalar], baseline: Double

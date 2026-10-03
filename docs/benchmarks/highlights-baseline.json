@@ -1,0 +1,24 @@
+[
+  {
+    "actionMedianMilliseconds": [
+      94.340583338635042, 476.16008331533521, 333.34079163614661,
+      308.81425002007745, 481.41766668413766, 622.65058333287016,
+      473.77000001142733, 358.28662497806363, 343.01841669366695
+    ],
+    "actions": 9,
+    "configuredPacingMilliseconds": 4800,
+    "failedRepetitions": 0,
+    "failures": [],
+    "maximumMilliseconds": 4064.0946249943227,
+    "medianMeasuredMilliseconds": 3888.5736249969341,
+    "minimumMilliseconds": 3723.4437500184868,
+    "processModel": "fresh",
+    "samplesMilliseconds": [
+      4052.1342083404306, 3976.5293333504815, 4064.0946249943227,
+      3888.5736249969341, 3725.2370833186433, 3723.4437500184868,
+      3846.5285000158474
+    ],
+    "seed": 100000,
+    "successfulRepetitions": 7
+  }
+]

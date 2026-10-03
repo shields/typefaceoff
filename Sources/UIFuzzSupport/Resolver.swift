@@ -10,12 +10,19 @@ public struct ResolutionRequest: Equatable, Sendable {
   public var allowVisibleTieBreak: Bool
   /// Whether name searches skip the menu bar, whose menus are slow to read.
   public var excludesMenuBar = false
+  var legacyMatchOption: String?
 
   public init(_ action: FuzzAction, allowVisibleTieBreak: Bool) {
     target = action.target
     path = action.targetPath
     role = action.targetRole
     self.allowVisibleTieBreak = allowVisibleTieBreak
+    if let target = action.target, action.kind == .press || action.kind == .click,
+      action.sheet != .editor, action.targetRole == nil || action.targetRole == "AXCheckBox",
+      action.sheet == .match || ["Tracking", "Size", "Weight"].contains(target)
+    {
+      legacyMatchOption = "Optimize \(target)"
+    }
   }
 
   public init(target: String, excludesMenuBar: Bool = false) {
@@ -116,6 +123,12 @@ public final class AccessibilityResolver<Node: AccessibilityNode> {
   }
 
   private func search(_ request: ResolutionRequest) -> Resolution<Node> {
+    if let target = request.legacyMatchOption {
+      var replacement = request
+      replacement.target = target
+      replacement.role = "AXButton"
+      if let result = namedInScope(replacement, target: target) { return result }
+    }
     guard let path = request.path else { return firstNamed(request.target) }
     var miss = ResolutionMiss.noMatch
     if let first = path.first, roots.indices.contains(first) {

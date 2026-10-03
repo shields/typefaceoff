@@ -1,7 +1,7 @@
 import Foundation
 
-/// Menu items that open UI outside the app's own windows: Apple's Writing Tools, Share, AutoFill,
-/// Dictation, Look Up, Speech, and the text system's Fonts, Colors, Styles, Spelling,
+/// Menu items that open UI outside the app's own windows: Apple's Writing Tools, Services, Share,
+/// AutoFill, Dictation, Look Up, Speech, and the text system's Fonts, Colors, Styles, Spelling,
 /// Substitutions, and Emoji panels. Some of them prompt for credentials on the host, and a popover
 /// or sheet they open can outlive every Escape. Identifiers are AppKit's selector names and
 /// identifier constants, which the UI language does not change. Titles are localized and change
@@ -15,20 +15,23 @@ public enum SystemMenuItems {
     "_handleInsertFromContactsCommand:",
     "_handleInsertFromCreditCardsCommand:",
     "_handleInsertFromPasswordsCommand:",
+    "_processRequest:",
     "_performStandardShareMenuItem:",
     "_rvMenuItemAction",
+    "_searchWithGoogleFromMenu:",
     "__NSTextViewContextSubmenuIdentifierWritingTools",
     "__NSTextViewContextSubmenuItemIdentifierShowFont",
     "__NSTextViewContextSubmenuItemIdentifierShowColor",
     "_NSMenuItemAutoFillIdentifier",
   ]
 
-  /// Speech, Spelling, Substitutions, and Styles items carry auto-numbered identifiers such as
-  /// `_NS:85`, so only their titles identify them.
+  /// Services has no identifier. Speech, Spelling, Substitutions, and Styles items carry
+  /// auto-numbered identifiers such as `_NS:85`, so only their titles identify them.
   public static let titles: Set<String> = [
     "Start Speaking",
     "Stop Speaking",
     "Speech",
+    "Services",
     "Show Spelling and Grammar",
     "Show Substitutions",
     "Styles…",

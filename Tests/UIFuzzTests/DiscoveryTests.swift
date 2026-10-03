@@ -70,6 +70,10 @@ import Testing
       "AXMenu", name: "Text menu", frame: Self.menuFrame,
       children: [
         menuItem("_rvMenuItemAction", "Look Up “Hamburg”"),
+        menuItem("_searchWithGoogleFromMenu:", "Search With Google"),
+        menuItem(
+          "", "Services",
+          children: [menu([menuItem("_processRequest:", "Open man Page in Terminal")])]),
         menuItem("", ""),
         menuItem("_NS:7", "Cut"),
         menuItem("_NS:23", "Copy"),
@@ -337,7 +341,7 @@ import Testing
       Scenario(
         name: "an open Font submenu offers Bold but not Show Fonts",
         application: world.application([fontWindow, menuBar()]), focused: fontWindow,
-        source: .focused, focus: .standardWindow, root: [0, 1, 6, 0], rootRole: "AXMenu",
+        source: .focused, focus: .standardWindow, root: [0, 1, 8, 0], rootRole: "AXMenu",
         offered: ["<AXMenu>", "_NS:50"]))
 
     let editWindow = world.window(name: "Workbench", children: [workbench()])

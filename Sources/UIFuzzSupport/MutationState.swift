@@ -54,7 +54,10 @@ struct WorkbenchState: Equatable, Sendable {
     case "Font A specimen", "Font B specimen": return .mode(.text)
     case "Custom specimen text": return .sheet(.editor)
     case "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
-      "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area":
+      "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
+      "Match options scroll area", "Match status scroll area", "Optimize", "equal.square":
+      return .sheet(.match)
+    case let name where name.hasPrefix("Font B Optimize ") || name.hasPrefix("Optimize "):
       return .sheet(.match)
     case "Apply", "Cancel": return .sheet(nil)
     case "Search installed fonts": return .popover(.fonts)

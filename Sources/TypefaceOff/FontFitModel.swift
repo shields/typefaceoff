@@ -9,50 +9,65 @@ final class FontFitModel: ObservableObject {
     let text: String
     let options: FontFitOptions
     let scale: Double
+
+    func hasSameInputs(as other: Self?) -> Bool {
+      a == other?.a && b == other?.b && text == other?.text && scale == other?.scale
+    }
   }
 
   @Published private(set) var result: FontFitResult?
   @Published private(set) var running = false
   @Published private(set) var error: String?
+  @Published private(set) var searchImproved = false
   private var generation = UUID()
   private var task: Task<Void, Never>?
   private var request: Request?
   private let load:
-    @Sendable (Request, Bool) async throws -> AsyncThrowingStream<FontFitResult, Error>
+    @Sendable (Request, FontConfiguration) async throws -> AsyncThrowingStream<FontFitResult, Error>
 
   init(engine: FontFitEngine = FontFitEngine(), catalog: FontCatalog = FontCatalog()) {
-    load = { request, refine in
+    load = { request, candidate in
+      // A fixed corpus keeps cumulative scores comparable across successive searches.
       await engine.fit(
-        a: request.a, b: request.b, options: request.options,
+        a: request.a, b: candidate, options: request.options,
         corpus: .fitting(reference: request.a, candidate: request.b, text: request.text),
         catalog: catalog,
-        scale: request.scale, budget: refine ? .refine : .quick, refine: refine)
+        scale: request.scale, budget: .refine)
     }
   }
 
   init(
     load:
-      @escaping @Sendable (Request, Bool) async throws -> AsyncThrowingStream<FontFitResult, Error>
+      @escaping @Sendable (Request, FontConfiguration) async throws -> AsyncThrowingStream<
+        FontFitResult, Error
+      >
   ) {
     self.load = load
   }
 
-  func start(_ request: Request?, refine: Bool = false) {
+  func start(_ request: Request?) {
     stop()
-    if !refine || self.request != request { result = nil }
+    if request?.hasSameInputs(as: self.request) != true { result = nil }
+    let previous = result
     self.request = request
     error = nil
+    searchImproved = false
     guard let request else { return }
     running = true
     let generation = self.generation
     let load = self.load
     task = Task {
       do {
-        let stream = try await load(request, refine)
+        let stream = try await load(request, previous?.proposed ?? request.b)
         for try await result in stream {
           try Task.checkCancellation()
           guard self.generation == generation else { return }
-          self.result = result
+          self.searchImproved = result.improved
+          self.result = FontFitResult(
+            proposed: result.proposed,
+            originalScore: previous?.originalScore ?? result.originalScore,
+            score: result.score, evaluations: (previous?.evaluations ?? 0) + result.evaluations,
+            finished: result.finished)
         }
       } catch {
         guard self.generation == generation else { return }

@@ -17,6 +17,12 @@ struct FontInspector: View {
 
   private var config: FontConfiguration? { model.comparison[side] }
 
+  private var canResetAppearance: Bool {
+    var reset = model.comparison
+    reset.resetAppearance(side: side, catalog: model.catalog)
+    return reset != model.comparison
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       VStack(alignment: .leading, spacing: 12) {
@@ -60,19 +66,22 @@ struct FontInspector: View {
             HStack {
               Text("Appearance").font(.headline)
               Spacer()
-              Button("Reset appearance", systemImage: "arrow.counterclockwise") {
-                resetAppearance()
-              }.labelStyle(.iconOnly).accessibilityIdentifier("\(side.fontName) Reset appearance")
+              // Recorded traces use the explicit reset identifiers and accessibility labels.
+              ResetButton(label: "Reset appearance", action: resetAppearance)
+                .accessibilityIdentifier("\(side.fontName) Reset appearance")
+                .disabled(!canResetAppearance)
                 .help("Reset appearance settings for this font and any linked settings")
               Button(
                 model.comparison.appearanceLocked ? "Unlock appearance" : "Lock appearance",
-                systemImage: model.comparison.appearanceLocked ? "lock.fill" : "lock.open"
+                systemImage: model.comparison.appearanceLocked ? "lock.fill" : "lock.slash"
               ) {
                 edit("Link appearance") {
                   $0.appearanceLocked.toggle()
                   $0.calibrate()
                 }
-              }.labelStyle(.iconOnly).disabled(model.comparison.b == nil)
+              }.labelStyle(.iconOnly)
+                .contentTransition(.symbolEffect(.replace.magic(fallback: .downUp)))
+                .disabled(model.comparison.b == nil)
                 .accessibilityIdentifier("\(side.fontName) Appearance lock")
                 .help(
                   model.comparison.appearanceLocked
@@ -149,10 +158,10 @@ struct FontInspector: View {
     return VStack(spacing: 8) {
       HStack(spacing: 6) {
         Text(verbatim: title)
-        Button("Reset \(title.lowercased())", systemImage: "arrow.counterclockwise") {
+        ResetButton(label: "Reset \(title.lowercased())") {
           binding.wrappedValue = defaultValue
         }
-        .labelStyle(.iconOnly).buttonStyle(.borderless).font(.caption).disabled(
+        .buttonStyle(.borderless).font(.caption).disabled(
           value == defaultValue
         )
         .accessibilityIdentifier("\(side.fontName) Reset \(title.lowercased())")

@@ -76,14 +76,14 @@ reopen the app to refresh its catalog.
   means closer. Search filters the live results; pending and unsupported
   families remain selectable. Choosing a family carries B’s settings forward as
   usual, so its specimen can differ from the default settings used for ranking.
-- **Match…** searches B’s current face for closer axes, typography, and
-  tracking. Uncheck any setting to lock it; size changes are opt-in. A quick
-  search uses up to three seconds or 256 evaluations; **Refine** resumes for up
-  to 15 seconds or 2,048 additional evaluations. A started comparison can finish
-  after the time budget. **Stop** retains the best verified preview. Cancel
-  discards it, and Apply changes only B in one undoable edit, recalibrating
-  appearance links. Only improvements verified on the full fitting corpus can be
-  applied.
+- **Match…** lists B’s axes, tracking, size, and typography. Click **Optimize**
+  beside a setting to search for its closest value while keeping every other
+  preview setting fixed. Searches start only when clicked, and successive
+  searches build on the preview. Each search uses up to 15 seconds or 2,048
+  evaluations. A started comparison can finish after the time budget. **Stop**
+  retains the best verified preview. Cancel discards it, and Apply changes only
+  B in one undoable edit, recalibrating appearance links. Only improvements
+  verified on the full fitting corpus can be applied.
 - Browsing or searching glyphs, switching views, and toggling highlights
   preserve Undo/Redo. Undoing a font edit keeps the current inspection in view.
 - Launching the app opens a fresh comparison window. Each window is independent;
@@ -128,27 +128,28 @@ and `--max-text-units` bounds the text that actually reaches the renderer. The
 numeric fields, scroll areas, and controls that both inspectors repeat carry
 accessibility identifiers such as `Font B Size field`, which discovery prefers
 to a title or description, so those controls are told apart without their paths;
-earlier traces still resolve by their recorded labels. Progress reports use
-`measured-ms` for the action sequence and resulting UI work; `total-ms` also
-includes app startup, shutdown, and coverage collection. The action count shows
-completed/attempted actions, followed by `skips=N` when an execution skipped
-picks. Campaigns pause while the screen is locked or the desktop session is
-otherwise unavailable, because a locked session hides app windows from
-Accessibility, and resume as soon as the desktop returns. When the workbench
-controls are unavailable, campaigns retry with a delay that grows from five to
-60 seconds. These retries do not advance the campaign or enter its corpus;
-`availability.json` and its associated run retain the latest availability
-failure. Crashes, hangs, and correctness failures are still preserved during an
-outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'` for a bounded campaign.
-Before every execution, the driver requires 512 MiB free on both the artifact
-and temporary volumes; change the threshold with `--minimum-free-space-mib`. The
-campaign keeps `.profraw` and `coverage.profdata` only for executions that add
-region or hit-count coverage. It writes a compact representative report only
-when a finding kind and signature first appears, while
-`finding-occurrences.json` records its count and first and latest executions and
-times. The first resume of an older campaign builds this index, removes repeat
-reports, and strips duplicated coverage sets from the reports it retains. Replay
-or reduce a finding with `make fuzz-replay CASE=…` or
+earlier traces still resolve by their recorded labels. Recorded Match checkbox
+actions resolve to the corresponding Optimize buttons; new Match actions use
+option-specific identifiers. Progress reports use `measured-ms` for the action
+sequence and resulting UI work; `total-ms` also includes app startup, shutdown,
+and coverage collection. The action count shows completed/attempted actions,
+followed by `skips=N` when an execution skipped picks. Campaigns pause while the
+screen is locked or the desktop session is otherwise unavailable, because a
+locked session hides app windows from Accessibility, and resume as soon as the
+desktop returns. When the workbench controls are unavailable, campaigns retry
+with a delay that grows from five to 60 seconds. These retries do not advance
+the campaign or enter its corpus; `availability.json` and its associated run
+retain the latest availability failure. Crashes, hangs, and correctness failures
+are still preserved during an outage. Use `FUZZ_ARGS='--seed 42 --duration 10m'`
+for a bounded campaign. Before every execution, the driver requires 512 MiB free
+on both the artifact and temporary volumes; change the threshold with
+`--minimum-free-space-mib`. The campaign keeps `.profraw` and
+`coverage.profdata` only for executions that add region or hit-count coverage.
+It writes a compact representative report only when a finding kind and signature
+first appears, while `finding-occurrences.json` records its count and first and
+latest executions and times. The first resume of an older campaign builds this
+index, removes repeat reports, and strips duplicated coverage sets from the
+reports it retains. Replay or reduce a finding with `make fuzz-replay CASE=…` or
 `make fuzz-minimize CASE=…`; `make fuzz-benchmark` remeasures the corpus in an
 optimized build without coverage instrumentation and excludes failed or
 incomplete executions from its timings. Benchmarking waits for quiescence after

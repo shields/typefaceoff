@@ -212,6 +212,10 @@ import Testing
     arguments: [
       "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
       "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
+      "Match options scroll area", "Match status scroll area", "Optimize", "equal.square",
+      "Optimize Tracking",
+      "Font B Optimize tracking", "Font B Optimize size", "Font B Optimize axis 2003265652",
+      "Font B Optimize feature ot.kern",
     ])
   func matchSheetControlsNeedTheMatchSheet(name: String) {
     let control = Self.press(name)

@@ -37,7 +37,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     let expectedSize = (initial.b?.size ?? 0) + 2
-    try await host.press("Size")
+    try await host.press("Font B Optimize size")
     try await host.settle(
       until: { fit.result?.proposed.size == expectedSize && host.isEnabled("Apply") },
       describing: "fit result \(String(describing: fit.result))")
@@ -62,7 +62,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(MatchSheet(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Size")
+    try await host.press("Font B Optimize size")
     try await host.settle()
     try await host.press(button)
     #expect(model.comparison == initial)
@@ -85,6 +85,7 @@ import TypefaceCore
     let fit = FontFitModel(load: SimilarityModelTests.fitResult)
     let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
     defer { host.window.close() }
+    try await host.press("Font B Optimize axis \(tagNumber("wght"))")
     try await host.settle(
       until: { fit.result?.improved == true && host.isEnabled("Apply") },
       describing: "fit result \(String(describing: fit.result))")
@@ -99,6 +100,9 @@ import TypefaceCore
     let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
     defer { host.window.close() }
     try await host.settle()
+    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
+      #expect(try await host.element(name).isAccessibilityEnabled?() == false)
+    }
     try await host.press("Unlock appearance")
     try await host.settle { !model.comparison.appearanceLocked }
     #expect(!model.comparison.appearanceLocked)
@@ -112,6 +116,9 @@ import TypefaceCore
         $0.placeholderString == "Size" && $0.stringValue == "48"
       }
     }
+    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
+      #expect(try await host.element(name).isAccessibilityEnabled?() == true)
+    }
     try await host.press("Reset size")
     try await host.settle { model.comparison.a.size == 22 }
     #expect(model.comparison.a.size == 22)
@@ -121,15 +128,51 @@ import TypefaceCore
     try await host.press("Reset typography")
     try await host.settle { model.comparison.a.features.isEmpty }
     #expect(model.comparison.a.features.isEmpty)
+    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
+      #expect(try await host.element(name).isAccessibilityEnabled?() == false)
+    }
     try await host.press("Lock appearance")
     try await host.settle { model.comparison.appearanceLocked }
     #expect(model.comparison.appearanceLocked)
+    model.edit("Resize B", undoManager: nil) { $0.b?.size = 33 }
+    try await host.settle { host.isEnabled("Reset appearance") }
+    #expect(host.isEnabled("Reset appearance"))
     model.edit("Resize", undoManager: nil) { $0.a.size = 44 }
     try await host.settle()
     try await host.press("Reset appearance")
     try await host.settle { model.comparison.a.size == 22 && model.comparison.b?.size == 22 }
     #expect(model.comparison.a.size == 22)
     #expect(model.comparison.b?.size == 22)
+    #expect(try await host.element("Reset appearance").isAccessibilityEnabled?() == false)
+  }
+
+  @Test(arguments: [Side.a, .b])
+  func appearanceResetClearsCalibrationWhenBothFontsAreAtDefaults(side: Side) async throws {
+    let catalog = FontCatalog()
+    var comparison = Comparison(a: .init("Arial-BoldMT"), b: .init("ArialMT"))
+    comparison.selectFace(FontFace(postScriptName: "ArialMT"), side: .a, catalog: catalog)
+    #expect(comparison.a == FontConfiguration("ArialMT"))
+    #expect(comparison.b == FontConfiguration("ArialMT"))
+    #expect(comparison.link?.weightOffset == -300)
+    let model = WorkbenchModel(comparison: comparison)
+    let host = WorkbenchTestHost(FontInspector(model: model, side: side), width: 246)
+    defer { host.window.close() }
+    try await host.settle { host.isEnabled("Reset appearance") }
+    try await host.press("Reset appearance")
+    try await host.settle { model.comparison.link?.weightOffset == 0 }
+    #expect(model.comparison.a == comparison.a)
+    #expect(model.comparison.b == comparison.b)
+    #expect(try await host.element("Reset appearance").isAccessibilityEnabled?() == false)
+    host.window.undoManager?.undo()
+    try await host.settle { host.isEnabled("Reset appearance") }
+    #expect(model.comparison == comparison)
+    try await host.press("Reset appearance")
+    try await host.settle { model.comparison.link?.weightOffset == 0 }
+    model.edit("Change weight", undoManager: nil) {
+      $0.set(.weight, to: 700, side: side, catalog: catalog)
+    }
+    #expect(model.comparison.a.postScriptName == "Arial-BoldMT")
+    #expect(model.comparison.b?.postScriptName == "Arial-BoldMT")
   }
 
   @Test func customTextCanBeCancelledAppliedAndUndone() async throws {
@@ -161,7 +204,11 @@ import TypefaceCore
   }
 
   @Test func workbenchSwapAndHighlightControlsKeepIndependentState() async throws {
-    let model = WorkbenchModel()
+    var comparison = Comparison()
+    comparison.sample = .custom
+    comparison.customText = "agMW"
+    comparison.b?.tracking = 0.03
+    let model = WorkbenchModel(comparison: comparison)
     let initial = model.comparison
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
@@ -171,10 +218,18 @@ import TypefaceCore
     #expect(model.comparison.a == initial.b)
     #expect(model.comparison.b == initial.a)
     try await host.press("Spacing")
-    try await host.settle { model.comparison.spacing && model.comparison.shape }
+    try await host.settle {
+      host.subviews.compactMap { $0 as? SpecimenNSTextView }.contains {
+        $0.highlightKinds.values.contains("Shape + Spacing")
+      }
+    }
     #expect(model.comparison.spacing && model.comparison.shape)
     try await host.press("Shape")
-    try await host.settle { !model.comparison.shape && model.comparison.spacing }
+    try await host.settle {
+      host.subviews.compactMap { $0 as? SpecimenNSTextView }.contains {
+        !$0.highlightKinds.isEmpty && $0.highlightKinds.values.allSatisfy { $0 == "Spacing" }
+      }
+    }
     #expect(!model.comparison.shape && model.comparison.spacing)
     try await host.press("Spacing")
     try await host.settle { !model.comparison.shape && !model.comparison.spacing }

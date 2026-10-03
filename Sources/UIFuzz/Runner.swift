@@ -40,6 +40,7 @@ struct RunnerConfiguration {
   var completionSeconds: TimeInterval = 30
   var minimumFreeSpaceBytes: UInt64 = 512 * 1_048_576
   var collectCoverage = true
+  var waitBetweenActions = false
   /// How long the app must be quiet before a live pick is discovered; zero disables the wait.
   var quiescenceSeconds: TimeInterval = 0.2
 
@@ -53,6 +54,7 @@ final class SequenceRunner {
   private var explorer: ActionExplorer
   /// Only a campaign sets it. Without one, no run can skip an action.
   var skipLedger: SkipLedger?
+  var campaign: CampaignMonitor?
 
   init(configuration: RunnerConfiguration, mutator: TraceMutator = TraceMutator()) {
     self.configuration = configuration
@@ -77,6 +79,8 @@ final class SequenceRunner {
     let telemetryURL = runDirectory.appending(path: "telemetry.jsonl")
     var findings: [ExecutionFinding] = []
     var actionTimes: [Double] = []
+    var attempts: [ActionTiming] = []
+    var measurementEnd = start
     var coverage = Set<String>()
     var buckets = Set<String>()
     var workloadStartedAt: TimeInterval?
@@ -92,6 +96,15 @@ final class SequenceRunner {
     executed.actions = []
     var random = SplitMix64(seed: input.seed)
     let initialSession = DesktopSession.current()
+    let events =
+      try campaign ?? CampaignMonitor(artifacts: configuration.artifacts, mode: "execution")
+    try events.record(
+      "execution-start", execution: runID,
+      details: ["origin": input.origin, "seed": String(input.seed)])
+    defer {
+      if campaign == nil { events.finish(reason: "execution-finished") }
+      try! events.checkFailure()
+    }
     var lastActionStartedAt: TimeInterval?
     var quitMilliseconds: Double?
     var quitForced = false
@@ -205,6 +218,13 @@ final class SequenceRunner {
       func begin(_ action: FuzzAction) throws {
         // The wait and discovery before a live pick can outlast a crash that an earlier action caused.
         guard !application.hasExited else { throw AppExited() }
+        let now = clock.now
+        if !attempts.isEmpty {
+          attempts[attempts.count - 1].endedAt = now
+          attempts[attempts.count - 1].result = .nextActionStarted
+        }
+        attempts.append(
+          ActionTiming(execution: runID, index: attempts.count, action: action, start: now))
         executed.actions.append(action)
         try TraceIO.save(executed, to: runDirectory.appending(path: "executed.json"))
         lastAttempts = 0
@@ -215,7 +235,11 @@ final class SequenceRunner {
         -> AXControl
       {
         let began = clock.now
-        defer { lastResolveSeconds = clock.now - began }
+        attempts[attempts.count - 1].resolutionStart = began
+        defer {
+          lastResolveSeconds = clock.now - began
+          attempts[attempts.count - 1].resolutionEnd = clock.now
+        }
         let result = try driver.resolve(request, retry: retry, idle: { quiet(since: $0) })
         lastAttempts = result.attempts
         readErrors += result.readErrors
@@ -306,6 +330,7 @@ final class SequenceRunner {
               }, begin: begin, resolve: resolveControl,
               didSkip: { skipped, failure in
                 let action = executed.actions[executed.actions.count - 1]
+                attempts[attempts.count - 1].failure = failure.description
                 explorer.exclude(action)
                 log(
                   DriverEvent(
@@ -334,6 +359,7 @@ final class SequenceRunner {
           findings.append(unexpectedExit(.beforeAction))
           break
         } catch let failure as SlotFailure {
+          attempts[attempts.count - 1].failure = String(describing: failure.underlying)
           automationFailed = true
           skipSeconds += failure.skipSeconds
           if application.hasExited {
@@ -369,9 +395,15 @@ final class SequenceRunner {
         }
         let actionStart = ProcessInfo.processInfo.systemUptime
         lastActionStartedAt = actionStart
+        if attempts[attempts.count - 1].resolutionEnd == nil {
+          attempts[attempts.count - 1].resolutionEnd = actionStart
+        }
+        attempts[attempts.count - 1].dispatchStart = actionStart
         do {
+          defer { attempts[attempts.count - 1].dispatchReturn = clock.now }
           try driver.perform(action, on: slot.target?.element, idle: { quiet(since: $0) })
         } catch {
+          attempts[attempts.count - 1].failure = String(describing: error)
           automationFailed = true
           if application.hasExited {
             findings.append(unexpectedExit(.duringAction, note: "Driver error: \(error)"))
@@ -408,7 +440,33 @@ final class SequenceRunner {
         if action.delayMilliseconds > 0 {
           Thread.sleep(forTimeInterval: Double(action.delayMilliseconds) / 1000)
         }
-        let telemetry = TelemetrySummary.read(telemetryURL)
+        if configuration.waitBetweenActions {
+          let since = attempts[attempts.count - 1].dispatchReturn!
+          let deadline = since + configuration.completionSeconds
+          while !application.hasExited && clock.now < deadline {
+            let summary = idleTail.refresh(read: telemetryBytes)
+            if ActionQuiescence.settled(summary, since: since) { break }
+            if let heartbeat = summary.lastHeartbeat,
+              clock.now - heartbeat > configuration.watchdogSeconds
+            {
+              break
+            }
+            clock.sleep(IdleWait.pollInterval)
+          }
+          if !application.hasExited
+            && !ActionQuiescence.settled(idleTail.refresh(read: telemetryBytes), since: since)
+          {
+            watchdog = true
+            findings.append(
+              ExecutionFinding(
+                kind: .hang, signature: "action-quiescence-timeout",
+                detail:
+                  "Action \(attempts.count - 1) did not become quiescent within the completion or heartbeat deadline."
+              ))
+            break
+          }
+        }
+        let telemetry = idleTail.refresh(read: telemetryBytes)
         if let heartbeat = telemetry.lastHeartbeat,
           ProcessInfo.processInfo.systemUptime - heartbeat > configuration.watchdogSeconds,
           !application.hasExited
@@ -430,9 +488,9 @@ final class SequenceRunner {
           < configuration.completionSeconds
         {
           if application.hasExited { break }
-          let telemetry = TelemetrySummary.read(telemetryURL)
-          let hasFreshHeartbeat = telemetry.lastHeartbeat.map { $0 >= completionStart } ?? false
-          if telemetry.pendingWork == 0 && hasFreshHeartbeat {
+          let telemetry = idleTail.refresh(read: telemetryBytes)
+          let since = attempts.last?.dispatchReturn ?? completionStart
+          if ActionQuiescence.settled(telemetry, since: since) {
             if idleSince == nil { idleSince = ProcessInfo.processInfo.systemUptime }
             if ProcessInfo.processInfo.systemUptime - (idleSince ?? 0) >= 0.2 {
               reachedIdle = true
@@ -504,6 +562,18 @@ final class SequenceRunner {
           kind: .hang, signature: "main-thread-heartbeat",
           detail: "The app stopped emitting heartbeats while the driver waited for its UI."))
     }
+    measurementEnd = clock.now
+    if !attempts.isEmpty {
+      attempts[attempts.count - 1].endedAt = measurementEnd
+      attempts[attempts.count - 1].result =
+        launchedApplication?.hasExited == true ? .appExited : .timeout
+    }
+    events.observe(
+      "execution-work-end", execution: runID,
+      details: [
+        "appExited": String(launchedApplication?.hasExited == true),
+        "uptime": String(measurementEnd),
+      ])
     let finalSession = DesktopSession.current()
     if let reason = finalSession.unavailableReason,
       !findings.contains(where: { $0.kind == .unavailable })
@@ -641,6 +711,8 @@ final class SequenceRunner {
     for (key, value) in initialSession.metadata { metadata["initial-\(key)"] = value }
     for (key, value) in finalSession.metadata { metadata["final-\(key)"] = value }
     metadata["run"] = runID
+    metadata["start-uptime"] = String(start)
+    metadata["guest"] = String(ProcessInfo.processInfo.environment["TYPEFACEOFF_FUZZ_VM"] == "1")
     metadata["telemetry-events"] = String(telemetry.events)
     metadata["maximum-heartbeat-gap-ms"] = String(telemetry.maximumHeartbeatGap * 1000)
     metadata["process-model"] = "fresh"
@@ -661,13 +733,42 @@ final class SequenceRunner {
     metadata["ax-read-errors"] = String(readErrors)
     metadata["notification-dismissals"] = String(notificationDismissals)
     metadata["mouse-events-recovered"] = String(recoveredMouseEvents)
-    return ExecutionReport(
+    let actionTimings = ActionQuiescence.measure(
+      attempts,
+      telemetry: String(decoding: TelemetryFile.bytes(at: telemetryURL, from: 0), as: UTF8.self))
+    for timing in actionTimings {
+      try ExecutionJournal.append(
+        timing, to: configuration.artifacts.appending(path: "action-timings.jsonl"))
+      if timing.maximumHeartbeatGap >= 0.4 {
+        try events.record(
+          "heartbeat-gap", execution: runID,
+          details: [
+            "action": String(timing.index), "seconds": String(timing.maximumHeartbeatGap),
+            "start": String(timing.resolutionStart), "end": String(timing.endedAt),
+            "pending": String(describing: timing.pendingAtEnd),
+          ])
+      }
+    }
+    metadata["latency-mode"] = configuration.waitBetweenActions ? "quiescent" : "overlapping"
+    metadata["measurement-end-uptime"] = String(measurementEnd)
+    let report = ExecutionReport(
       trace: executed, startedAt: startedAt,
       durationMilliseconds: (ProcessInfo.processInfo.systemUptime - start) * 1000,
       workloadDurationMilliseconds: workloadDurationMilliseconds,
-      actionMilliseconds: actionTimes, coverage: coverage, countBuckets: buckets,
+      actionMilliseconds: actionTimes, actionTimings: actionTimings, coverage: coverage,
+      countBuckets: buckets,
       findings: ResolutionFindings.ordered(findings), exitStatus: exitStatus,
       terminatedByWatchdog: watchdog, metadata: metadata)
+    try ExecutionJournal.append(
+      ExecutionRecord(report, timings: actionTimings),
+      to: configuration.artifacts.appending(path: "executions.jsonl"))
+    try events.record(
+      "execution-end", execution: runID,
+      details: [
+        "attempted": String(attempts.count), "completed": String(actionTimes.count),
+        "findings": report.findings.map(\.signature).joined(separator: ","),
+      ])
+    return report
   }
 
   private func launch(runDirectory: URL, profileDirectory: URL) throws -> NSRunningApplication {

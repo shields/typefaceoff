@@ -33,7 +33,8 @@ forward_signal() {
 
 trap forward_signal INT TERM
 open -n -W -o "$stdout_pipe" --stderr "$stderr_pipe" \
-    --env "TYPEFACEOFF_FUZZ_VM=${TYPEFACEOFF_FUZZ_VM:-0}" "$driver_app" --args "$@" &
+    --env "TYPEFACEOFF_FUZZ_VM=${TYPEFACEOFF_FUZZ_VM:-0}" \
+    --env "TYPEFACEOFF_FUZZ_VM_NAME=${TYPEFACEOFF_FUZZ_VM_NAME:-}" "$driver_app" --args "$@" &
 opener_pid=$!
 
 attempt=0

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// One line of a run's `driver.jsonl`: what the driver did and saw, on the same uptime clock as the
@@ -108,7 +109,7 @@ public enum DriverLog {
       try Data().write(to: url)
     }
     let handle = try FileHandle(forWritingTo: url)
-    try handle.seekToEnd()
+    precondition(fcntl(handle.fileDescriptor, F_SETFL, O_APPEND) == 0)
     return handle
   }
 

@@ -30,7 +30,7 @@ HIGHLIGHT_OUTPUT ?= $(CURDIR)/.build/highlight-benchmark
 
 .PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
-.PHONY: benchmark-highlights
+.PHONY: benchmark-highlights test-fuzz-vm
 
 project:
 	xcodegen generate --spec project.yml
@@ -41,10 +41,13 @@ build: project
 run: build
 	open "$(APP)"
 
-test:
+test: test-fuzz-vm
 	# Font discovery shares macOS's font registry; serialize the package tests.
 	swift test $(SWIFT_FLAGS) --enable-code-coverage --no-parallel
 	$(MAKE) test-app
+
+test-fuzz-vm:
+	sh scripts/test-fuzz-vm.sh
 
 test-app: project
 	rm -rf .build/xcode/Build/ProfileData
@@ -161,7 +164,7 @@ fuzz-minimize: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" minimize --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --case "$(abspath $(CASE))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 fuzz-benchmark: fuzz-build
-	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" $(if $(CASE),--case "$(abspath $(CASE))",--corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))") --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 benchmark-highlights: fuzz-build
 	rm -f "$(HIGHLIGHT_OUTPUT)/benchmark.json"

@@ -21,6 +21,10 @@ shares="/Volumes/My Shared Files"
 developer_dir=$(xcode-select -p)
 xcode=${developer_dir%/Contents/Developer}
 tart_pid=
+observer_pid=
+vm_started=
+stop_reason=error
+host_pid=$$
 ip=
 
 fail() {
@@ -46,8 +50,49 @@ quote() {
     printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
 
+campaign_event() {
+    now=$(date +%s)
+    boot=$(sysctl -n kern.boottime) || return
+    boot=$(printf '%s' "$boot" | sed -E 's/^[{] sec = ([0-9]+),.*/\1/')
+    case $boot in
+    '' | *[!0-9]*) return 1 ;;
+    esac
+    jq -cn --arg event "$1" --arg vm "$vm" --arg detail "${2:-}" \
+        --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --argjson uptime "$((now - boot))" --argjson vmUptime "$((now - ${vm_started:-now}))" \
+        '{event: $event, source: "vm-host", vm: $vm, timestamp: $timestamp,
+          hostSecondsSinceBoot: $uptime, vmSecondsSinceStart: $vmUptime, detail: $detail}' \
+        >>"$artifacts/campaign-events.jsonl"
+}
+
+observe_vm() {
+    previous=$(date +%s)
+    while kill -0 "$tart_pid" 2>/dev/null; do
+        now=$(date +%s)
+        if [ "$((now - previous))" -gt 15 ]; then
+            campaign_event observation-gap "$((now - previous)) seconds between host observations; possible suspension" || {
+                kill -TERM "$host_pid"
+                exit 1
+            }
+        fi
+        campaign_event vm-heartbeat || {
+            kill -TERM "$host_pid"
+            exit 1
+        }
+        previous=$now
+        sleep 5
+    done
+}
+
 # shellcheck disable=SC2329 # Invoked by the EXIT trap below.
 stop_vm() {
+    status=$?
+    if [ -n "$observer_pid" ]; then
+        kill "$observer_pid" 2>/dev/null || true
+        wait "$observer_pid" || true
+    fi
+    event_status=0
+    campaign_event vm-stop "reason=$stop_reason status=$status" || event_status=$?
     if [ -n "$tart_pid" ] && kill -0 "$tart_pid" 2>/dev/null; then
         # shellcheck disable=SC2016 # Expanded by the guest's shell.
         [ -z "$ip" ] || vm_ssh "admin@$ip" 'pkill -TERM -x ui-fuzz || exit 0
@@ -56,15 +101,22 @@ stop_vm() {
         tart stop "$vm" >/dev/null || kill "$tart_pid"
         wait "$tart_pid" || true
     fi
+    if [ "$status" -eq 0 ]; then status=$event_status; fi
+    exit "$status"
 }
 
 start_vm() {
     mkdir -p "$state" "$artifacts"
     trap stop_vm EXIT
-    trap 'exit 130' INT TERM
+    trap 'stop_reason=SIGINT; exit 130' INT
+    trap 'stop_reason=SIGTERM; exit 143' TERM
     tart run "$vm" "$@" --no-audio --no-clipboard \
         --dir="repo:$PWD:ro" --dir="xcode:$xcode:ro" --dir="artifacts:$artifacts" &
     tart_pid=$!
+    vm_started=$(date +%s)
+    campaign_event vm-start
+    observe_vm &
+    observer_pid=$!
     ip=$(tart ip "$vm" --wait 180) || fail "$vm did not get an IP address"
     attempt=0
     until /usr/bin/nc -z -G 2 "$ip" 22 2>/dev/null; do
@@ -130,8 +182,13 @@ run_campaign() {
     for argument in "$@"; do
         arguments="$arguments $(quote "$argument")"
     done
-    vm_ssh -t "admin@$ip" "env TYPEFACEOFF_FUZZ_VM=1 $(quote "$shares/repo/scripts/run-fuzz-driver.sh") ~/typefaceoff/UIFuzzDriver.app \
-        run --app ~/typefaceoff/TypefaceOff.app --artifacts $(quote "$shares/artifacts")$arguments"
+    campaign_event guest-connect "$ip"
+    status=0
+    vm_ssh -t "admin@$ip" "env TYPEFACEOFF_FUZZ_VM=1 TYPEFACEOFF_FUZZ_VM_NAME=$(quote "$vm") $(quote "$shares/repo/scripts/run-fuzz-driver.sh") ~/typefaceoff/UIFuzzDriver.app \
+        run --app ~/typefaceoff/TypefaceOff.app --artifacts $(quote "$shares/artifacts")$arguments" || status=$?
+    campaign_event guest-disconnect "status=$status"
+    [ "$status" -eq 0 ] || return "$status"
+    stop_reason=completed
 }
 
 case $mode in

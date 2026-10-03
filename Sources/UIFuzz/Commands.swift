@@ -94,122 +94,140 @@ struct Run: ParsableCommand {
     outputLine("startup self-test passed")
     let stop = StopController()
     stop.install()
-    let durationSeconds = try duration.map(parseDuration)
-    let deadline = durationSeconds.map { ProcessInfo.processInfo.systemUptime + $0 }
-    let campaignSeed = seed ?? UInt64(Date().timeIntervalSince1970.bitPattern)
-    var random = SplitMix64(seed: campaignSeed)
-    let installedFonts = (CTFontManagerCopyAvailableFontFamilyNames() as? [String] ?? []).sorted()
-    let mutator = TraceMutator(
-      maximumActions: maxActions, maximumTextUnits: maxTextUnits,
-      installedFontFamilies: installedFonts)
-    let artifactURL = URL(fileURLWithPath: common.artifacts)
-    let corpusURL = artifactURL.appending(path: "corpus")
-    try FileManager.default.createDirectory(at: corpusURL, withIntermediateDirectories: true)
-    var corpus = try ArtifactLoader.corpus(in: corpusURL).map(mutator.constrained)
-    if corpus.isEmpty {
-      corpus = mutator.initialCorpus(seed: campaignSeed)
-      for (index, trace) in corpus.enumerated() {
-        try TraceIO.save(trace, to: corpusURL.appending(path: "seed-\(index).json"))
-      }
-    }
-    var state = try ArtifactLoader.corpusState(at: artifactURL.appending(path: "campaign.json"))
-    var runnerConfiguration = common.runnerConfiguration
-    runnerConfiguration.quiescenceSeconds = Double(quiescenceMs) / 1000
-    let runner = SequenceRunner(configuration: runnerConfiguration, mutator: mutator)
-    let ledgerURL = artifactURL.appending(path: "skip-ledger.json")
-    let opened = SkipLedger.opening(
-      existing: resetSkipLedger ? SkipLedger() : try SkipLedger.load(from: ledgerURL),
-      appFingerprint: try appFingerprint(runnerConfiguration.binary), reset: resetSkipLedger,
-      policy: SkipPolicy(maximumPerRun: maxSkipsPerRun))
-    if let notice = opened.notice { outputLine(notice) }
-    runner.skipLedger = opened.ledger
-    var slowest = try loadSlowCandidates(artifactURL)
-    var findingArchive = try FindingArchive.open(in: artifactURL)
-    // An availability report that cannot be decoded would otherwise stop the campaign at its
-    // first desktop outage.
-    _ = try ArtifactLoader.existingReport(at: artifactURL.appending(path: "availability.json"))
-    var backoff = CampaignBackoff()
-    var launchFailures = LaunchFailureStreak()
-    var desktopUnavailableReason: String?
-    var pendingTrace: FuzzTrace?
-    outputLine(
-      "seed \(campaignSeed); \(corpus.count) corpus entries; \(installedFonts.count) installed font families; running until interrupted"
-    )
-
-    while !stop.isStopped && deadline.map({ ProcessInfo.processInfo.systemUptime < $0 }) != false {
-      let reason = DesktopSession.current().unavailableReason
-      if reason != desktopUnavailableReason {
-        outputLine(
-          reason.map { "waiting for desktop: \($0)" } ?? "desktop available; resuming campaign")
-        desktopUnavailableReason = reason
-      }
-      if reason != nil {
-        stop.wait(seconds: 0.5, deadline: deadline)
-        continue
-      }
-      let trace =
-        pendingTrace
-        ?? mutator.campaignTrace(
-          execution: state.executions, corpus: corpus, seed: random.next())
-      pendingTrace = trace
-      let ledgerBeforeRun = runner.skipLedger
-      let report = try runner.execute(
-        trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
-      // The trace of an execution cut short by an outage runs again, so its counts are dropped.
-      if report.needsAvailabilityRecovery { runner.skipLedger = ledgerBeforeRun }
-      try runner.skipLedger?.save(to: ledgerURL)
-      if report.needsAvailabilityRecovery {
-        try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
-        try preserveAvailability(report, artifacts: artifactURL)
-        let unavailable = report.findings.first(where: { $0.kind == .unavailable })!
-        if unavailable.signature != DesktopSession.unavailableSignature
-          && DesktopSession.current().unavailableReason == nil
-        {
-          outputLine(
-            "waiting for workbench: \(unavailable.detail) Retrying in \(Int(backoff.failed())) seconds."
-          )
-          stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+    let events = try CampaignMonitor(
+      artifacts: URL(fileURLWithPath: common.artifacts), mode: "campaign")
+    var stopReason = "error"
+    defer { events.finish(reason: stopReason) }
+    do {
+      let durationSeconds = try duration.map(parseDuration)
+      let deadline = durationSeconds.map { ProcessInfo.processInfo.systemUptime + $0 }
+      let campaignSeed = seed ?? UInt64(Date().timeIntervalSince1970.bitPattern)
+      var random = SplitMix64(seed: campaignSeed)
+      let installedFonts = (CTFontManagerCopyAvailableFontFamilyNames() as? [String] ?? []).sorted()
+      let mutator = TraceMutator(
+        maximumActions: maxActions, maximumTextUnits: maxTextUnits,
+        installedFontFamilies: installedFonts)
+      let artifactURL = URL(fileURLWithPath: common.artifacts)
+      let corpusURL = artifactURL.appending(path: "corpus")
+      try FileManager.default.createDirectory(at: corpusURL, withIntermediateDirectories: true)
+      var corpus = try ArtifactLoader.corpus(in: corpusURL).map(mutator.constrained)
+      if corpus.isEmpty {
+        corpus = mutator.initialCorpus(seed: campaignSeed)
+        for (index, trace) in corpus.enumerated() {
+          try TraceIO.save(trace, to: corpusURL.appending(path: "seed-\(index).json"))
         }
-        continue
       }
-      if backoff.delaySeconds > 0 {
-        outputLine("workbench available; resuming campaign")
-      }
-      backoff.recovered()
-      pendingTrace = nil
-      let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
-      if !delta.isInteresting {
-        try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
-      }
-      let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
-      if delta.isInteresting, let admitted = CorpusAdmission.trace(for: report) {
-        corpus.append(admitted)
-        try TraceIO.save(admitted, to: corpusURL.appending(path: "\(identifier).json"))
-      }
-      let findingFiles = try findingArchive.preserve(report, execution: identifier)
-      slowest = try preserveSlowCandidate(
-        report, identifier: identifier, artifacts: artifactURL, current: slowest)
-      try saveState(state, to: artifactURL.appending(path: "campaign.json"))
-      let findingKinds = report.findings.map(\.kind.rawValue).joined(separator: ",")
-      let inputs = Dictionary(grouping: report.trace.actions, by: \.kind.rawValue)
-        .sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.count)" }.joined(separator: ",")
-      let skips = Int(report.metadata["skipped-actions"] ?? "") ?? 0
+      var state = try ArtifactLoader.corpusState(at: artifactURL.appending(path: "campaign.json"))
+      var runnerConfiguration = common.runnerConfiguration
+      runnerConfiguration.quiescenceSeconds = Double(quiescenceMs) / 1000
+      let runner = SequenceRunner(configuration: runnerConfiguration, mutator: mutator)
+      runner.campaign = events
+      let ledgerURL = artifactURL.appending(path: "skip-ledger.json")
+      let opened = SkipLedger.opening(
+        existing: resetSkipLedger ? SkipLedger() : try SkipLedger.load(from: ledgerURL),
+        appFingerprint: try appFingerprint(runnerConfiguration.binary), reset: resetSkipLedger,
+        policy: SkipPolicy(maximumPerRun: maxSkipsPerRun))
+      if let notice = opened.notice { outputLine(notice) }
+      runner.skipLedger = opened.ledger
+      var slowest = try loadSlowCandidates(artifactURL)
+      var findingArchive = try FindingArchive.open(in: artifactURL)
+      // An availability report that cannot be decoded would otherwise stop the campaign at its
+      // first desktop outage.
+      _ = try ArtifactLoader.existingReport(at: artifactURL.appending(path: "availability.json"))
+      var backoff = CampaignBackoff()
+      var launchFailures = LaunchFailureStreak()
+      var desktopUnavailableReason: String?
+      var pendingTrace: FuzzTrace?
       outputLine(
-        "#\(state.executions) mode=\(trace.origin) actions=\(report.actionMilliseconds.count)/\(report.trace.actions.count)\(ResolutionMetadata.progressSuffix(skips: skips)) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
-          + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
-          + " inputs=\(inputs)"
-          + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
-      try launchFailures.record(
-        report,
-        findingFile: findingFiles[
-          FindingIdentity(
-            kind: .crash, signature: ProcessLiveness.launchTerminationSignature)
-        ]?.path ?? "")
-    }
-    outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")
-    if let lines = runner.skipLedger?.summary(), !lines.isEmpty {
-      outputLine("controls that failed to resolve most often:")
-      for line in lines { outputLine("  \(line)") }
+        "seed \(campaignSeed); \(corpus.count) corpus entries; \(installedFonts.count) installed font families; running until interrupted"
+      )
+
+      while !stop.isStopped && deadline.map({ ProcessInfo.processInfo.systemUptime < $0 }) != false
+      {
+        try events.checkFailure()
+        let reason = DesktopSession.current().unavailableReason
+        if reason != desktopUnavailableReason {
+          outputLine(
+            reason.map { "waiting for desktop: \($0)" } ?? "desktop available; resuming campaign")
+          desktopUnavailableReason = reason
+        }
+        if reason != nil {
+          stop.wait(seconds: 0.5, deadline: deadline)
+          continue
+        }
+        let trace =
+          pendingTrace
+          ?? mutator.campaignTrace(
+            execution: state.executions, corpus: corpus, seed: random.next())
+        pendingTrace = trace
+        let ledgerBeforeRun = runner.skipLedger
+        let report = try runner.execute(
+          trace, explorationActions: trace.origin == "exploration" ? min(maxActions, 32) : 0)
+        // The trace of an execution cut short by an outage runs again, so its counts are dropped.
+        if report.needsAvailabilityRecovery { runner.skipLedger = ledgerBeforeRun }
+        try runner.skipLedger?.save(to: ledgerURL)
+        if report.needsAvailabilityRecovery {
+          try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
+          try preserveAvailability(report, artifacts: artifactURL)
+          let unavailable = report.findings.first(where: { $0.kind == .unavailable })!
+          try events.record(
+            "availability-retry", execution: report.metadata["run"],
+            details: [
+              "reason": unavailable.detail, "signature": unavailable.signature,
+            ])
+          if unavailable.signature != DesktopSession.unavailableSignature
+            && DesktopSession.current().unavailableReason == nil
+          {
+            outputLine(
+              "waiting for workbench: \(unavailable.detail) Retrying in \(Int(backoff.failed())) seconds."
+            )
+            stop.wait(seconds: backoff.delaySeconds, deadline: deadline)
+          }
+          continue
+        }
+        if backoff.delaySeconds > 0 {
+          outputLine("workbench available; resuming campaign")
+        }
+        backoff.recovered()
+        pendingTrace = nil
+        let delta = state.consider(regions: report.coverage, countBuckets: report.countBuckets)
+        if !delta.isInteresting {
+          try ArtifactRetention.discardCoverageArtifacts(for: report, in: artifactURL)
+        }
+        let identifier = String(format: "%08d-%016llx", state.executions, trace.seed)
+        if delta.isInteresting, let admitted = CorpusAdmission.trace(for: report) {
+          corpus.append(admitted)
+          try TraceIO.save(admitted, to: corpusURL.appending(path: "\(identifier).json"))
+        }
+        let findingFiles = try findingArchive.preserve(report, execution: identifier)
+        slowest = try preserveSlowCandidate(
+          report, identifier: identifier, artifacts: artifactURL, current: slowest)
+        try saveState(state, to: artifactURL.appending(path: "campaign.json"))
+        let findingKinds = report.findings.map(\.kind.rawValue).joined(separator: ",")
+        let inputs = Dictionary(grouping: report.trace.actions, by: \.kind.rawValue)
+          .sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.count)" }.joined(separator: ",")
+        let skips = Int(report.metadata["skipped-actions"] ?? "") ?? 0
+        outputLine(
+          "#\(state.executions) mode=\(trace.origin) actions=\(report.actionMilliseconds.count)/\(report.trace.actions.count)\(ResolutionMetadata.progressSuffix(skips: skips)) measured-ms=\(Int(report.measuredMilliseconds)) total-ms=\(Int(report.durationMilliseconds)) "
+            + "new=\(delta.regions.count)/\(delta.countBuckets.count)"
+            + " inputs=\(inputs)"
+            + (findingKinds.isEmpty ? "" : " findings=\(findingKinds)"))
+        try launchFailures.record(
+          report,
+          findingFile: findingFiles[
+            FindingIdentity(
+              kind: .crash, signature: ProcessLiveness.launchTerminationSignature)
+          ]?.path ?? "")
+      }
+      stopReason = stop.reason ?? "duration"
+      outputLine("stopped after \(state.executions) executions; corpus has \(corpus.count) entries")
+      if let lines = runner.skipLedger?.summary(), !lines.isEmpty {
+        outputLine("controls that failed to resolve most often:")
+        for line in lines { outputLine("  \(line)") }
+      }
+    } catch {
+      stopReason = "error: \(error)"
+      throw error
     }
   }
 }
@@ -218,11 +236,15 @@ struct Replay: ParsableCommand {
   @OptionGroup var common: CommonOptions
   @Option(name: .customLong("case"), help: "Trace or execution report to replay.")
   var casePath: String
+  @Flag(help: "Wait for quiescence after every action to measure interaction latency.")
+  var waitForQuiescence = false
 
   mutating func run() throws {
     AXDriver.waitForPermissions()
-    let trace = try loadTraceOrReport(URL(fileURLWithPath: casePath)).trace
-    let report = try SequenceRunner(configuration: common.runnerConfiguration).execute(trace)
+    let trace = try TraceIO.loadTraceOrReport(URL(fileURLWithPath: casePath)).trace
+    var configuration = common.runnerConfiguration
+    configuration.waitBetweenActions = waitForQuiescence
+    let report = try SequenceRunner(configuration: configuration).execute(trace)
     let output = URL(fileURLWithPath: common.artifacts).appending(path: "replay.json")
     try TraceIO.save(report, to: output)
     printReport(report, output: output)
@@ -236,7 +258,7 @@ struct Minimize: ParsableCommand {
 
   mutating func run() throws {
     AXDriver.waitForPermissions()
-    let original = try loadTraceOrReport(URL(fileURLWithPath: casePath))
+    let original = try TraceIO.loadTraceOrReport(URL(fileURLWithPath: casePath))
     let runner = SequenceRunner(configuration: common.runnerConfiguration)
     guard let target = original.report?.findings.first(where: { !$0.isSideFileFailure }) else {
       throw ValidationError(
@@ -271,19 +293,28 @@ struct Minimize: ParsableCommand {
 
 struct Benchmark: ParsableCommand {
   @OptionGroup var common: CommonOptions
-  @Option(help: "Directory containing trace JSON files.")
-  var corpus: String
+  @Option(help: "Directory containing trace or execution-report JSON files.")
+  var corpus: String?
+  @Option(name: .customLong("case"), help: "One outlier trace or execution report to benchmark.")
+  var casePath: String?
   @Option(help: "Repetitions per trace.")
   var repetitions = 5
 
   mutating func run() throws {
     guard repetitions > 0 else { throw ValidationError("--repetitions must be positive.") }
-    AXDriver.waitForPermissions()
+    guard (corpus == nil) != (casePath == nil) else {
+      throw ValidationError("Specify exactly one of --corpus or --case.")
+    }
     var configuration = common.runnerConfiguration
     configuration.collectCoverage = false
+    configuration.waitBetweenActions = true
     let runner = SequenceRunner(configuration: configuration)
-    let traces = try ArtifactLoader.corpus(in: URL(fileURLWithPath: corpus))
-    guard !traces.isEmpty else { throw ValidationError("No traces in \(corpus).") }
+    let files =
+      try casePath.map { [URL(fileURLWithPath: $0)] }
+      ?? ArtifactLoader.jsonFiles(in: URL(fileURLWithPath: corpus!))
+    let traces = try files.map { try TraceIO.loadTraceOrReport($0).trace }
+    guard !traces.isEmpty else { throw ValidationError("No traces in the benchmark input.") }
+    AXDriver.waitForPermissions()
     var results: [[String: Any]] = []
     var failedSamples = 0
     for trace in traces {
@@ -305,6 +336,14 @@ struct Benchmark: ParsableCommand {
         "minimumMilliseconds": values.min().map { $0 as Any } ?? NSNull(),
         "maximumMilliseconds": values.max().map { $0 as Any } ?? NSNull(),
         "samplesMilliseconds": values, "actionMedianMilliseconds": actionMedians,
+        "actionLatencyMedianMilliseconds": trace.actions.indices.map { index in
+          Statistics.median(
+            successful.compactMap { report in
+              report.actionTimings?.first { $0.index == index }?.latencyMilliseconds
+            }
+          ).map { $0 as Any } ?? NSNull()
+        },
+        "latencyMode": "quiescent",
         "successfulRepetitions": successful.count, "failedRepetitions": failed.count,
         "failures": failed.map { report in
           [
@@ -342,6 +381,8 @@ struct Benchmark: ParsableCommand {
 private final class StopController: @unchecked Sendable {
   private let lock = NSLock()
   private var stopped = false
+  private var signalReason: String?
+  var reason: String? { lock.withLock { signalReason } }
   private var sources: [DispatchSourceSignal] = []
 
   var isStopped: Bool { lock.withLock { stopped } }
@@ -357,7 +398,12 @@ private final class StopController: @unchecked Sendable {
     for signalNumber in [SIGINT, SIGTERM] {
       signal(signalNumber, SIG_IGN)
       let source = DispatchSource.makeSignalSource(signal: signalNumber)
-      source.setEventHandler { [weak self] in self?.lock.withLock { self?.stopped = true } }
+      source.setEventHandler { [weak self] in
+        self?.lock.withLock {
+          self?.stopped = true
+          self?.signalReason = signalNumber == SIGINT ? "SIGINT" : "SIGTERM"
+        }
+      }
       source.resume()
       sources.append(source)
     }
@@ -452,15 +498,6 @@ private func preserveSlowCandidate(
 private func loadSlowCandidates(_ artifacts: URL) throws -> [(Double, URL)] {
   try ArtifactLoader.slowCandidates(
     in: artifacts.appending(path: "findings/slow"), keeping: slowCandidateLimit)
-}
-
-private func loadTraceOrReport(_ url: URL) throws -> (trace: FuzzTrace, report: ExecutionReport?) {
-  let data = try Data(contentsOf: url)
-  if let trace = try? JSONDecoder().decode(FuzzTrace.self, from: data) { return (trace, nil) }
-  let decoder = JSONDecoder()
-  decoder.dateDecodingStrategy = .iso8601
-  let report = try decoder.decode(ExecutionReport.self, from: data)
-  return (report.trace, report)
 }
 
 private func printReport(_ report: ExecutionReport, output: URL) {

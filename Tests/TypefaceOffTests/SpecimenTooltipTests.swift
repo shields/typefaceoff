@@ -42,6 +42,15 @@ import TypefaceCore
     let layout = try #require(view.layoutManager)
     let line = FontRenderer.line("fi", config: config, size: config.size)
     #expect(CTLineGetGlyphCount(line) == 1)
+    let regions = view.trackingAreas.filter { !$0.options.contains(.inVisibleRect) }
+      .map { NSStringFromRect($0.rect) }
+    #expect(regions.count == Set(regions).count)
+    let originalAreas = view.trackingAreas
+    view.refreshToolTips()
+    #expect(view.trackingAreas.elementsEqual(originalAreas, by: { $0 === $1 }))
+    view.removeAllToolTips()
+    view.refreshToolTips()
+    #expect(view.trackingAreas.count == originalAreas.count)
     let ink = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
     let baseline = layout.location(forGlyphAt: 0)
     for (index, span) in view.spans.prefix(2).enumerated() {
@@ -231,5 +240,26 @@ import TypefaceCore
     #expect(view.textStorage == nil)
     view.refreshToolTips()
     #expect(view.spans.count == 1)
+  }
+
+  @Test func reusedTooltipRegionsDescribeTheCurrentScalarSequence() throws {
+    let view = SpecimenNSTextView(frame: NSRect(x: 0, y: 0, width: 500, height: 300))
+    let layout = try #require(view.layoutManager)
+    let container = try #require(view.textContainer)
+    var originalRects: [NSRect]?
+    for text in ["\u{00E9}", "e\u{0301}"] {
+      let content = SpecimenText.makeContent(config: .init("HelveticaNeue"), text: text)
+      view.textStorage?.setAttributedString(content.text)
+      view.spans = content.spans
+      layout.ensureLayout(for: container)
+      view.refreshToolTips()
+      let rects = view.trackingAreas.map(\.rect)
+      if let originalRects {
+        #expect(rects == originalRects)
+      } else {
+        originalRects = rects
+      }
+      try expectTrackedTooltip(for: #require(view.spans.first), in: view)
+    }
   }
 }

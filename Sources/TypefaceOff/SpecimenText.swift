@@ -360,6 +360,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
   private var coloredRange = NSRange(location: 0, length: 0)
   private var leadingFont: NSFont?
   private var leadingHits: [(rect: NSRect, lineY: CGFloat, glyph: Int)] = []
+  private var toolTipRects: [NSRect]?
 
   func configureLeading(_ config: FontConfiguration) {
     leadingFont = config.leading.map { _ in FontRenderer.font(config) as NSFont }
@@ -484,10 +485,24 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
     }
   }
 
+  override func removeAllToolTips() {
+    toolTipRects = nil
+    super.removeAllToolTips()
+  }
+
   private func rebuildToolTips() {
-    removeAllToolTips()
+    var rects: [NSRect] = []
+    defer {
+      if toolTipRects != rects {
+        removeAllToolTips()
+        for rect in rects { addToolTip(rect, owner: self, userData: nil) }
+        toolTipRects = rects
+      }
+    }
     leadingHits.removeAll(keepingCapacity: true)
     guard let layoutManager, let textContainer, let textStorage else { return }
+    var inkBounds: [NSFont: [CGGlyph: NSRect]] = [:]
+    var trackedGlyphs = Set<Int>()
     for span in spans(intersecting: visibleCharacterRange()) {
       // TextKit can tile while a text replacement is still updating the span list.
       guard NSMaxRange(span.range) <= textStorage.length else { continue }
@@ -496,10 +511,18 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
       layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { lineRect, _, _, lineRange, _ in
         let intersection = NSIntersectionRange(glyphs, lineRange)
         if self.leadingFont != nil {
-          for glyph in intersection.location..<NSMaxRange(intersection) {
+          for glyph in intersection.location..<NSMaxRange(intersection)
+          where trackedGlyphs.insert(glyph).inserted {
             let character = layoutManager.characterIndexForGlyph(at: glyph)
             let font = textStorage.attribute(.font, at: character, effectiveRange: nil) as! NSFont
-            let ink = font.boundingRect(forCGGlyph: layoutManager.cgGlyph(at: glyph))
+            let cgGlyph = layoutManager.cgGlyph(at: glyph)
+            let ink: NSRect
+            if let cached = inkBounds[font]?[cgGlyph] {
+              ink = cached
+            } else {
+              ink = font.boundingRect(forCGGlyph: cgGlyph)
+              inkBounds[font, default: [:]][cgGlyph] = ink
+            }
             let position = layoutManager.location(forGlyphAt: glyph)
             let rect = NSRect(
               x: lineRect.minX + position.x + ink.minX + self.textContainerOrigin.x,
@@ -508,7 +531,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
             ).intersection(self.visibleRect)
             if !rect.isEmpty {
               self.leadingHits.append((rect, lineRect.midY, glyph))
-              self.addToolTip(rect, owner: self, userData: nil)
+              rects.append(rect)
             }
           }
           return
@@ -518,7 +541,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
         )
         .offsetBy(dx: self.textContainerOrigin.x, dy: self.textContainerOrigin.y)
         .intersection(self.visibleRect)
-        if !rect.isEmpty { self.addToolTip(rect, owner: self, userData: nil) }
+        if !rect.isEmpty { rects.append(rect) }
       }
     }
   }

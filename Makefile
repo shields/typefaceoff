@@ -24,9 +24,13 @@ STARTUP_APP = .build/startup/Build/Products/StartupBenchmark/TypefaceOff.app
 STARTUP_RUNS ?= 7
 STARTUP_OUTPUT ?= $(CURDIR)/.build/startup-benchmark.json
 STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
+HIGHLIGHT_APP ?= $(FUZZ_BENCHMARK_APP)
+HIGHLIGHT_RUNS ?= 7
+HIGHLIGHT_OUTPUT ?= $(CURDIR)/.build/highlight-benchmark
 
 .PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
+.PHONY: benchmark-highlights
 
 project:
 	xcodegen generate --spec project.yml
@@ -158,6 +162,12 @@ fuzz-minimize: fuzz-build
 
 fuzz-benchmark: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(CURDIR)/$(FUZZ_BENCHMARK_APP)" --corpus "$(abspath $(or $(CORPUS),$(FUZZ_ARTIFACTS)/corpus))" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
+
+benchmark-highlights: fuzz-build
+	rm -f "$(HIGHLIGHT_OUTPUT)/benchmark.json"
+	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" benchmark --app "$(abspath $(HIGHLIGHT_APP))" --corpus "$(CURDIR)/scripts/benchmarks/highlights" --artifacts "$(abspath $(HIGHLIGHT_OUTPUT))" --repetitions "$(HIGHLIGHT_RUNS)"
+	jq -e --argjson runs "$(HIGHLIGHT_RUNS)" 'length == 1 and all(.failedRepetitions == 0 and .successfulRepetitions == $$runs)' "$(HIGHLIGHT_OUTPUT)/benchmark.json" > /dev/null
+	jq -r --slurpfile trace scripts/benchmarks/highlights/100k.json '.[0].actionMedianMilliseconds | to_entries[] | "\(.key): \($$trace[0].actions[.key].target // $$trace[0].actions[.key].kind)\t\(.value) ms"' "$(HIGHLIGHT_OUTPUT)/benchmark.json"
 
 benchmark:
 	TYPEFACEOFF_BENCHMARK_DIR="$(CURDIR)/.build/similarity-benchmark" swift test $(SWIFT_FLAGS) -c release --filter SimilarityBenchmark

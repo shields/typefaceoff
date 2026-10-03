@@ -159,6 +159,18 @@ use, the driver stays open while you enable
 and continues automatically. Its stable bundle identity keeps the permission
 valid across rebuilds.
 
+`make benchmark-highlights` replays the checked-in 100,000 UTF-16-unit specimen
+that exposed a slow Shape toggle, then toggles Shape, Spacing, and Frequency. It
+runs seven fresh processes in the optimized build without coverage, prints the
+median latency of each action, and writes
+`.build/highlight-benchmark/benchmark.json`. Action timings include control
+resolution and accessibility dispatch, excluding the trace's fixed pacing
+delays. Set `HIGHLIGHT_RUNS=…` or `HIGHLIGHT_OUTPUT=…` to change repetitions or
+retain a separate result. Set `HIGHLIGHT_APP=…` to test another revision's
+FuzzBenchmark app with the same driver and input. The
+[highlight benchmark notes](docs/highlight-benchmark.md) record the baseline and
+viewport-scoped implementation results.
+
 Before entering the campaign loop, the driver runs a self-test against fresh app
 instances. It requires Command-2 to enter glyph mode, a real click on
 `Glyph canvas` to return to text mode, and an editor submission to update the

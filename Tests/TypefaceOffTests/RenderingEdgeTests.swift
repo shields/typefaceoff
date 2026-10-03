@@ -19,12 +19,18 @@ import TypefaceCore
     let original = NSAttributedString(attributedString: storage)
     let edits = StorageEditCounter()
     storage.delegate = edits
-    let a = try #require(specimen.spans.first { $0.glyph == "a" })
     let missing = try #require(specimen.spans.first { $0.glyph == "🦄" })
     #expect(!missing.supported)
-    specimen.setSelectedRange(a.range)
     scroll.contentView.scroll(to: NSPoint(x: 0, y: 100))
     scroll.reflectScrolledClipView(scroll.contentView)
+    let container = try #require(specimen.textContainer)
+    let visible = layout.characterRange(
+      forGlyphRange: layout.glyphRange(
+        forBoundingRect: specimen.visibleRect.offsetBy(
+          dx: -specimen.textContainerOrigin.x, dy: -specimen.textContainerOrigin.y),
+        in: container), actualGlyphRange: nil)
+    let a = try #require(specimen.spans(intersecting: visible).first { $0.glyph == "a" })
+    specimen.setSelectedRange(a.range)
     let origin = scroll.contentView.bounds.origin
 
     for side: Side in [.a, .b] {

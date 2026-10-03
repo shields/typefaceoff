@@ -60,6 +60,9 @@ import Testing
         comparison: edited { $0.set(.tracking, to: 0.05, side: .a, catalog: catalog) },
         sameInput: false, sameScores: false),
       Variant(
+        name: "leading",
+        comparison: edited { $0.setLeading(35, side: .b) }, sameInput: true, sameScores: true),
+      Variant(
         name: "feature",
         comparison: edited { $0.a.features["ot.liga"] = 0 }, sameInput: false, sameScores: true),
       Variant(

@@ -8,6 +8,7 @@ public enum AppearanceProperty: Hashable, Sendable {
 }
 
 public struct FontConfiguration: Hashable, Sendable {
+  public static let leadingRange = 1.0...288.0
   static let featurePartners = [
     "ot.tnum": "ot.pnum", "ot.pnum": "ot.tnum", "ot.lnum": "ot.onum", "ot.onum": "ot.lnum",
     "ot.sups": "ot.subs", "ot.subs": "ot.sups",
@@ -15,6 +16,7 @@ public struct FontConfiguration: Hashable, Sendable {
   public var postScriptName: String
   public var size: Double = 22
   public var tracking: Double = 0
+  public var leading: Double?
   public var axes: [UInt32: Double] = [:]
   public var features: [String: Int] = [:]
 
@@ -62,7 +64,7 @@ public struct FontConfiguration: Hashable, Sendable {
 
 extension FontConfiguration: Codable {
   private enum CodingKeys: String, CodingKey {
-    case postScriptName, size, tracking, axes, features
+    case postScriptName, size, tracking, leading, axes, features
   }
 
   // Dictionary's synthesized Codable support only uses a keyed container for
@@ -75,6 +77,7 @@ extension FontConfiguration: Codable {
     postScriptName = try container.decode(String.self, forKey: .postScriptName)
     size = try container.decode(Double.self, forKey: .size)
     tracking = try container.decode(Double.self, forKey: .tracking)
+    leading = try container.decodeIfPresent(Double.self, forKey: .leading)
     let taggedAxes = try container.decode([String: Double].self, forKey: .axes)
     guard taggedAxes.keys.allSatisfy({ $0.utf8.count == 4 }) else {
       throw DecodingError.dataCorruptedError(
@@ -89,6 +92,7 @@ extension FontConfiguration: Codable {
     try container.encode(postScriptName, forKey: .postScriptName)
     try container.encode(size, forKey: .size)
     try container.encode(tracking, forKey: .tracking)
+    try container.encodeIfPresent(leading, forKey: .leading)
     let taggedAxes = Dictionary(uniqueKeysWithValues: axes.map { (fontTag($0.key), $0.value) })
     try container.encode(taggedAxes, forKey: .axes)
     try container.encode(features, forKey: .features)
@@ -99,12 +103,14 @@ public struct AppearanceLink: Equatable, Sendable {
   public var sizeRatio: Double
   public var weightOffset: Double
   public var trackingOffset: Double
+  public var leadingOffset: Double
   public var axisOffsets: [UInt32: Double]
 
   public init(a: FontConfiguration, b: FontConfiguration) {
     sizeRatio = b.size / a.size
     weightOffset = b.weight - a.weight
     trackingOffset = b.tracking - a.tracking
+    leadingOffset = if let a = a.leading, let b = b.leading { b - a } else { 0 }
     axisOffsets = a.axes.reduce(into: [:]) { values, axis in
       if let other = b.axes[axis.key] { values[axis.key] = other - axis.value }
     }
@@ -195,6 +201,18 @@ public struct Comparison: Equatable, Sendable {
     }
   }
 
+  public mutating func setLeading(_ value: Double?, side: Side) {
+    guard self[side] != nil, value?.isFinite != false else { return }
+    let leading = value.map { $0.clamped(to: FontConfiguration.leadingRange) }
+    self[side]?.leading = leading
+    guard appearanceLocked, let link else { return }
+    let sign = side == .a ? 1.0 : -1.0
+    self[side == .a ? .b : .a]?.leading = leading.map {
+      ($0 + sign * link.leadingOffset).clamped(to: FontConfiguration.leadingRange)
+    }
+    if leading == nil { self.link?.leadingOffset = 0 }
+  }
+
   public mutating func selectFamily(_ family: String?, side: Side, catalog: FontCatalog) {
     guard let family else {
       if side == .b {
@@ -238,6 +256,7 @@ public struct Comparison: Equatable, Sendable {
       next.size = 22
       next.matchOpticalSize(axes)
       next.tracking = 0
+      next.leading = nil
       self[target] = next
     }
     calibrate()

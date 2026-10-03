@@ -175,6 +175,65 @@ import TypefaceCore
     #expect(model.comparison.b?.postScriptName == "Arial-BoldMT")
   }
 
+  @Test func leadingControlsSupportAutoLinkingAndUndo() async throws {
+    let model = WorkbenchModel()
+    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: 900)
+    defer { host.window.close() }
+    try await host.settle()
+    let field = try #require(
+      host.subviews.compactMap { $0 as? NSTextField }.first {
+        $0.placeholderString == "Leading"
+      })
+    let automatic = SpecimenText.automaticLeading(model.comparison.a)
+    #expect(field.stringValue == automatic.formatted(.number.precision(.fractionLength(0...3))))
+    #expect(!field.isEnabled)
+    try await host.press("Font A Auto leading")
+    try await host.settle { model.comparison.a.leading == automatic && field.isEnabled }
+    #expect(model.comparison.b?.leading == automatic)
+    host.window.undoManager?.undo()
+    #expect(model.comparison.a.leading == nil && model.comparison.b?.leading == nil)
+    host.window.undoManager?.redo()
+    #expect(model.comparison.a.leading == automatic && model.comparison.b?.leading == automatic)
+    try await host.settle()
+    try await host.submit("32", to: field)
+    try await host.settle { model.comparison.a.leading == 32 && model.comparison.b?.leading == 32 }
+    host.window.makeFirstResponder(nil)
+    host.window.undoManager?.undo()
+    #expect(model.comparison.a.leading == automatic && model.comparison.b?.leading == automatic)
+    host.window.undoManager?.redo()
+    #expect(model.comparison.a.leading == 32 && model.comparison.b?.leading == 32)
+    try await host.settle()
+    try await host.press("Font A Auto leading")
+    try await host.settle {
+      model.comparison.a.leading == nil && model.comparison.b?.leading == nil && !field.isEnabled
+    }
+    let sizeField = try #require(
+      host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Size" })
+    try await host.submit("40", to: sizeField)
+    let resized = SpecimenText.automaticLeading(model.comparison.a)
+    #expect(resized > automatic)
+    #expect(field.stringValue == resized.formatted(.number.precision(.fractionLength(0...3))))
+    try await host.press("Font A Auto leading")
+    try await host.settle { model.comparison.a.leading == resized }
+    try await host.incrementSlider("Font A Leading", title: "Leading")
+    try await host.settle { model.comparison.a.leading != resized }
+    #expect(model.comparison.a.leading == model.comparison.b?.leading)
+    try await host.press("Unlock appearance")
+    try await host.settle { !model.comparison.appearanceLocked }
+    let b = model.comparison.b
+    try await host.press("Reset leading")
+    try await host.settle { model.comparison.a.leading == nil }
+    #expect(model.comparison.b == b)
+    #expect(!field.isEnabled)
+    try await host.press("Font A Auto leading")
+    try await host.settle { field.isEnabled }
+    try await host.submit("38", to: field)
+    try await host.settle { model.comparison.a.leading == 38 }
+    try await host.press("Reset appearance")
+    try await host.settle { model.comparison.a.leading == nil }
+    #expect(model.comparison.b == b)
+  }
+
   @Test func customTextCanBeCancelledAppliedAndUndone() async throws {
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(WorkbenchView(model: model))

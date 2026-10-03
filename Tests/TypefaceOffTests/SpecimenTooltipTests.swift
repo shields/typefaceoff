@@ -6,6 +6,103 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct SpecimenTooltipTests {
+  @Test(arguments: [1.0, 12, 200])
+  func explicitLeadingTracksAndSelectsVisibleInk(leading: Double) async throws {
+    var config = FontConfiguration("HelveticaNeue")
+    config.leading = leading
+    var selected = ""
+    let host = WorkbenchTestHost(
+      SpecimenText(config: config, text: "a\n.", select: { selected = $0 }),
+      width: 400, height: 300)
+    defer { host.window.close() }
+    try await host.settle()
+    let view = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    for span in view.spans {
+      let point = try inkCenter(of: span, in: view)
+      expectTrackedInkTooltip(for: span, at: point, in: view)
+      let event = try #require(
+        NSEvent.mouseEvent(
+          with: .leftMouseDown, location: view.convert(point, to: nil), modifierFlags: [],
+          timestamp: 0, windowNumber: host.window.windowNumber, context: nil, eventNumber: 0,
+          clickCount: 1, pressure: 1))
+      view.mouseDown(with: event)
+      #expect(selected == span.glyph)
+    }
+    #expect(view.view(view, stringForToolTip: 0, point: .zero, userData: nil).isEmpty)
+  }
+
+  @Test func tightLeadingKeepsLigatureCharactersIndividuallyAddressable() async throws {
+    var config = FontConfiguration("HelveticaNeue")
+    config.size = 44
+    config.leading = 12
+    let host = WorkbenchTestHost(SpecimenText(config: config, text: "fi\n."))
+    defer { host.window.close() }
+    try await host.settle()
+    let view = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    let layout = try #require(view.layoutManager)
+    let line = FontRenderer.line("fi", config: config, size: config.size)
+    #expect(CTLineGetGlyphCount(line) == 1)
+    let ink = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+    let baseline = layout.location(forGlyphAt: 0)
+    for (index, span) in view.spans.prefix(2).enumerated() {
+      let start = CTLineGetOffsetForStringIndex(line, index, nil)
+      let end = CTLineGetOffsetForStringIndex(line, index + 1, nil)
+      let point = NSPoint(
+        x: view.textContainerOrigin.x + baseline.x + (start + end) / 2,
+        y: view.textContainerOrigin.y + baseline.y - ink.midY)
+      expectTrackedInkTooltip(for: span, at: point, in: view)
+    }
+  }
+
+  @Test func tightLeadingTracksVisibleOverflowAfterScrollingAndReplacement() async throws {
+    var config = FontConfiguration("HelveticaNeue")
+    config.leading = 12
+    let host = WorkbenchTestHost(
+      SpecimenText(config: config, text: String(repeating: "a\n.\n", count: 80)),
+      width: 400, height: 200)
+    defer { host.window.close() }
+    try await host.settle()
+    let view = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    let last = try #require(view.spans.last)
+    view.scrollRangeToVisible(last.range)
+    try await host.settle()
+    #expect(view.visibleRect.minY > 0)
+    try expectTrackedInkTooltip(for: last, at: inkCenter(of: last, in: view), in: view)
+    host.setContent(SpecimenText(config: config, text: "a\n🦄"))
+    try await host.settle()
+    for span in view.spans {
+      try expectTrackedInkTooltip(for: span, at: inkCenter(of: span, in: view), in: view)
+    }
+  }
+
+  private func inkCenter(of span: SpecimenText.GlyphSpan, in view: SpecimenNSTextView) throws
+    -> NSPoint
+  {
+    let storage = try #require(view.textStorage)
+    let layout = try #require(view.layoutManager)
+    let line = CTLineCreateWithAttributedString(storage.attributedSubstring(from: span.range))
+    let ink = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+    let glyph = layout.glyphIndexForCharacter(at: span.range.location)
+    let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+    let baseline = layout.location(forGlyphAt: glyph)
+    return NSPoint(
+      x: view.textContainerOrigin.x + fragment.minX + baseline.x + ink.midX,
+      y: view.textContainerOrigin.y + fragment.minY + baseline.y - ink.midY)
+  }
+
+  private func expectTrackedInkTooltip(
+    for span: SpecimenText.GlyphSpan, at point: NSPoint, in view: SpecimenNSTextView
+  ) {
+    #expect(view.visibleRect.contains(point))
+    #expect(
+      view.trackingAreas.contains {
+        !$0.options.contains(.inVisibleRect) && $0.rect.contains(point)
+      })
+    #expect(
+      view.view(view, stringForToolTip: 0, point: point, userData: nil)
+        == (span.supported ? "" : "Unavailable: ") + unicodeDescription(span.glyph))
+  }
+
   @Test func windowRefreshesTooltipsAfterScrollingResizingAndReplacingText() async throws {
     let sample = Sample.reading
     var config = FontConfiguration("HelveticaNeue")

@@ -12,6 +12,7 @@ import Testing
     var state = Comparison(a: .init("HelveticaNeue-BoldItalic"), b: .init("Arial-BoldItalicMT"))
     state.appearanceLocked = locked
     state.a.size = 44
+    state.a.leading = 48
     state.b?.tracking = 0.05
     state.a.features = ["ot.kern": 0]
     state.b?.features = ["ot.liga": 0]
@@ -24,6 +25,7 @@ import Testing
         #expect(state[target]?.weight == 400)
         #expect(state[target]?.size == 22)
         #expect(state[target]?.tracking == 0)
+        #expect(state[target]?.leading == nil)
         #expect(state[target]?.features == previous[target]?.features)
       } else {
         #expect(state[target] == previous[target])
@@ -50,11 +52,12 @@ import Testing
       state.a.axes != Dictionary(uniqueKeysWithValues: skia.axes.map { ($0.id, $0.defaultValue) }))
     state.a = .init("TypefaceOff-Does-Not-Exist")
     state.a.size = 44
+    state.a.leading = 48
     state.a.tracking = 0.02
     state.resetAppearance(side: .a, catalog: catalog)
     #expect(state.a.postScriptName == "TypefaceOff-Does-Not-Exist")
     #expect(!FontRenderer.isAvailable(state.a))
-    #expect(state.a.size == 22 && state.a.tracking == 0)
+    #expect(state.a.size == 22 && state.a.tracking == 0 && state.a.leading == nil)
   }
 
   @Test func linkedStyleSelectionPreservesEquallyWeightedFaces() {
@@ -144,6 +147,7 @@ import Testing
   @Test func singleFontRestoresCompleteConfiguration() {
     var state = Comparison()
     state.b?.size = 31
+    state.b?.leading = 40
     state.b?.features = ["ot.liga": 0]
     let saved = state.b
     state.selectFamily(nil, side: .b, catalog: catalog)

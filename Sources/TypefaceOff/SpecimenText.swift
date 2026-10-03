@@ -25,13 +25,14 @@ struct SpecimenText: NSViewRepresentable {
     scroll.drawsBackground = true
     scroll.backgroundColor = .white
     let storage = NSTextStorage()
-    let layout = NSLayoutManager()
+    let layout = SpecimenLayoutManager()
     // Partial layout can move the scroll origin as earlier lines are measured.
     layout.allowsNonContiguousLayout = false
     let container = NSTextContainer()
     storage.addLayoutManager(layout)
     layout.addTextContainer(container)
     let view = SpecimenNSTextView(frame: .zero, textContainer: container)
+    layout.delegate = view
     view.isEditable = false
     view.isSelectable = true
     view.isRichText = true
@@ -64,7 +65,7 @@ struct SpecimenText: NSViewRepresentable {
     let coordinator = context.coordinator
     let key = RenderKey(config: config, text: text, sample: sample)
     let contentChanged = coordinator.key != key
-    let trackingOnly = coordinator.key.map { key.changesOnlyTracking(from: $0) } == true
+    let spacingOnly = coordinator.key.map { key.changesOnlySpacing(from: $0) } == true
     guard contentChanged || view.highlights != highlights || coordinator.side != side else {
       return
     }
@@ -75,14 +76,16 @@ struct SpecimenText: NSViewRepresentable {
     view.highlightColor = side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue
     coordinator.position.preserveDuringUpdate {
       if contentChanged {
+        view.configureLeading(config)
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-start")
         #endif
         FuzzDiagnostics.shared.measure(
           "specimen-shaping", text: text, generation: view.renderGeneration
         ) {
-          if trackingOnly, let storage = view.textStorage {
+          if spacingOnly, let storage = view.textStorage {
             Self.updateTracking(config: config, storage: storage, range: view.bodyRange)
+            Self.updateLeading(config: config, storage: storage, range: view.bodyRange)
           } else {
             let content = Self.makeContent(config: config, text: text, sample: sample)
             view.textStorage?.setAttributedString(content.text)
@@ -218,6 +221,7 @@ struct SpecimenText: NSViewRepresentable {
       }
       flushRun()
       bodyRange.length = content.length - bodyRange.location
+      updateLeading(config: config, storage: content, range: bodyRange)
     }
     return SampleContent(text: content, spans: spans, bodyRange: bodyRange)
   }
@@ -234,6 +238,33 @@ struct SpecimenText: NSViewRepresentable {
       storage.addAttribute(attribute, value: config.tracking * config.size, range: range)
     }
     storage.endEditing()
+  }
+
+  static func updateLeading(
+    config: FontConfiguration, storage: NSMutableAttributedString, range: NSRange
+  ) {
+    guard range.length > 0 else { return }
+    if let leading = config.leading {
+      let paragraph = NSMutableParagraphStyle()
+      paragraph.minimumLineHeight = leading
+      paragraph.maximumLineHeight = leading
+      storage.addAttribute(.paragraphStyle, value: paragraph, range: range)
+    } else {
+      storage.removeAttribute(.paragraphStyle, range: range)
+    }
+  }
+
+  static func automaticLeading(_ config: FontConfiguration) -> Double {
+    // Empty lines round their heights; spaces preserve fractional baseline spacing.
+    let storage = NSTextStorage(string: " \n ", attributes: FontRenderer.attributes(config))
+    let layout = NSLayoutManager()
+    let container = NSTextContainer(
+      size: NSSize(width: 100, height: CGFloat.greatestFiniteMagnitude))
+    storage.addLayoutManager(layout)
+    layout.addTextContainer(container)
+    layout.ensureLayout(for: container)
+    let glyph = layout.glyphIndexForCharacter(at: 2)
+    return layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
   }
 
   final class Coordinator {
@@ -259,12 +290,13 @@ struct SpecimenText: NSViewRepresentable {
     let text: String
     let sample: Sample
 
-    func changesOnlyTracking(from previous: RenderKey) -> Bool {
+    func changesOnlySpacing(from previous: RenderKey) -> Bool {
       guard text == previous.text, sample == previous.sample,
-        config.tracking != previous.config.tracking
+        config.tracking != previous.config.tracking || config.leading != previous.config.leading
       else { return false }
       var unchanged = config
       unchanged.tracking = previous.config.tracking
+      unchanged.leading = previous.config.leading
       return unchanged == previous.config
     }
   }
@@ -290,7 +322,19 @@ final class SpecimenScrollView: NSScrollView {
   }
 }
 
-final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
+final class SpecimenLayoutManager: NSLayoutManager {
+  var glyphOverflow: CGFloat = 0
+
+  override func glyphRange(forBoundingRect bounds: NSRect, in container: NSTextContainer) -> NSRange
+  {
+    // Tight line fragments can end above their glyphs' visible descenders.
+    super.glyphRange(forBoundingRect: bounds.insetBy(dx: 0, dy: -glyphOverflow), in: container)
+  }
+}
+
+final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
+  @preconcurrency NSLayoutManagerDelegate
+{
   // Do not call setAccessibilityLabel or setAccessibilityIdentifier on this view: AppKit records
   // an "attribute unimplemented" error that a press which creates the view returns as -25200.
   var axLabel: String?
@@ -311,6 +355,33 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   private var highlightsDirty = true
   private var highlightedCharacters: NSRange?
   private var coloredRange = NSRange(location: 0, length: 0)
+  private var leadingFont: NSFont?
+  private var leadingHits: [(rect: NSRect, lineY: CGFloat, glyph: Int)] = []
+
+  func configureLeading(_ config: FontConfiguration) {
+    leadingFont = config.leading.map { _ in FontRenderer.font(config) as NSFont }
+    layoutManager?.usesFontLeading = config.leading == nil
+    if let layout = layoutManager as? SpecimenLayoutManager {
+      layout.glyphOverflow = leadingFont.map { layout.defaultLineHeight(for: $0) } ?? 0
+    }
+  }
+
+  func layoutManager(
+    _ layoutManager: NSLayoutManager,
+    shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>,
+    lineFragmentUsedRect: UnsafeMutablePointer<NSRect>,
+    baselineOffset: UnsafeMutablePointer<CGFloat>,
+    in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange
+  ) -> Bool {
+    guard let leadingFont,
+      NSLocationInRange(layoutManager.characterIndexForGlyph(at: glyphRange.location), bodyRange)
+    else { return false }
+    // Placeholder and italic runs must share the selected font's baseline on every line.
+    baselineOffset.pointee = layoutManager.defaultBaselineOffset(for: leadingFont)
+    // The final line needs its full ink height even when baselines overlap.
+    lineFragmentUsedRect.pointee.size.height = layoutManager.defaultLineHeight(for: leadingFont)
+    return true
+  }
 
   override func accessibilityLabel() -> String? { axLabel ?? super.accessibilityLabel() }
   // AppKit's empty identifier for unnamed text views preserves label-based name matching.
@@ -412,15 +483,35 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
 
   private func rebuildToolTips() {
     removeAllToolTips()
+    leadingHits.removeAll(keepingCapacity: true)
     guard let layoutManager, let textContainer, let textStorage else { return }
     for span in spans(intersecting: visibleCharacterRange()) {
       // TextKit can tile while a text replacement is still updating the span list.
       guard NSMaxRange(span.range) <= textStorage.length else { continue }
       let glyphs = layoutManager.glyphRange(
         forCharacterRange: span.range, actualCharacterRange: nil)
-      layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, lineRange, _ in
+      layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { lineRect, _, _, lineRange, _ in
+        let intersection = NSIntersectionRange(glyphs, lineRange)
+        if self.leadingFont != nil {
+          for glyph in intersection.location..<NSMaxRange(intersection) {
+            let character = layoutManager.characterIndexForGlyph(at: glyph)
+            let font = textStorage.attribute(.font, at: character, effectiveRange: nil) as! NSFont
+            let ink = font.boundingRect(forCGGlyph: layoutManager.cgGlyph(at: glyph))
+            let position = layoutManager.location(forGlyphAt: glyph)
+            let rect = NSRect(
+              x: lineRect.minX + position.x + ink.minX + self.textContainerOrigin.x,
+              y: lineRect.minY + position.y - ink.maxY + self.textContainerOrigin.y,
+              width: ink.width, height: ink.height
+            ).intersection(self.visibleRect)
+            if !rect.isEmpty {
+              self.leadingHits.append((rect, lineRect.midY, glyph))
+              self.addToolTip(rect, owner: self, userData: nil)
+            }
+          }
+          return
+        }
         let rect = layoutManager.boundingRect(
-          forGlyphRange: NSIntersectionRange(glyphs, lineRange), in: textContainer
+          forGlyphRange: intersection, in: textContainer
         )
         .offsetBy(dx: self.textContainerOrigin.x, dy: self.textContainerOrigin.y)
         .intersection(self.visibleRect)
@@ -449,7 +540,18 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
 
   private func span(at point: NSPoint) -> SpecimenText.GlyphSpan? {
     guard let layoutManager, let textContainer else { return nil }
-    let location = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+    var location = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+    if leadingFont != nil {
+      guard let hit = leadingHits.last(where: { $0.rect.contains(point) }) else { return nil }
+      // Overlapping ink can lie outside its line fragment; keep TextKit's horizontal caret mapping.
+      location.y = hit.lineY
+      let index = layoutManager.characterIndex(
+        for: location, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+      let characters = layoutManager.characterRange(
+        forGlyphRange: NSRange(location: hit.glyph, length: 1), actualGlyphRange: nil)
+      let character = min(max(index, characters.location), NSMaxRange(characters) - 1)
+      return spans.first { NSLocationInRange(character, $0.range) }
+    }
     let index = layoutManager.characterIndex(
       for: location, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
     if let span = spans.first(where: { NSLocationInRange(index, $0.range) }) {

@@ -151,6 +151,8 @@ public struct DifferenceInput: Hashable, Sendable {
     var right = b
     left.size = 22
     right.size = 22 * ratio
+    left.leading = nil
+    right.leading = nil
     self.a = left
     self.b = right
   }

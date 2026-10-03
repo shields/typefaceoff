@@ -64,6 +64,14 @@ import TypefaceCore
     try await host.settle()
     try expectVisibleHighlights(view, highlights: highlights, color: WorkbenchStyle.blue)
 
+    for leading: Double? in [12, nil] {
+      config.leading = leading
+      host.setContent(SpecimenText(config: config, text: text, highlights: highlights, side: .b))
+      try await host.settle()
+      try expectVisibleHighlights(view, highlights: highlights, color: WorkbenchStyle.blue)
+      #expect(view.selectedRange() == first.range)
+    }
+
     host.setContent(SpecimenText(config: config, text: "fi a 🦄", highlights: highlights, side: .b))
     try await host.settle()
     try expectVisibleHighlights(view, highlights: highlights, color: WorkbenchStyle.blue)

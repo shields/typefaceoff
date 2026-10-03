@@ -22,6 +22,7 @@ import Testing
     #expect(calls.withLock { $0 } == featureCount)
     var larger = config
     larger.size = 72
+    larger.leading = 80
     #expect(try await engine.previews(config: larger).isEmpty)
     #expect(calls.withLock { $0 } == featureCount)
   }

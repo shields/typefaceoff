@@ -13,6 +13,8 @@ import TypefaceCore
     ("Font A Reset tracking", "Button"), ("Font A Tracking field", "TextField"),
     ("Font A Reset typography", "Button"), ("Font A Size", "Slider"),
     ("Font A style", "Picker"),
+    ("Font A Reset leading", "Button"), ("Font A Leading field", "TextField"),
+    ("Font A Leading", "Slider"), ("Font A Auto leading", "Toggle"),
   ]
 
   @Test func sideNamesPrefixEveryPerInspectorIdentifier() {
@@ -65,6 +67,8 @@ import TypefaceCore
       for (identifier, kind) in [
         ("Font \(side) Reset appearance", "Button"), ("Font \(side) Size field", "TextField"),
         ("Font \(side) Tracking field", "TextField"), ("Font \(side) Size", "Slider"),
+        ("Font \(side) Leading field", "TextField"), ("Font \(side) Reset leading", "Button"),
+        ("Font \(side) Auto leading", "Toggle"),
       ] {
         try await expectPresent(identifier, kind: kind, supported: supported, in: host)
       }

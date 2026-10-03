@@ -172,21 +172,24 @@ struct SpecimenText: NSViewRepresentable {
         italicAttributes[.foregroundColor] = NSColor.systemOrange
         italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
       }
-      let placeholders = Dictionary(
-        uniqueKeysWithValues: unavailable.map { glyph in
-          let displayed =
-            "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
-          let tooltip = "Unavailable: \(unicodeDescription(glyph))"
-          let runs = [attributes, italicAttributes].map { base in
-            var styled = base
-            styled[.font] = NSFont.monospacedSystemFont(
-              ofSize: max(11, config.size * 0.55), weight: .medium)
-            styled[.foregroundColor] = NSColor.systemOrange
-            styled[.toolTip] = tooltip
-            return NSAttributedString(string: displayed, attributes: styled)
-          }
-          return (glyph, runs)
-        })
+      var placeholders: [[Unicode.Scalar]: [NSAttributedString]] = [:]
+      func placeholder(for glyph: String, emphasized: Bool) -> NSAttributedString {
+        let scalars = Array(glyph.unicodeScalars)
+        if let cached = placeholders[scalars] { return cached[emphasized ? 1 : 0] }
+        let displayed =
+          "[\(scalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
+        let tooltip = "Unavailable: \(unicodeDescription(glyph))"
+        let runs = [attributes, italicAttributes].map { base in
+          var styled = base
+          styled[.font] = NSFont.monospacedSystemFont(
+            ofSize: max(11, config.size * 0.55), weight: .medium)
+          styled[.foregroundColor] = NSColor.systemOrange
+          styled[.toolTip] = tooltip
+          return NSAttributedString(string: displayed, attributes: styled)
+        }
+        placeholders[scalars] = runs
+        return runs[emphasized ? 1 : 0]
+      }
       var sourceOffset = 0
       var displayedOffset = content.length
       var run = ""
@@ -212,8 +215,8 @@ struct SpecimenText: NSViewRepresentable {
           flushRun()
           runEmphasized = emphasized
         }
-        let placeholder = supported ? nil : placeholders[glyph]![emphasized ? 1 : 0]
-        let length = placeholder?.length ?? glyph.utf16.count
+        let missing = supported ? nil : placeholder(for: glyph, emphasized: emphasized)
+        let length = missing?.length ?? glyph.utf16.count
         if !whitespace {
           spans.append(
             .init(
@@ -222,8 +225,8 @@ struct SpecimenText: NSViewRepresentable {
               supported: supported))
         }
         displayedOffset += length
-        if let placeholder {
-          content.append(placeholder)
+        if let missing {
+          content.append(missing)
         } else {
           run.append(contentsOf: glyph)
         }

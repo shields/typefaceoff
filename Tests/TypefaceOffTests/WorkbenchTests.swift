@@ -31,6 +31,24 @@ import TypefaceCore
     #expect(missing.spans.first?.supported == false)
   }
 
+  @Test func unavailableLabelsPreserveCanonicallyEquivalentScalarSequences() throws {
+    let glyphs = ["\u{00E9}", "e\u{0301}", "\u{00E9}", "e\u{0301}"]
+    let content = SpecimenText.makeContent(
+      config: .init("AppleColorEmoji"), text: glyphs.joined())
+    #expect(content.spans.count == glyphs.count)
+    for (span, glyph) in zip(content.spans, glyphs) {
+      #expect(!span.supported)
+      let label = content.text.attributedSubstring(from: span.range)
+      let expected =
+        "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
+      #expect(label.string == expected)
+      #expect(
+        label.attribute(.toolTip, at: 0, effectiveRange: nil) as? String
+          == "Unavailable: \(unicodeDescription(glyph))")
+      #expect(span.glyph.unicodeScalars.elementsEqual(glyph.unicodeScalars))
+    }
+  }
+
   @Test(arguments: [10.0, 97.1])
   func unavailableLabelsCountDistinctGraphemesAndKeepEveryScalarAndClickTarget(size: Double) throws
   {

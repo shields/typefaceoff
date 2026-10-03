@@ -65,12 +65,13 @@ struct SpecimenText: NSViewRepresentable {
     let key = RenderKey(config: config, text: text, sample: sample)
     let contentChanged = coordinator.key != key
     let trackingOnly = coordinator.key.map { key.changesOnlyTracking(from: $0) } == true
-    guard contentChanged || coordinator.highlights != highlights || coordinator.side != side else {
+    guard contentChanged || view.highlights != highlights || coordinator.side != side else {
       return
     }
     coordinator.key = key
-    coordinator.highlights = highlights
     coordinator.side = side
+    view.highlights = highlights
+    view.highlightColor = side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue
     coordinator.position.preserveDuringUpdate {
       if contentChanged {
         #if TYPEFACEOFF_STARTUP_BENCHMARK
@@ -87,24 +88,12 @@ struct SpecimenText: NSViewRepresentable {
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-ready")
         #endif
-      }
-      // Temporary drawing attributes preserve the original shaping runs and ligatures.
-      // Ranking updates change only these attributes; rebuilding the specimen also reshapes
-      // every unavailable-character placeholder and can block the main thread for a second.
-      view.layoutManager?.removeTemporaryAttribute(
-        .foregroundColor,
-        forCharacterRange: NSRange(location: 0, length: view.string.utf16.count))
-      for span in view.spans where highlights.contains(span.glyph) && span.supported {
-        view.layoutManager?.addTemporaryAttribute(
-          .foregroundColor, value: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue,
-          forCharacterRange: span.range)
-      }
-      if contentChanged {
         if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
         view.refreshToolTips()
         view.setAccessibilityValue(text)
       }
     }
+    view.refreshHighlights()
     FuzzDiagnostics.shared.rendered("specimen")
   }
 
@@ -241,7 +230,6 @@ struct SpecimenText: NSViewRepresentable {
 
   final class Coordinator {
     var key: RenderKey?
-    var highlights: Set<String> = []
     var side: Side?
     let position: SpecimenScrollPosition
     init(position: SpecimenScrollPosition) { self.position = position }
@@ -303,8 +291,19 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
   var axIdentifier: String?
   var select: (String) -> Void = { _ in }
   var highlightKinds: [String: String] = [:]
-  var spans: [SpecimenText.GlyphSpan] = []
+  var highlights: Set<String> = [] {
+    didSet { highlightsDirty = true }
+  }
+  var highlightColor: NSColor = WorkbenchStyle.red {
+    didSet { highlightsDirty = true }
+  }
+  var spans: [SpecimenText.GlyphSpan] = [] {
+    didSet { highlightsDirty = true }
+  }
   var bodyRange = NSRange(location: 0, length: 0)
+  private var highlightsDirty = true
+  private var highlightedCharacters: NSRange?
+  private var coloredRange = NSRange(location: 0, length: 0)
 
   override func accessibilityLabel() -> String? { axLabel ?? super.accessibilityLabel() }
   // AppKit's empty identifier for unnamed text views preserves label-based name matching.
@@ -312,29 +311,82 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner {
     axIdentifier ?? super.accessibilityIdentifier()
   }
 
-  #if TYPEFACEOFF_STARTUP_BENCHMARK
-    override func draw(_ dirtyRect: NSRect) {
-      super.draw(dirtyRect)
+  override func draw(_ dirtyRect: NSRect) {
+    refreshHighlights()
+    super.draw(dirtyRect)
+    #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.specimenDrawn(self)
-    }
-  #endif
+    #endif
+  }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
+    refreshHighlights()
     refreshToolTips()
+  }
+
+  func spans(intersecting range: NSRange) -> ArraySlice<SpecimenText.GlyphSpan> {
+    guard range.length > 0 else { return spans[0..<0] }
+    var lower = 0
+    var upper = spans.count
+    while lower < upper {
+      let middle = lower + (upper - lower) / 2
+      if NSMaxRange(spans[middle].range) <= range.location {
+        lower = middle + 1
+      } else {
+        upper = middle
+      }
+    }
+    let start = lower
+    upper = spans.count
+    while lower < upper {
+      let middle = lower + (upper - lower) / 2
+      if spans[middle].range.location < NSMaxRange(range) {
+        lower = middle + 1
+      } else {
+        upper = middle
+      }
+    }
+    return spans[start..<lower]
+  }
+
+  private func visibleCharacterRange() -> NSRange {
+    guard let layoutManager, let textContainer, !visibleRect.isEmpty else {
+      return NSRange(location: 0, length: 0)
+    }
+    let glyphs = layoutManager.glyphRange(
+      forBoundingRect: visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y),
+      in: textContainer)
+    return layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+  }
+
+  func refreshHighlights() {
+    guard let layoutManager, let textStorage else { return }
+    let visible = visibleCharacterRange()
+    guard highlightsDirty || highlightedCharacters != visible else { return }
+    let previous = NSIntersectionRange(
+      coloredRange, NSRange(location: 0, length: textStorage.length))
+    if previous.length > 0 {
+      layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: previous)
+    }
+    coloredRange = NSRange(location: 0, length: 0)
+    for span in spans(intersecting: visible)
+    where span.supported && highlights.contains(span.glyph) {
+      // TextKit can tile while a text replacement is still updating the span list.
+      guard NSMaxRange(span.range) <= textStorage.length else { continue }
+      // Temporary drawing attributes preserve shaping runs and ligatures.
+      layoutManager.addTemporaryAttribute(
+        .foregroundColor, value: highlightColor, forCharacterRange: span.range)
+      coloredRange = coloredRange.length == 0 ? span.range : NSUnionRange(coloredRange, span.range)
+    }
+    highlightedCharacters = visible
+    highlightsDirty = false
   }
 
   func refreshToolTips() {
     removeAllToolTips()
     guard let layoutManager, let textContainer, let textStorage else { return }
-    // A full chapter has thousands of glyphs. Track only the visible characters;
-    // AppKit refreshes tracking areas when scrolling changes the visible rectangle.
-    let visibleGlyphs = layoutManager.glyphRange(
-      forBoundingRect: visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y),
-      in: textContainer)
-    let visibleCharacters = layoutManager.characterRange(
-      forGlyphRange: visibleGlyphs, actualGlyphRange: nil)
-    for span in spans where NSIntersectionRange(span.range, visibleCharacters).length > 0 {
+    for span in spans(intersecting: visibleCharacterRange()) {
       // TextKit can tile while a text replacement is still updating the span list.
       guard NSMaxRange(span.range) <= textStorage.length else { continue }
       let glyphs = layoutManager.glyphRange(

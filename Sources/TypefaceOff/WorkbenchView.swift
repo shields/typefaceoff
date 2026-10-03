@@ -58,7 +58,8 @@ struct WorkbenchView: View {
   }
   private var highlights: Set<String> {
     Differences.highlights(
-      ranking.scores, text: comparison.text, shape: comparison.shape, spacing: comparison.spacing,
+      ranking.scores, present: model.specimenGlyphs, shape: comparison.shape,
+      spacing: comparison.spacing,
       frequency: comparison.frequency)
   }
   private var highlightKinds: [String: String] {
@@ -68,7 +69,7 @@ struct WorkbenchView: View {
     ]
     where enabled {
       for glyph in Differences.highlights(
-        ranking.scores, text: comparison.text, shape: shape, spacing: !shape,
+        ranking.scores, present: model.specimenGlyphs, shape: shape, spacing: !shape,
         frequency: comparison.frequency)
       {
         result[glyph] = result[glyph].map { "\($0) + \(title)" } ?? title

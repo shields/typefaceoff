@@ -54,20 +54,25 @@ import TypefaceCore
     }
   }
 
-  @Test func onlyTrackingChangesCanReuseRenderedContent() {
+  @Test func onlySpacingChangesCanReuseRenderedContent() {
     let config = FontConfiguration("HelveticaNeue")
     let original = SpecimenText.RenderKey(config: config, text: "fi", sample: .custom)
     var changed = config
     changed.tracking = 0.03
     #expect(
-      SpecimenText.RenderKey(config: changed, text: "fi", sample: .custom).changesOnlyTracking(
+      SpecimenText.RenderKey(config: changed, text: "fi", sample: .custom).changesOnlySpacing(
         from: original))
-    #expect(!original.changesOnlyTracking(from: original))
+    var leading = config
+    leading.leading = 30
     #expect(
-      !SpecimenText.RenderKey(config: changed, text: "fl", sample: .custom).changesOnlyTracking(
+      SpecimenText.RenderKey(config: leading, text: "fi", sample: .custom).changesOnlySpacing(
+        from: original))
+    #expect(!original.changesOnlySpacing(from: original))
+    #expect(
+      !SpecimenText.RenderKey(config: changed, text: "fl", sample: .custom).changesOnlySpacing(
         from: original))
     #expect(
-      !SpecimenText.RenderKey(config: changed, text: "fi", sample: .reading).changesOnlyTracking(
+      !SpecimenText.RenderKey(config: changed, text: "fi", sample: .reading).changesOnlySpacing(
         from: original))
     for alteration in 0..<4 {
       var structural = changed
@@ -79,7 +84,7 @@ import TypefaceCore
       }
       #expect(
         !SpecimenText.RenderKey(config: structural, text: "fi", sample: .custom)
-          .changesOnlyTracking(from: original))
+          .changesOnlySpacing(from: original))
     }
   }
 

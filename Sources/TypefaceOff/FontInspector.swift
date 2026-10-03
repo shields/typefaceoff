@@ -96,6 +96,7 @@ struct FontInspector: View {
             numericControl(
               "Size", property: .size, value: config.size, range: 10...144, step: 0.1,
               defaultValue: 22, unit: "pt")
+            leadingControl(config)
             numericControl(
               "Tracking", property: .tracking, value: config.tracking, range: -0.12...0.15,
               step: 0.001, defaultValue: 0, unit: "em")
@@ -178,6 +179,68 @@ struct FontInspector: View {
         }
       ).accessibilityLabel("\(side.fontName) \(title)")
         .accessibilityIdentifier("\(side.fontName) \(title)")
+    }.font(.system(size: 12))
+  }
+
+  private func leadingControl(_ config: FontConfiguration) -> some View {
+    let automatic = SpecimenText.automaticLeading(config)
+    let binding = Binding(
+      get: { config.leading ?? automatic },
+      set: { value in
+        // Disabling the field can finish an edit after Auto has been restored.
+        guard model.comparison[side]?.leading != nil else { return }
+        edit("Adjust leading") { $0.setLeading(value, side: side) }
+      })
+    let range = FontConfiguration.leadingRange
+    return VStack(spacing: 8) {
+      HStack(spacing: 6) {
+        Text("Leading")
+        Button("Reset leading", systemImage: "arrow.counterclockwise") {
+          edit("Reset leading") { $0.setLeading(nil, side: side) }
+        }
+        .labelStyle(.iconOnly).buttonStyle(.borderless).font(.caption)
+        .disabled(config.leading == nil)
+        .accessibilityIdentifier("\(side.fontName) Reset leading")
+        .help("Reset leading to Auto using the font’s natural line spacing")
+        Spacer(minLength: 0)
+        TextField(
+          "Leading", value: binding, format: .number.precision(.fractionLength(0...3))
+        )
+        .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 62)
+        .accessibilityIdentifier("\(side.fontName) Leading field")
+        .disabled(config.leading == nil)
+        .help("Baseline-to-baseline distance in points")
+        Text("pt").font(.caption).foregroundStyle(.secondary)
+      }
+      HStack(spacing: 8) {
+        Toggle(
+          "Auto",
+          isOn: Binding(
+            get: { config.leading == nil },
+            set: { enabled in
+              edit("Toggle automatic leading") {
+                $0.setLeading(enabled ? nil : automatic, side: side)
+              }
+            })
+        ).toggleStyle(.checkbox).fixedSize()
+          .accessibilityIdentifier("\(side.fontName) Auto leading")
+          .help("Use the font’s natural line spacing")
+        Slider(
+          value: Binding(
+            get: { min(range.upperBound, max(range.lowerBound, config.leading ?? automatic)) },
+            set: { binding.wrappedValue = ($0 * 10).rounded() / 10 }),
+          in: range,
+          onEditingChanged: { editing in
+            if editing {
+              model.beginContinuousEdit("Adjust leading")
+            } else {
+              model.endContinuousEdit(undoManager: undoManager)
+            }
+          }
+        ).accessibilityLabel("\(side.fontName) Leading")
+          .accessibilityIdentifier("\(side.fontName) Leading")
+          .disabled(config.leading == nil)
+      }
     }.font(.system(size: 12))
   }
 

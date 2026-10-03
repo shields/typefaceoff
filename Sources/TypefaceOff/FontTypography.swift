@@ -26,6 +26,7 @@ struct FontTypography: View {
   private var previewConfig: FontConfiguration {
     var result = config
     result.size = 21
+    result.leading = nil
     return result
   }
 

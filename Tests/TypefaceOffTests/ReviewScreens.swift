@@ -96,6 +96,11 @@ import TypefaceCore
     smallText.a.size = 14
     smallText.b?.size = 14
     cases.append(("small-text", 1440, smallText))
+    var leading = Comparison()
+    leading.a.leading = 30
+    leading.b?.leading = 38
+    leading.calibrate()
+    cases.append(("leading", 1440, leading))
     var syriac = Comparison(a: .init("NotoSansSyriac-Regular"), b: nil)
     syriac.mode = .glyph
     syriac.selectedGlyph = "ܐ"

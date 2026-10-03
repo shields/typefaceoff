@@ -75,6 +75,7 @@ public actor FontFeaturePreviewEngine {
     try Task.checkCancellation()
     var config = config
     config.size = 21
+    config.leading = nil
     if let cached = cache[config] { return cached }
     var result: [String: FontFeaturePreview] = [:]
     for feature in config.face.features where !feature.isAutomatic {

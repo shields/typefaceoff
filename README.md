@@ -36,6 +36,14 @@ reopen the app to refresh its catalog.
   tracking, and shared axes preserve their offsets, including after a range
   limit temporarily clamps a value. Unlock either inspector to adjust sides
   separately. Typography settings always remain independent.
+- **Leading** sets the distance between text baselines in points (1–288).
+  **Auto**, on by default, uses the font’s natural line spacing and displays its
+  computed value. Turn Auto off to edit the value; turn it on or reset leading
+  to restore automatic spacing. Explicit leading stays fixed when size changes.
+  Linked leading preserves the point difference between explicit values,
+  including after a range limit clamps a value. If either side is Auto when
+  linked, entering a value sets both sides to that value; resetting either side
+  restores Auto to both.
 - Choose a reading sample or edit your own text. Enter a size in the center
   toolbar and press Return to set both sides. **Mixed** indicates different
   sizes.

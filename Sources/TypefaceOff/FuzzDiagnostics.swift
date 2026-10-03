@@ -39,6 +39,7 @@ import TypefaceCore
         "a": comparison.a.postScriptName,
         "aSize": comparison.a.size,
         "aTracking": comparison.a.tracking,
+        "aLeading": comparison.a.leading as Any? ?? "Auto",
         "aFeatures": comparison.a.features,
         "appearanceLocked": comparison.appearanceLocked,
         "mode": comparison.mode.rawValue,
@@ -53,6 +54,7 @@ import TypefaceCore
         event["b"] = b.postScriptName
         event["bSize"] = b.size
         event["bTracking"] = b.tracking
+        event["bLeading"] = b.leading as Any? ?? "Auto"
         event["bFeatures"] = b.features
       }
       emit(event)
@@ -115,6 +117,11 @@ import TypefaceCore
         if config.axes.values.contains(where: { !$0.isFinite }) {
           invariant("A variable-font axis became non-finite")
         }
+        if let leading = config.leading,
+          !leading.isFinite || !FontConfiguration.leadingRange.contains(leading)
+        {
+          invariant("Leading escaped its native range")
+        }
       }
       if comparison.appearanceLocked, comparison.b != nil, comparison.link == nil {
         invariant("Linked appearance lost its calibration")
@@ -144,6 +151,14 @@ import TypefaceCore
           let reverse = min(aAxis.maximum, max(aAxis.minimum, bValue - offset))
           if abs(bValue - linked) > 0.000_001 && abs(aValue - reverse) > 0.000_001 {
             invariant("Linked variable-font axes lost their calibrated offsets")
+          }
+        }
+        if let aLeading = comparison.a.leading, let bLeading = b.leading {
+          let range = FontConfiguration.leadingRange
+          let linked = min(range.upperBound, max(range.lowerBound, aLeading + link.leadingOffset))
+          let reverse = min(range.upperBound, max(range.lowerBound, bLeading - link.leadingOffset))
+          if abs(bLeading - linked) > 0.000_001 && abs(aLeading - reverse) > 0.000_001 {
+            invariant("Linked leading lost its calibrated offset")
           }
         }
       }

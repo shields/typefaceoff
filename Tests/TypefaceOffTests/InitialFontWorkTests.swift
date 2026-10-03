@@ -85,11 +85,13 @@ import TypefaceCore
   }
 
   @Test func singleFontPreparationHasNoSecondPreviewOrRanking() async throws {
-    let comparison = Comparison(b: nil)
+    var comparison = Comparison(b: nil)
+    comparison.a.leading = 32
     let work = InitialFontWork(comparison: comparison)
     defer { work.cancel() }
     #expect(try await work.ranking.value(for: comparison) == [])
     #expect(work.previews(for: .a)?.input.size == 21)
+    #expect(work.previews(for: .a)?.input.leading == nil)
     #expect(work.previews(for: .b) == nil)
   }
 

@@ -141,13 +141,14 @@ struct SpecimenText: NSViewRepresentable {
         }
       }
       let unavailable = Set(support.filter { !$0.value }.keys)
-        .union(italicSupport.filter { !$0.value }.keys).count
-      if unavailable > 0 {
+        .union(italicSupport.filter { !$0.value }.keys)
+      if !unavailable.isEmpty {
         let paragraph = NSMutableParagraphStyle()
         paragraph.paragraphSpacing = 16
         content.append(
           NSAttributedString(
-            string: "\(unavailable) unavailable character\(unavailable == 1 ? "" : "s")\n",
+            string:
+              "\(unavailable.count) unavailable character\(unavailable.count == 1 ? "" : "s")\n",
             attributes: [
               .font: NSFont.systemFont(ofSize: 12),
               .foregroundColor: NSColor.systemOrange, .paragraphStyle: paragraph,
@@ -171,6 +172,21 @@ struct SpecimenText: NSViewRepresentable {
         italicAttributes[.foregroundColor] = NSColor.systemOrange
         italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
       }
+      let placeholders = Dictionary(
+        uniqueKeysWithValues: unavailable.map { glyph in
+          let displayed =
+            "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
+          let tooltip = "Unavailable: \(unicodeDescription(glyph))"
+          let runs = [attributes, italicAttributes].map { base in
+            var styled = base
+            styled[.font] = NSFont.monospacedSystemFont(
+              ofSize: max(11, config.size * 0.55), weight: .medium)
+            styled[.foregroundColor] = NSColor.systemOrange
+            styled[.toolTip] = tooltip
+            return NSAttributedString(string: displayed, attributes: styled)
+          }
+          return (glyph, runs)
+        })
       var sourceOffset = 0
       var displayedOffset = content.length
       var run = ""
@@ -196,27 +212,20 @@ struct SpecimenText: NSViewRepresentable {
           flushRun()
           runEmphasized = emphasized
         }
-        let displayed =
-          supported
-          ? glyph
-          : "[\(glyph.unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
+        let placeholder = supported ? nil : placeholders[glyph]![emphasized ? 1 : 0]
+        let length = placeholder?.length ?? glyph.utf16.count
         if !whitespace {
           spans.append(
             .init(
-              range: NSRange(location: displayedOffset, length: displayed.utf16.count),
+              range: NSRange(location: displayedOffset, length: length),
               glyph: glyph,
               supported: supported))
         }
-        displayedOffset += displayed.utf16.count
-        if supported {
-          run.append(contentsOf: displayed)
+        displayedOffset += length
+        if let placeholder {
+          content.append(placeholder)
         } else {
-          var styled = emphasized ? italicAttributes : attributes
-          styled[.font] = NSFont.monospacedSystemFont(
-            ofSize: max(11, config.size * 0.55), weight: .medium)
-          styled[.foregroundColor] = NSColor.systemOrange
-          styled[.toolTip] = "Unavailable: \(unicodeDescription(glyph))"
-          content.append(NSAttributedString(string: displayed, attributes: styled))
+          run.append(contentsOf: glyph)
         }
       }
       flushRun()

@@ -31,8 +31,13 @@ import TypefaceCore
     #expect(missing.spans.first?.supported == false)
   }
 
-  @Test func unavailableLabelsCountDistinctGraphemesAndKeepEveryScalarAndClickTarget() throws {
-    let content = SpecimenText.makeContent(config: .init("HelveticaNeue"), text: "A🦄🦄👩‍🚀")
+  @Test(arguments: [10.0, 97.1])
+  func unavailableLabelsCountDistinctGraphemesAndKeepEveryScalarAndClickTarget(size: Double) throws
+  {
+    var config = FontConfiguration("HelveticaNeue")
+    config.size = size
+    config.tracking = 0.022
+    let content = SpecimenText.makeContent(config: config, text: "A🦄🦄👩‍🚀")
     #expect(content.text.string.hasPrefix("2 unavailable characters\nA"))
     #expect(content.spans.map(\.glyph) == ["A", "🦄", "🦄", "👩‍🚀"])
     let astronaut = try #require(content.spans.last)
@@ -44,6 +49,17 @@ import TypefaceCore
     )
     #expect(
       label.contains("WOMAN") && label.contains("ZERO WIDTH JOINER") && label.contains("ROCKET"))
+    for span in content.spans where !span.supported {
+      let attributes = content.text.attributes(at: span.range.location, effectiveRange: nil)
+      #expect(
+        attributes[.font] as? NSFont
+          == NSFont.monospacedSystemFont(ofSize: max(11, size * 0.55), weight: .medium))
+      #expect(attributes[.foregroundColor] as? NSColor == .systemOrange)
+      #expect(attributes[.toolTip] as? String == "Unavailable: \(unicodeDescription(span.glyph))")
+      #expect(
+        attributes[NSAttributedString.Key(kCTTrackingAttributeName as String)] as? Double
+          == config.tracking * size)
+    }
     let missingFont = SpecimenText.makeContent(
       config: .init("TypefaceOff-Does-Not-Exist"), text: "A")
     #expect(missingFont.text.string.hasPrefix("Font unavailable: TypefaceOff-Does-Not-Exist"))

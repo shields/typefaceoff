@@ -343,6 +343,39 @@ import Testing
     #expect(object["truncated"] as? Bool == true)
     #expect(object["version"] as? Int == 1)
   }
+
+  @Test func nonFiniteFramesArePreservedInSavedDiagnostics() throws {
+    let fixture = Fixture()
+    fixture.other.frame = CGRect(x: -.infinity, y: .nan, width: .infinity, height: 30)
+    fixture.window.childNodes.append(
+      fixture.world.node("AXButton", name: "Null frame", frame: .null))
+    let directory = FileManager.default.temporaryDirectory.appending(
+      path: "tree-dump-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let url = directory.appending(path: "diagnostics.json")
+    try TraceIO.save(fixture.capture(focused: fixture.window), to: url)
+    let object = try #require(
+      JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+    let topLevel = try #require(object["topLevel"] as? [[String: Any]])
+    let otherFrame = try #require(topLevel[1]["frame"] as? [Any])
+    #expect(otherFrame.count == 4)
+    #expect(otherFrame[0] as? String == "-Infinity")
+    #expect(otherFrame[1] as? String == "NaN")
+    #expect(otherFrame[2] as? String == "Infinity")
+    #expect(otherFrame[3] as? Double == 30)
+    let entries = try #require(object["entries"] as? [[String: Any]])
+    let invalid = try #require(entries.first { $0["identifier"] as? String == "Null frame" })
+    let nullFrame = try #require(invalid["frame"] as? [Any])
+    #expect(nullFrame.count == 4)
+    #expect(nullFrame[0] as? String == "Infinity")
+    #expect(nullFrame[1] as? String == "Infinity")
+    #expect(nullFrame[2] as? Double == 0)
+    #expect(nullFrame[3] as? Double == 0)
+    #expect(invalid["offered"] as? Bool == false)
+    let visible = try #require(entries.first { $0["identifier"] as? String == "Visible" })
+    #expect(visible["frame"] as? [Double] == [10, 10, 100, 30])
+    #expect(object["error"] as? String == fixture.context.error)
+  }
 }
 
 @Suite struct DriverLogTests {

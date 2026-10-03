@@ -251,6 +251,8 @@ public enum TraceIO {
       at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    encoder.nonConformingFloatEncodingStrategy = .convertToString(
+      positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
     try encoder.encode(dump).write(to: url, options: .atomic)
   }
 

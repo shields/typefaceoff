@@ -255,16 +255,7 @@ struct SpecimenText: NSViewRepresentable {
   }
 
   static func automaticLeading(_ config: FontConfiguration) -> Double {
-    // Empty lines round their heights; spaces preserve fractional baseline spacing.
-    let storage = NSTextStorage(string: " \n ", attributes: FontRenderer.attributes(config))
-    let layout = NSLayoutManager()
-    let container = NSTextContainer(
-      size: NSSize(width: 100, height: CGFloat.greatestFiniteMagnitude))
-    storage.addLayoutManager(layout)
-    layout.addTextContainer(container)
-    layout.ensureLayout(for: container)
-    let glyph = layout.glyphIndexForCharacter(at: 2)
-    return layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+    FontRenderer.automaticLeading(config)
   }
 
   final class Coordinator {

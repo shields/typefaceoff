@@ -68,6 +68,46 @@ import TypefaceCore
     #expect(model.comparison == initial)
   }
 
+  @Test(arguments: [Double?.none, 36])
+  func matchingLeadingUsesDisplayOrderAndAppliesOnlyOnConfirmation(leading: Double?) async throws {
+    var comparison = Comparison(a: .init("ArialMT"), b: .init("ArialMT"))
+    comparison.a.leading = leading
+    comparison.b?.leading = 48
+    comparison.sample = .custom
+    comparison.customText = "Hamburg"
+    comparison.calibrate()
+    let model = WorkbenchModel(comparison: comparison)
+    let fit = FontFitModel()
+    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    defer { host.window.close() }
+    try await host.settle()
+    let size = try #require(try await host.element("Font B Optimize size").accessibilityFrame?())
+    let spacing = try #require(
+      try await host.element("Font B Optimize leading").accessibilityFrame?())
+    let tracking = try #require(
+      try await host.element("Font B Optimize tracking").accessibilityFrame?())
+    #expect(size.minY > spacing.minY && spacing.minY > tracking.minY)
+    try await host.press("Font B Optimize leading")
+    try await host.settle { !fit.running && fit.result?.improved == true }
+    var expected = try #require(comparison.b)
+    expected.leading = FontRenderer.leading(comparison.a)
+    #expect(fit.result?.proposed == expected)
+    #expect(model.comparison == comparison)
+    let preview = try #require(
+      host.subviews.compactMap { $0 as? SpecimenNSTextView }.first {
+        $0.accessibilityIdentifier() == "Proposed B specimen"
+      })
+    #expect(preview.string == "Hamburg\nHamburg")
+    let baselines = SpecimenLeadingTests.baselines(
+      try #require(preview.layoutManager), range: preview.bodyRange)
+    try #require(baselines.count == 2)
+    #expect(abs(baselines[1] - baselines[0] - 29 * expected.leading! / comparison.a.size) < 0.001)
+    try await host.press("Apply")
+    #expect(model.comparison.a == comparison.a && model.comparison.b == expected)
+    host.window.undoManager?.undo()
+    #expect(model.comparison == comparison)
+  }
+
   @Test func matchingWithoutASecondFontIsDisabled() async throws {
     let model = WorkbenchModel(comparison: Comparison(b: nil))
     let host = WorkbenchTestHost(MatchSheet(model: model))

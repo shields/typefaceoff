@@ -83,7 +83,7 @@ import TypefaceCore
     let previews = host.subviews.compactMap { $0 as? SpecimenNSTextView }
     #expect(previews.count == 2)
     for preview in previews {
-      #expect(preview.string == "Hamburg")
+      #expect(preview.string == "Hamburg\nHamburg")
       let layout = try #require(preview.layoutManager)
       let baseline = try #require(Self.baselines(layout, range: preview.bodyRange).first)
       let line = CTLineCreateWithAttributedString(try #require(preview.textStorage))
@@ -176,7 +176,7 @@ import TypefaceCore
     #expect(Self.baselines(layout, range: specimen.bodyRange) == automaticBaselines)
   }
 
-  private static func baselines(_ layout: NSLayoutManager, range: NSRange) -> [Double] {
+  static func baselines(_ layout: NSLayoutManager, range: NSRange) -> [Double] {
     var result: [Double] = []
     let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
     layout.enumerateLineFragments(forGlyphRange: glyphs) {

@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import CoreText
 import Foundation
@@ -10,6 +11,24 @@ public struct GlyphMeasurement: Sendable {
 }
 
 public enum FontRenderer {
+  public static func automaticLeading(_ config: FontConfiguration) -> Double {
+    // TextKit's baseline spacing must agree with the specimen, including fractional metrics.
+    // Empty lines round their heights; spaces preserve fractional baseline spacing.
+    let storage = NSTextStorage(string: " \n ", attributes: attributes(config))
+    let layout = NSLayoutManager()
+    let container = NSTextContainer(
+      size: NSSize(width: 100, height: CGFloat.greatestFiniteMagnitude))
+    storage.addLayoutManager(layout)
+    layout.addTextContainer(container)
+    layout.ensureLayout(for: container)
+    let glyph = layout.glyphIndexForCharacter(at: 2)
+    return layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+  }
+
+  public static func leading(_ config: FontConfiguration) -> Double {
+    config.leading ?? automaticLeading(config)
+  }
+
   public static func font(_ config: FontConfiguration, size: Double? = nil) -> CTFont {
     var settings: [[CFString: Any]] = []
     for (key, value) in config.features.sorted(by: { $0.key < $1.key }) {

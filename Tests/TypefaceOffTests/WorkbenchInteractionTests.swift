@@ -924,7 +924,7 @@ import TypefaceCore
   }
 
   // A 15-point row can fall between sample rows 16 points apart.
-  private func finelySampledHitElements(until deadline: ContinuousClock.Instant?) -> [AnyObject] {
+  func finelySampledHitElements(until deadline: ContinuousClock.Instant? = nil) -> [AnyObject] {
     contentRoots.flatMap { sampledHits(in: $0, rowStep: 4, until: deadline) }
   }
 

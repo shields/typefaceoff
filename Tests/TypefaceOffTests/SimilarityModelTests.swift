@@ -183,7 +183,8 @@ extension SimilarityModelTests {
       continuation.finish()
     }
     func displayedText() -> [String] {
-      (host.elements + host.hitElements).compactMap { element -> String? in
+      (host.elements + host.hitElements + host.finelySampledHitElements()).compactMap {
+        element -> String? in
         guard element.accessibilityRole?() == .staticText else { return nil }
         return element.accessibilityValue?()
       }
@@ -385,7 +386,8 @@ extension SimilarityModelTests {
       continuation.finish()
     }
     _ = try await host.element("Font B Optimize feature ot.kern")
-    let values = (host.elements + host.hitElements).compactMap { element -> String? in
+    let values = (host.elements + host.hitElements + host.finelySampledHitElements()).compactMap {
+      element -> String? in
       guard element.accessibilityRole?() == .staticText else { return nil }
       return element.accessibilityValue?()
     }

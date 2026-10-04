@@ -4,6 +4,11 @@ import Testing
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct WindowLifecycleTests {
+  @Test func applicationHasBrandedNameAndIcon() {
+    #expect(NSRunningApplication.current.localizedName == "Typeface/Off")
+    #expect(NSImage(named: "AppIcon") != nil)
+  }
+
   @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
     #expect(NSApp.activationPolicy() == .prohibited)
     NSApp.deactivate()

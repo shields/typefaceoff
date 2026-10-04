@@ -1,7 +1,10 @@
+import AppKit
 import SwiftUI
 
 @main
 struct TypefaceOffApp: App {
+  @NSApplicationDelegateAdaptor(TypefaceOffAppDelegate.self) private var appDelegate
+
   init() {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("appInit")
@@ -21,6 +24,14 @@ struct TypefaceOffApp: App {
     .restorationBehavior(.disabled)
     .defaultSize(width: 1440, height: 900)
     .commands { WorkbenchCommands() }
+  }
+}
+
+@MainActor
+final class TypefaceOffAppDelegate: NSObject, NSApplicationDelegate {
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    // Publish the compiled image explicitly to avoid a blank Dock/app-switcher icon.
+    NSApp.applicationIconImage = NSImage(named: "AppIcon")!
   }
 }
 

@@ -27,16 +27,31 @@ STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
 HIGHLIGHT_APP ?= $(FUZZ_BENCHMARK_APP)
 HIGHLIGHT_RUNS ?= 7
 HIGHLIGHT_OUTPUT ?= $(CURDIR)/.build/highlight-benchmark
+ARCHIVE = $(CURDIR)/.build/distribution/TypefaceOff.xcarchive
+ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Release -destination 'generic/platform=macOS' -derivedDataPath .build/distribution/xcode -archivePath "$(ARCHIVE)" -allowProvisioningUpdates
 
 .PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm
+.PHONY: archive testflight
 
 project:
 	xcodegen generate --spec project.yml
 
 build: project
 	xcodebuild $(XCODE_FLAGS) build
+
+archive: project
+	@set -eu; \
+	version=$$(tools/gitcalver.sh --prefix 0.); \
+	build=$${version#0.}; \
+	echo "Archiving Typeface/Off $$version (build $$build)"; \
+	rm -rf "$(ARCHIVE)"; \
+	xcodebuild $(ARCHIVE_FLAGS) MARKETING_VERSION="$$version" CURRENT_PROJECT_VERSION="$$build" archive
+
+testflight: archive
+	rm -rf .build/distribution/upload
+	env PATH="/usr/bin:/bin:/usr/sbin:/sbin" xcodebuild -exportArchive -archivePath "$(ARCHIVE)" -exportPath .build/distribution/upload -exportOptionsPlist Config/TestFlight.plist -allowProvisioningUpdates
 
 run: build
 	open "$(APP)"
@@ -187,17 +202,18 @@ profile-startup: startup-build
 
 lint:
 	swift format lint --strict --recursive Sources Tests Package.swift scripts
+	plutil -lint Config/TestFlight.plist Config/*.entitlements
 	plutil -lint scripts/repros/axpress-25200/Info.plist
 	plutil -lint scripts/repros/tab-picker/Info.plist
 	bunx --no-install prettier --check .
-	shellcheck scripts/*.sh
-	shfmt -i 4 -d scripts
+	shellcheck scripts/*.sh tools/*.sh
+	shfmt -i 4 -d scripts tools
 	zizmor --persona pedantic .github/workflows
 
 fmt:
 	swift format format --in-place --recursive Sources Tests Package.swift scripts
 	bunx --no-install prettier --write .
-	shfmt -i 4 -w scripts
+	shfmt -i 4 -w scripts tools
 
 setup:
 	bun install --frozen-lockfile

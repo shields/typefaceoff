@@ -3,5 +3,5 @@
 .swiftpm/
 TypefaceOff.xcodeproj/
 Config/Info.plist
-Config/TypefaceOff.entitlements
+Config/Signing.local.xcconfig
 node_modules/

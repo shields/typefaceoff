@@ -18,12 +18,51 @@ make run
 
 `make build` creates `.build/xcode/Build/Products/Debug/TypefaceOff.app`, signed
 locally with an ad hoc identity. `make project` generates
-`TypefaceOff.xcodeproj` for development in Xcode. `project.yml` owns the
-project, app metadata, and sandbox entitlements; generated files are ignored.
+`TypefaceOff.xcodeproj` for development in Xcode. `project.yml` owns the project
+and app metadata; generated files are ignored. Signing entitlements are in
+`Config/*.entitlements`.
 
 The app uses installed fonts. It makes no network requests and has no
 third-party runtime dependencies. Install additional fonts with Font Book, then
 reopen the app to refresh its catalog.
+
+## TestFlight
+
+Sign in to your Apple Developer account in Xcode, then create
+`Config/Signing.local.xcconfig` with `DEVELOPMENT_TEAM = YOUR_TEAM_ID`. This
+file is ignored by Git. Register `com.typefaceoff` and create a macOS app named
+“Typeface/Off” in [App Store Connect](https://appstoreconnect.apple.com/apps).
+
+Commit the release changes on `main`, then run:
+
+```sh
+make coverage
+make lint
+make archive
+make testflight
+```
+
+`make archive` creates `.build/distribution/TypefaceOff.xcarchive` for Intel and
+Apple silicon. `make testflight` creates a fresh archive and uploads it using
+Xcode’s signed-in account and automatic signing. Archiving alone does not
+upload. The app icon is packaged in `Sources/TypefaceOff/AppIcon.icon`.
+
+Release versions use [gitcalver](https://gitcalver.org): `0.YYYYMMDD.N`, derived
+from the release commit, with build number `YYYYMMDD.N`. Unlike iOS, macOS
+[requires build numbers to increase across versions](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution).
+The vendored `tools/gitcalver.sh` is the unmodified
+[v20260825.1 release](https://github.com/gitcalver/sh/releases/tag/v20260825.1).
+Dirty working trees and commits outside the default branch are rejected. Each
+upload needs a new commit; Xcode does not rewrite the version or build number.
+Development builds use `0.0.0` with build number `0`.
+
+The Release configuration selects `Config/TestFlight.entitlements`, which
+enables the sandbox and an empty Keychain Sharing entitlement. Apple
+[recommends the empty entitlement](https://developer.apple.com/forums/thread/733942)
+to make Xcode embed the provisioning profile required by TestFlight.
+
+After Apple processes the upload, configure test information and tester groups
+on the app’s TestFlight tab. External testing requires TestFlight App Review.
 
 ## Use
 

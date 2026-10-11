@@ -165,11 +165,13 @@ import TypefaceCore
       host.subviews.compactMap { $0 as? NSTextField }.first {
         $0.placeholderString == "Minimum speaker count"
       })
-    try await host.submit("100K", to: threshold)
+    try await host.submit("100k", to: threshold)
     #expect(model.languages.filter.minimumSpeakers == 100_000)
     try await host.submit("bad", to: threshold)
     #expect(model.languages.filter.minimumSpeakers == 100_000)
     try await host.submit("1B", to: threshold)
+    #expect(model.languages.filter.minimumSpeakers == 100_000)
+    try await host.submit("1000M", to: threshold)
     #expect(model.languages.filter.minimumSpeakers == 920_000_000)
     try await host.press("Language historical toggle")
     #expect(model.languages.filter.showHistorical)

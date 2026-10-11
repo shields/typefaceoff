@@ -149,8 +149,7 @@ public enum SpeakerThreshold {
     let text = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if text == "ALL" || text == "0" { return 0 }
     let suffix = text.last
-    let multiplier: Double =
-      suffix == "K" ? 1_000 : suffix == "M" ? 1_000_000 : suffix == "B" ? 1_000_000_000 : 1
+    let multiplier: Double = suffix == "K" ? 1_000 : suffix == "M" ? 1_000_000 : 1
     let number = multiplier == 1 ? text : String(text.dropLast())
     guard let value = Double(number), value.isFinite, value > 0 else { return nil }
     return Int((value * multiplier).clamped(to: 100...1_000_000_000).rounded())
@@ -158,11 +157,8 @@ public enum SpeakerThreshold {
 
   public static func format(_ value: Int) -> String {
     if value == 0 { return "All" }
-    let divisor =
-      value >= 1_000_000_000
-      ? 1_000_000_000 : value >= 1_000_000 ? 1_000_000 : value >= 1_000 ? 1_000 : 1
-    let suffix =
-      divisor == 1_000_000_000 ? "B" : divisor == 1_000_000 ? "M" : divisor == 1_000 ? "K" : ""
+    let divisor = value >= 1_000_000 ? 1_000_000 : value >= 1_000 ? 1_000 : 1
+    let suffix = divisor == 1_000_000 ? "M" : divisor == 1_000 ? "k" : ""
     return (Double(value) / Double(divisor)).formatted(
       .number.locale(Locale(identifier: "en_US_POSIX")).precision(.fractionLength(0...3))) + suffix
   }

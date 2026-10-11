@@ -24,8 +24,8 @@ living languages are also hidden by default.
 The speaker slider is logarithmic, with an **All** position before the numeric
 range. Numeric thresholds begin at 100 speakers and end at the largest count in
 the catalog, currently **920M** for Mandarin Chinese (2017). **100M** is the
-last power-of-ten tick. No catalog record has 1B speakers. Exact entry accepts
-K, M, and B suffixes and clamps to the slider range. These are Hyperglot's
+last power-of-ten tick. No catalog record has a billion speakers. Exact entry
+accepts k and M suffixes and clamps to the slider range. These are Hyperglot's
 recorded estimates with their original dates; they are not the total-speaker
 figures used by the character-frequency corpus.
 
@@ -80,9 +80,10 @@ individual grapheme in Glyph view.
 
 ## Generation and verification
 
-The committed JSON and upstream Apache license are package resources. Normal app
-builds and use are offline and require no Python. Developer tools use uv, Python
-3.15 or later, and the locked Hyperglot 0.8.1 dependency:
+The committed JSON and upstream Apache license are package resources. NOTICE
+credits Rosetta Type/Research and the Hyperglot contributors. Normal app builds
+and use are offline and require no Python. Developer tools use uv, Python 3.15
+or later, and the locked Hyperglot 0.8.1 dependency:
 
 ```sh
 make languages

@@ -94,7 +94,7 @@ struct LanguageBrowserView: View {
             threshold = SpeakerThreshold.format(browser.filter.minimumSpeakers)
           }
           .help(
-            "Enter All or a count such as 100K or 8.3M; the catalog's largest count is the limit")
+            "Enter All or a count such as 100k or 8.3M; the catalog's largest count is the limit")
       }
       HStack {
         Picker("Language coverage", selection: $browser.coverageFilter) {

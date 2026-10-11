@@ -89,16 +89,17 @@ struct LanguageTests {
     #expect(SpeakerThreshold.value(9) == 1_000_000_000)
     #expect(SpeakerThreshold.value(SpeakerThreshold.position(8_300_000)) == 8_300_000)
     for (text, value) in [
-      ("all", 0), ("0", 0), ("8.3M", 8_300_000), ("100K", 100_000), ("1B", 1_000_000_000),
-      ("400", 400), ("1", 100), ("2B", 1_000_000_000),
+      ("all", 0), ("0", 0), ("8.3M", 8_300_000), ("100K", 100_000), ("920M", 920_000_000),
+      ("100k", 100_000), ("400", 400), ("1", 100), ("2000M", 1_000_000_000),
     ] {
       #expect(SpeakerThreshold.parse(text) == value)
     }
-    for text in ["", "no", "-1", "NaN", "inf", "1e309"] {
+    for text in ["", "no", "-1", "NaN", "inf", "1e309", "1B"] {
       #expect(SpeakerThreshold.parse(text) == nil)
     }
     for (value, text) in [
-      (0, "All"), (100, "100"), (1_000, "1K"), (8_300_000, "8.3M"), (1_000_000_000, "1B"),
+      (0, "All"), (100, "100"), (1_000, "1k"), (100_000, "100k"), (8_300_000, "8.3M"),
+      (920_000_000, "920M"),
     ] {
       #expect(SpeakerThreshold.format(value) == text)
     }

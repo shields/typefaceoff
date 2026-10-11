@@ -54,7 +54,7 @@ struct LanguageModeTests {
       if target.contains("search") || target == "Search languages" || target == "Language query" {
         #expect(values.contains("eng") && values.contains("Ancient Greek"))
       } else {
-        #expect(values.contains("All") && values.contains("8.3M") && values.contains("100K"))
+        #expect(values.contains("All") && values.contains("8.3M") && values.contains("100k"))
       }
     }
   }

@@ -88,7 +88,7 @@ public struct ActionExplorer {
         ]
         action.value = queries[Int(random.next() % UInt64(queries.count))]
       case "Language speaker field", "Minimum speaker count", "Minimum language speakers":
-        let values = ["All", "100", "100K", "1M", "8.3M", "10M", "100M", "1B", "bad"]
+        let values = ["All", "100", "100k", "1M", "8.3M", "10M", "100M", "920M", "bad"]
         action.value = values[Int(random.next() % UInt64(values.count))]
       default:
         let values = ["", "0", "10", "22", "144", "−1", "0.001", "nan", "1e9"]

@@ -30,6 +30,13 @@ struct TypefaceOffApp: App {
 @MainActor
 final class TypefaceOffAppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
+    if ProcessInfo.processInfo.environment["TYPEFACEOFF_TESTING"] == "1" {
+      // AppKit can change the activation policy during launch.
+      if NSApp.activationPolicy() != .prohibited {
+        precondition(NSApp.setActivationPolicy(.prohibited))
+      }
+      NSApp.deactivate()
+    }
     // Publish the compiled image explicitly to avoid a blank Dock/app-switcher icon.
     NSApp.applicationIconImage = NSImage(named: "AppIcon")!
   }

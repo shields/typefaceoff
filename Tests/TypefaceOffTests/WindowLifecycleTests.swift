@@ -9,9 +9,17 @@ import Testing
     #expect(NSImage(named: "AppIcon") != nil)
   }
 
-  @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
+  @Test(arguments: [NSApplication.ActivationPolicy.prohibited, .regular])
+  func applicationLaunchRestoresTheTestHostPolicy(policy: NSApplication.ActivationPolicy) {
+    if NSApp.activationPolicy() != policy {
+      #expect(NSApp.setActivationPolicy(policy))
+    }
+    TypefaceOffAppDelegate().applicationDidFinishLaunching(
+      Notification(name: NSApplication.didFinishLaunchingNotification))
     #expect(NSApp.activationPolicy() == .prohibited)
-    NSApp.deactivate()
+  }
+
+  @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
     let launchDeadline = ContinuousClock.now + .seconds(10)
     while !NSApp.windows.contains(where: { $0.title == "Helvetica Neue vs. Arial" }) {
       try #require(
@@ -22,6 +30,7 @@ import Testing
     let initial = try #require(NSApp.windows.first { $0.title == "Helvetica Neue vs. Arial" })
     initial.orderFront(nil)
     try await settle(initial)
+    #expect(NSApp.activationPolicy() == .prohibited)
     #expect(!NSApp.isActive)
     #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Helvetica Neue vs. Arial" })
     let fileMenu = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)

@@ -8,10 +8,10 @@ characters, and see where their shapes and spacing differ.
 
 The app runs on macOS 15 or later, but building it requires Xcode 27 with Swift
 6.4 or later. Install XcodeGen for the app build; development checks also use
-Bun, Node.js, Lefthook, zizmor, ShellCheck, shfmt, and jq:
+Bun, Node.js, Lefthook, zizmor, ShellCheck, shfmt, jq, and uv:
 
 ```sh
-brew install xcodegen bun node lefthook zizmor shellcheck shfmt jq
+brew install xcodegen bun node lefthook zizmor shellcheck shfmt jq uv
 make setup
 make run
 ```

@@ -1,4 +1,5 @@
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/ModuleCache
+export UV_PROJECT_ENVIRONMENT := $(CURDIR)/.build/language-tooling
 SWIFT_FLAGS = --disable-sandbox --cache-path .build/cache --config-path .build/config --security-path .build/security
 APP = .build/xcode/Build/Products/Debug/TypefaceOff.app
 XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
@@ -34,6 +35,7 @@ ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -confi
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm
 .PHONY: archive testflight
+.PHONY: languages languages-check test-languages
 
 project:
 	xcodegen generate --spec project.yml
@@ -56,7 +58,7 @@ testflight: archive
 run: build
 	open "$(APP)"
 
-test: test-fuzz-vm
+test: test-fuzz-vm test-languages
 	# Font discovery shares macOS's font registry; serialize the package tests.
 	swift test $(SWIFT_FLAGS) --enable-code-coverage --no-parallel
 	$(MAKE) test-app
@@ -151,6 +153,16 @@ frequencies:
 	swiftc -swift-version 6 -O scripts/character-frequencies.swift -o $(FREQUENCIES_BIN)
 	$(FREQUENCIES_BIN)
 
+languages:
+	uv run --frozen python scripts/language_data.py --output Sources/TypefaceCore/Resources/languages.json
+	bunx --no-install prettier --write Sources/TypefaceCore/Resources/languages.json
+
+languages-check:
+	uv run --frozen python scripts/language_data.py --output Sources/TypefaceCore/Resources/languages.json --check
+
+test-languages: languages-check
+	uv run --frozen pytest
+
 review: project
 	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(CURDIR)/.build/review" -only-testing:TypefaceOffTests/ReviewScreens test
 
@@ -201,6 +213,9 @@ profile-startup: startup-build
 	./scripts/profile-startup.sh "$(abspath $(STARTUP_APP))" "$(abspath $(STARTUP_PROFILE))"
 
 lint:
+	uv run --frozen ruff check scripts/language_data.py Tests/LanguageDataTests
+	uv run --frozen ruff format --check scripts/language_data.py Tests/LanguageDataTests
+	uv run --frozen ty check scripts/language_data.py Tests/LanguageDataTests
 	swift format lint --strict --recursive Sources Tests Package.swift scripts
 	plutil -lint Config/TestFlight.plist Config/*.entitlements
 	plutil -lint scripts/repros/axpress-25200/Info.plist
@@ -211,6 +226,8 @@ lint:
 	zizmor --persona pedantic .github/workflows
 
 fmt:
+	uv run --frozen ruff check --fix scripts/language_data.py Tests/LanguageDataTests
+	uv run --frozen ruff format scripts/language_data.py Tests/LanguageDataTests
 	swift format format --in-place --recursive Sources Tests Package.swift scripts
 	bunx --no-install prettier --write .
 	shfmt -i 4 -w scripts tools

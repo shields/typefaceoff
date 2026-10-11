@@ -13,7 +13,11 @@ let package = Package(
   ],
   targets: [
     .target(
-      name: "TypefaceCore", resources: [.copy("Resources/character-frequencies.tsv")],
+      name: "TypefaceCore",
+      resources: [
+        .copy("Resources/character-frequencies.tsv"), .copy("Resources/languages.json"),
+        .copy("Resources/Hyperglot-LICENSE"),
+      ],
       swiftSettings: [.treatAllWarnings(as: .error)]),
     .target(name: "UIFuzzSupport", swiftSettings: [.treatAllWarnings(as: .error)]),
     .executableTarget(

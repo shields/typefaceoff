@@ -3,7 +3,7 @@ import Foundation
 /// The few facts about the workbench that decide whether a control named by label exists.
 /// A nil field is unknown, and unknown never satisfies a requirement.
 struct WorkbenchState: Equatable, Sendable {
-  enum Mode: Sendable { case text, glyph }
+  enum Mode: Sendable { case text, glyph, languages }
   enum Sheet: Sendable { case closed, editor, match }
   enum Popover: Sendable { case closed, fonts, characters }
   enum Inspector: String, Sendable {
@@ -52,6 +52,12 @@ struct WorkbenchState: Equatable, Sendable {
       "Search characters", "Zoom in", "Zoom out", "Reset glyph zoom", "Glyph zoom":
       return .mode(.glyph)
     case "Font A specimen", "Font B specimen": return .mode(.text)
+    case let name where name.hasPrefix("Language ") || name.hasPrefix("Inspect language "):
+      return .mode(.languages)
+    case "Search languages", "Minimum speaker count", "Minimum language speakers",
+      "Show historical", "Use as specimen",
+      "Clear filters":
+      return .mode(.languages)
     case "Custom specimen text": return .sheet(.editor)
     case "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
       "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
@@ -122,7 +128,8 @@ struct WorkbenchState: Equatable, Sendable {
     case .mode(let mode):
       run(
         FuzzAction(
-          kind: .shortcut, keyCode: mode == .glyph ? 19 : 18, modifiers: Self.command,
+          kind: .shortcut, keyCode: mode == .glyph ? 19 : mode == .languages ? 20 : 18,
+          modifiers: Self.command,
           delayMilliseconds: 50))
     case .sheet(let wanted):
       if wanted == .match && fontBPresent != true { prepareFontB() }
@@ -161,7 +168,9 @@ struct WorkbenchState: Equatable, Sendable {
     case .press, .click, .drag: applyControl(action)
     case .setValue:
       // Committing a search picks a result, which closes its popover.
-      if action.target?.hasPrefix("Search ") == true && action.commitValue != false {
+      if action.target?.hasPrefix("Search ") == true && action.target != "Search languages"
+        && action.commitValue != false
+      {
         if action.target == "Search installed fonts" && fontPickerSide == .b {
           fontBPresent = nil
         }
@@ -207,6 +216,7 @@ struct WorkbenchState: Equatable, Sendable {
     switch (keyCode, modifiers) {
     case (18, command): mode = .text
     case (19, command): mode = .glyph
+    case (20, command): mode = .languages
     case (3, command):
       mode = .glyph
       popover = .characters
@@ -255,6 +265,10 @@ struct WorkbenchState: Equatable, Sendable {
       mode = action.kind == .press ? .text : nil
     case "Glyph": mode = .glyph
     case "Text": mode = .text
+    case "Languages", "Languages view": mode = .languages
+    case "Language use specimen button", "Use as specimen": mode = .text
+    case let name where name.hasPrefix("Language missing ") && !name.hasSuffix(" disclosure"):
+      mode = .glyph
     case "Edit text", "Edit sample text…": if sheet == .closed { sheet = .editor }
     case "Match…", "Match fonts…":
       if sheet == .closed && fontBPresent == true { sheet = .match }

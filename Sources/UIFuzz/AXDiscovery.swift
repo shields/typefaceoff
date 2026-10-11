@@ -79,7 +79,11 @@ extension AXDriver {
           kind: $0, target: target, targetPath: node.path, targetRole: node.role,
           commitValue: $0 == .setValue
             ? node.role != "AXTextArea"
-              && !["Search installed fonts", "Search Unicode characters"].contains(target)
+              && ![
+                "Search installed fonts", "Search Unicode characters", "Language search field",
+                "Language query",
+                "Search languages",
+              ].contains(target)
             : nil,
           sheet: sheet)
       }

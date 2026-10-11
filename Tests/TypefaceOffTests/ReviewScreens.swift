@@ -69,6 +69,12 @@ import TypefaceCore
       ("glyph-zoom", 1280, glyph), ("single-zoom", 1280, single),
       ("single-text", 1280, Comparison(b: nil)),
     ]
+    var languages = Comparison()
+    languages.mode = .languages
+    cases.append(("languages", 1440, languages))
+    cases.append(("languages-1280", 1280, languages))
+    languages.b = nil
+    cases.append(("languages-single", 1280, languages))
     var both = glyph
     both.spacing = true
     cases.append(("both-differences", 1280, both))
@@ -122,6 +128,7 @@ import TypefaceCore
     for (name, width, comparison) in cases {
       let height = width == 1440 ? 900.0 : 800.0
       let model = WorkbenchModel(comparison: comparison)
+      if comparison.mode == .languages { model.languages.selection = "eng" }
       let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: width, height: height),
         styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

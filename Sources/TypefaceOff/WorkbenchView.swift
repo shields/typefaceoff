@@ -85,7 +85,8 @@ struct WorkbenchView: View {
       VStack(spacing: 0) {
         controls
         Divider()
-        if comparison.mode == .text {
+        switch comparison.mode {
+        case .text:
           HStack(spacing: 0) {
             specimen(comparison.a, side: .a)
             if let b = comparison.b {
@@ -95,14 +96,18 @@ struct WorkbenchView: View {
           }
           .background(.white)
           .environment(\.colorScheme, .light)
-        } else {
+        case .glyph:
           GlyphComparisonView(
             comparison: comparison, focusRequest: glyphFocusRequest, searching: characterSearch,
             select: selectGlyph, navigate: navigate,
             showText: { model.updatePresentation { $0.mode = .text } },
             focusChanged: { glyphFocused = $0 })
+        case .languages:
+          LanguageBrowserView(
+            browser: model.languages, comparison: comparison, inspect: selectGlyph,
+            useSpecimen: { model.useLanguageSpecimen($0, undoManager: undoManager) })
         }
-        if comparison.b != nil {
+        if comparison.b != nil && comparison.mode != .languages {
           Divider()
           differences
         }
@@ -126,6 +131,9 @@ struct WorkbenchView: View {
       }
     }
     .task(id: rankingKey) { await ranking.update(comparison) }
+    .task(id: comparison.mode == .languages ? LanguageBrowserModel.Request(comparison) : nil) {
+      if comparison.mode == .languages { await model.languages.update(.init(comparison)) }
+    }
     .onChange(of: comparison.a.size, initial: true) { syncSize() }
     .onChange(of: comparison.b?.size) { syncSize() }
     .onChange(of: locale) { syncSize() }
@@ -149,7 +157,8 @@ struct WorkbenchView: View {
         Picker("Comparison mode", selection: presentation(\.mode).settingAfterViewUpdate) {
           Text("Text").tag(ComparisonMode.text)
           Text("Glyph").tag(ComparisonMode.glyph)
-        }.pickerStyle(.segmented).frame(width: 168).labelsHidden()
+          Text("Languages").tag(ComparisonMode.languages)
+        }.pickerStyle(.segmented).frame(width: 260).labelsHidden()
         Spacer()
         Button("Undo", systemImage: "arrow.uturn.backward") { undoManager?.undo() }
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")

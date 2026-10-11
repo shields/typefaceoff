@@ -119,6 +119,47 @@ import TypefaceCore
     #expect(identifiers.isDisjoint(with: reserved))
   }
 
+  @Test func languageIdentifiersAreUniqueAndDisjointFromOtherNames() async throws {
+    let browser = LanguageBrowserModel()
+    browser.selection = "eng"
+    browser.filter.query = "English"
+    let comparison = Comparison(a: .init("Missing-Language-Font"), b: nil)
+    await browser.update(.init(comparison))
+    let host = WorkbenchTestHost(
+      LanguageBrowserView(
+        browser: browser, comparison: comparison, inspect: { _ in }, useSpecimen: { _ in }),
+      width: 900, height: 900)
+    defer { host.window.close() }
+    try await host.settle()
+    try await host.press("Language missing base disclosure")
+    try await host.press("Language sources disclosure")
+    try await host.settle()
+    let elements = Self.allElements(in: host)
+    let identifiers = Set(elements.map(Self.identifier).filter { $0.hasPrefix("Language ") })
+    for (identifier, owners) in Dictionary(grouping: elements, by: Self.identifier)
+    where identifiers.contains(identifier) {
+      let descriptions = owners.map { element in
+        let value: String? =
+          element.accessibilityRole?() == .staticText ? element.accessibilityValue?() : nil
+        return "\(element.accessibilityRole?()?.rawValue ?? "") / \(value ?? "")"
+      }
+      #expect(
+        owners.count == 1,
+        "\(identifier) is carried by \(descriptions)"
+      )
+    }
+    for element in elements {
+      let own = Self.identifier(of: element)
+      for label in [element.accessibilityLabel?(), element.accessibilityTitle?()].compactMap({ $0 })
+      where label != own {
+        #expect(!identifiers.contains(label), "\(label) aliases another element")
+      }
+    }
+    #expect(identifiers.contains("Language row eng"))
+    #expect(identifiers.contains("Language list scroll area"))
+    #expect(identifiers.contains("Language detail scroll area"))
+  }
+
   @Test func specimenWithoutMetadataKeepsAppKitAccessibilityDefaults() {
     let baseline = NSTextView(frame: .zero)
     let specimen = SpecimenNSTextView(frame: .zero)

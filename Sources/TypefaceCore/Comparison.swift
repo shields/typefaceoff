@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Side: String, Sendable { case a, b }
-public enum ComparisonMode: String, Sendable { case text, glyph }
+public enum ComparisonMode: String, Sendable { case text, glyph, languages }
 public enum AppearanceProperty: Hashable, Sendable {
   case size, tracking, weight
   case axis(UInt32)

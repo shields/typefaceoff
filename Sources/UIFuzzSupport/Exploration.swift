@@ -82,6 +82,14 @@ public struct ActionExplorer {
         action.value = queries[Int(random.next() % UInt64(queries.count))]
       case "Custom specimen text":
         action.value = mutator.text(using: &random)
+      case "Language search field", "Search languages", "Language query":
+        let queries = [
+          "", "English", "eng", "Latin", "العربية", "Japanese", "Ancient Greek", "zzzz",
+        ]
+        action.value = queries[Int(random.next() % UInt64(queries.count))]
+      case "Language speaker field", "Minimum speaker count", "Minimum language speakers":
+        let values = ["All", "100", "100K", "1M", "8.3M", "10M", "100M", "1B", "bad"]
+        action.value = values[Int(random.next() % UInt64(values.count))]
       default:
         let values = ["", "0", "10", "22", "144", "−1", "0.001", "nan", "1e9"]
         action.value = values[Int(random.next() % UInt64(values.count))]
@@ -100,7 +108,7 @@ public struct ActionExplorer {
     let shift: UInt64 = 1 << 17
     let option: UInt64 = 1 << 19
     return [
-      (18, command), (19, command), (18, command | shift), (19, command | shift),
+      (18, command), (19, command), (20, command), (18, command | shift), (19, command | shift),
       (18, command | option), (19, command | option), (6, command), (6, command | shift),
       (1, command | option), (14, command | shift), (45, command), (46, command | shift),
       (3, command),

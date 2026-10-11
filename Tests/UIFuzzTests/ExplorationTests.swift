@@ -81,7 +81,7 @@ private func control(
     #expect(keys.count == 14)
     #expect(Dictionary(grouping: keys, by: \.keyCode).values.allSatisfy { $0.count == 2 })
     let shortcuts = actions.filter { $0.kind == .shortcut }
-    #expect(Set(shortcuts.map { "\($0.keyCode!)/\($0.modifiers!)" }).count == 13)
+    #expect(Set(shortcuts.map { "\($0.keyCode!)/\($0.modifiers!)" }).count == 14)
   }
 
   @Test func excludedControlStaysOutOfTheRunUntilTheNextRun() {

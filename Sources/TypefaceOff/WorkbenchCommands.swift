@@ -88,6 +88,7 @@ struct WorkbenchMenuItems: View {
       case .view:
         Toggle("Text view", isOn: mode(.text)).keyboardShortcut("1")
         Toggle("Glyph view", isOn: mode(.glyph)).keyboardShortcut("2")
+        Toggle("Languages view", isOn: mode(.languages)).keyboardShortcut("3")
         Divider()
         Toggle("Highlight shape differences", isOn: actions?.shape ?? .constant(false))
           .keyboardShortcut("1", modifiers: [.command, .shift])

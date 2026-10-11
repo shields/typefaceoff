@@ -22,6 +22,7 @@ final class WorkbenchModel: ObservableObject {
   let initialWork: InitialFontWork
   private let fuzzWindow: UUID
   let familySimilarity = FamilySimilarityModel()
+  let languages = LanguageBrowserModel()
   private var continuousEdit: (name: String, initial: Comparison)?
 
   init(comparison: Comparison = Comparison()) {
@@ -45,7 +46,9 @@ final class WorkbenchModel: ObservableObject {
     let previous = comparison
     var next = previous
     body(&next)
-    guard previous != next else { return }
+    guard previous != next || !previous.customText.utf8.elementsEqual(next.customText.utf8) else {
+      return
+    }
     if name == "Change typography" {
       FuzzDiagnostics.shared.validateTypographyEdit(previous: previous, next: next)
     }
@@ -55,6 +58,14 @@ final class WorkbenchModel: ObservableObject {
 
   func beginContinuousEdit(_ name: String) {
     if continuousEdit == nil { continuousEdit = (name, comparison) }
+  }
+
+  func useLanguageSpecimen(_ text: String, undoManager: UndoManager?) {
+    edit("Use language specimen", undoManager: undoManager) {
+      $0.customText = text
+      $0.sample = .custom
+    }
+    updatePresentation { $0.mode = .text }
   }
 
   /// Browsing changes do not consume Undo steps.

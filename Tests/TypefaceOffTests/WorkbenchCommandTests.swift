@@ -28,6 +28,8 @@ import TypefaceCore
     #expect(first.model.comparison.mode == .glyph)
     try await host.press("Glyph view")
     #expect(first.model.comparison.mode == .glyph)
+    try await host.press("Languages view")
+    #expect(first.model.comparison.mode == .languages)
     try await host.press("Text view")
     try await host.settle()
     #expect(first.model.comparison.mode == .text)
@@ -81,6 +83,7 @@ import TypefaceCore
     try await host.settle()
     for title in [
       "Find character…", "Font A inspector", "Font B inspector", "Text view", "Glyph view",
+      "Languages view",
       "Highlight shape differences", "Highlight spacing differences",
       "Weight by character frequency", "Match fonts…", "Swap fonts", "Edit sample text…",
     ] {

@@ -45,6 +45,7 @@ final class FontPreviewDrawingView: NSView {
     let ink = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
     context.saveGState()
     context.clip(to: bounds)
+    context.textMatrix = .identity
     context.textPosition = CGPoint(x: max(0, -ink.minX), y: 7)
     CTLineDraw(line, context)
     context.restoreGState()

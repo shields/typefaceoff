@@ -86,6 +86,12 @@ on the app’s TestFlight tab. External testing requires TestFlight App Review.
 - Choose a reading sample or edit your own text. Enter a size in the center
   toolbar and press Return to set both sides. **Mixed** indicates different
   sizes.
+- Open **Languages** (⌘3) to compare character coverage by language and script.
+  The logarithmic speaker filter starts at 8.3M; historical records ship with
+  the app and are hidden by default. Use **All** and **Show historical** to
+  browse the complete catalog. **Use as specimen** creates an editable character
+  sheet with one Undo step. See [language coverage](docs/languages.md) for the
+  inventory policy, limitations, and data generation.
 - Click a character in the text or difference strip to inspect it. Arrow keys in
   the glyph view navigate the ranked characters. Type a grapheme in the
   character field and press Return to inspect any Unicode character. Click the

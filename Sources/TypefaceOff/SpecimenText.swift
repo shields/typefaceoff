@@ -318,10 +318,14 @@ final class SpecimenScrollView: NSScrollView {
       super.tile()
       if let view = documentView as? SpecimenNSTextView, contentView.bounds.width > 0 {
         view.ensureSpecimenLayout()
-        // AppKit calls updateTrackingAreas after geometry changes. Rebuilding tooltips
-        // here repeats that work for every intermediate tile during window layout.
+        view.scheduleToolTipRefresh()
       }
     }
+  }
+
+  override func reflectScrolledClipView(_ clipView: NSClipView) {
+    super.reflectScrolledClipView(clipView)
+    (documentView as? SpecimenNSTextView)?.scheduleToolTipRefresh()
   }
 }
 
@@ -361,6 +365,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
   private var leadingFont: NSFont?
   private var leadingHits: [(rect: NSRect, lineY: CGFloat, glyph: Int)] = []
   private var toolTipRects: [NSRect]?
+  private var toolTipRefreshScheduled = false
 
   func configureLeading(_ config: FontConfiguration) {
     leadingFont = config.leading.map { _ in FontRenderer.font(config) as NSFont }
@@ -477,7 +482,16 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
     highlightsDirty = false
   }
 
+  func scheduleToolTipRefresh() {
+    guard !toolTipRefreshScheduled else { return }
+    toolTipRefreshScheduled = true
+    DispatchQueue.main.async { [weak self] in
+      if let self, self.toolTipRefreshScheduled { self.refreshToolTips() }
+    }
+  }
+
   func refreshToolTips() {
+    toolTipRefreshScheduled = false
     FuzzDiagnostics.shared.measure(
       "specimen-tooltips", text: string, generation: renderGeneration
     ) {

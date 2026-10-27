@@ -19,7 +19,7 @@ import TypefaceCore
     let view = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
     for span in view.spans {
       let point = try inkCenter(of: span, in: view)
-      expectTrackedInkTooltip(for: span, at: point, in: view)
+      try expectTrackedInkTooltip(for: span, at: point, in: view)
       let event = try #require(
         NSEvent.mouseEvent(
           with: .leftMouseDown, location: view.convert(point, to: nil), modifierFlags: [],
@@ -59,7 +59,7 @@ import TypefaceCore
       let point = NSPoint(
         x: view.textContainerOrigin.x + baseline.x + (start + end) / 2,
         y: view.textContainerOrigin.y + baseline.y - ink.midY)
-      expectTrackedInkTooltip(for: span, at: point, in: view)
+      try expectTrackedInkTooltip(for: span, at: point, in: view)
     }
   }
 
@@ -101,13 +101,13 @@ import TypefaceCore
 
   private func expectTrackedInkTooltip(
     for span: SpecimenText.GlyphSpan, at point: NSPoint, in view: SpecimenNSTextView
-  ) {
+  ) throws {
     #expect(view.visibleRect.contains(point))
     #expect(
       view.trackingAreas.contains {
         !$0.options.contains(.inVisibleRect) && $0.rect.contains(point)
       })
-    #expect(
+    try #require(
       view.view(view, stringForToolTip: 0, point: point, userData: nil)
         == (span.supported ? "" : "Unavailable: ") + unicodeDescription(span.glyph))
   }

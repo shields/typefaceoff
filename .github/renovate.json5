@@ -2,6 +2,10 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["config:best-practices", ":semanticCommitsDisabled"],
   platformAutomerge: true,
+  timezone: "America/Los_Angeles",
+  schedule: ["* 0-3 * * *"],
+  updateNotScheduled: false,
+  vulnerabilityAlerts: { updateNotScheduled: true },
   packageRules: [
     {
       description: "Automerge non-major updates",
@@ -10,8 +14,28 @@
     },
     {
       description: "Automerge dev dependencies",
-      matchDepTypes: ["devDependencies"],
+      matchDepTypes: ["devDependencies", "dependency-groups"],
       automerge: true,
+    },
+    {
+      matchDatasources: ["npm"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "JavaScript non-major dependencies",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "GitHub Actions non-major dependencies",
+    },
+    {
+      matchManagers: ["swift"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "Swift non-major dependencies",
+    },
+    {
+      matchManagers: ["pep621"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "Python non-major dependencies",
     },
   ],
 }

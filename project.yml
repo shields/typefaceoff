@@ -5,6 +5,11 @@ configs:
   FuzzCoverage: release
   FuzzBenchmark: release
   StartupBenchmark: release
+configFiles:
+  Debug: Config/Development.xcconfig
+  FuzzCoverage: Config/Development.xcconfig
+  FuzzBenchmark: Config/Development.xcconfig
+  StartupBenchmark: Config/Development.xcconfig
 options:
   bundleIdPrefix: com.typefaceoff
   deploymentTarget:

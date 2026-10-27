@@ -2,7 +2,7 @@ export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/ModuleCache
 export UV_PROJECT_ENVIRONMENT := $(CURDIR)/.build/language-tooling
 SWIFT_FLAGS = --disable-sandbox --cache-path .build/cache --config-path .build/config --security-path .build/security
 APP = .build/xcode/Build/Products/Debug/TypefaceOff.app
-XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug -destination 'platform=macOS' CODE_SIGN_IDENTITY=-
+XCODE_COMMON_FLAGS = -quiet -project TypefaceOff.xcodeproj -configuration Debug -destination 'platform=macOS'
 XCODE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme TypefaceOff -derivedDataPath .build/xcode
 PORTABLE_FLAGS = $(XCODE_COMMON_FLAGS) -scheme PortableTests -derivedDataPath .build/portable
 PORTABLE_TESTS = .build/portable-tests.tar
@@ -169,8 +169,8 @@ review: project
 fuzz-build: project
 	swift build $(FUZZ_SWIFT_FLAGS) --product ui-fuzz
 	./scripts/build-fuzz-driver.sh "$(RAW_FUZZ_TOOL)" "$(FUZZ_DRIVER_APP)"
-	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration FuzzCoverage -derivedDataPath .build/fuzz-coverage -destination 'platform=macOS' CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
-	xcodebuild -quiet -project TypefaceOff.xcodeproj -target TypefaceOff -configuration FuzzBenchmark SYMROOT="$(CURDIR)/.build/fuzz-benchmark" OBJROOT="$(CURDIR)/.build/fuzz-benchmark/obj" CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration FuzzCoverage -derivedDataPath .build/fuzz-coverage -destination 'platform=macOS' CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -target TypefaceOff -configuration FuzzBenchmark SYMROOT="$(CURDIR)/.build/fuzz-benchmark" OBJROOT="$(CURDIR)/.build/fuzz-benchmark/obj" CODE_SIGN_ENTITLEMENTS= ARCHS=$(shell uname -m) build
 
 # Campaigns run until SIGINT or SIGTERM unless FUZZ_ARGS includes --duration.
 fuzz: fuzz-build
@@ -203,7 +203,7 @@ benchmark:
 	TYPEFACEOFF_BENCHMARK_DIR="$(CURDIR)/.build/similarity-benchmark" swift test $(SWIFT_FLAGS) -c release --filter SimilarityBenchmark
 
 startup-build: project
-	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration StartupBenchmark -derivedDataPath .build/startup -destination 'platform=macOS' CODE_SIGN_IDENTITY=- build
+	xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration StartupBenchmark -derivedDataPath .build/startup -destination 'platform=macOS' build
 
 benchmark-startup: startup-build
 	swiftc -swift-version 6 -warnings-as-errors -O scripts/startup-benchmark.swift -o .build/startup/benchmark

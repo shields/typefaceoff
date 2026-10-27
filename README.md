@@ -17,10 +17,26 @@ make run
 ```
 
 `make build` creates `.build/xcode/Build/Products/Debug/TypefaceOff.app`, signed
-locally with an ad hoc identity. `make project` generates
+locally with an ad hoc identity by default. `make project` generates
 `TypefaceOff.xcodeproj` for development in Xcode. `project.yml` owns the project
 and app metadata; generated files are ignored. Signing entitlements are in
 `Config/*.entitlements`.
+
+To preserve macOS privacy permissions across development builds, create
+`Config/Development.local.xcconfig` with your Apple Development identity:
+
+```xcconfig
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+CODE_SIGN_IDENTITY = Apple Development
+```
+
+This ignored file applies to normal, fuzz, and benchmark development builds.
+`Config/Signing.local.xcconfig` also supplies shared signing settings when
+present. Ad hoc signatures identify each build separately, which can cause
+repeated file-access prompts when running from a removable volume. A stable
+signing identity lets macOS recognize successive builds as the same app; you may
+need to grant permission once after switching identities. See Apple’s
+[code identity documentation](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements).
 
 The app uses installed fonts. It makes no network requests and has no
 third-party runtime dependencies. Install additional fonts with Font Book, then

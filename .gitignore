@@ -4,6 +4,7 @@
 TypefaceOff.xcodeproj/
 Config/Info.plist
 Config/Signing.local.xcconfig
+Config/Development.local.xcconfig
 node_modules/
 __pycache__/
 .hyperglot-cache

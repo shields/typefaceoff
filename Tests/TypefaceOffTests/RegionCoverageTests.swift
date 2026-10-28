@@ -131,6 +131,21 @@ import TypefaceCore
     #expect(field.stringValue == "replacement")
   }
 
+  @Test func detachingASearchFieldPreservesItsQueryAndReleasesTheWindow() async throws {
+    var query = "Retained query"
+    let host = WorkbenchTestHost(
+      PickerSearchField(
+        label: "Detachment search", text: Binding(get: { query }, set: { query = $0 }),
+        move: { _ in }, submit: {}, cancel: {}))
+    defer { host.window.close() }
+    try await host.settle()
+    let field = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    #expect(field.window === host.window && field.stringValue == query)
+    field.removeFromSuperview()
+    #expect(field.window == nil)
+    #expect(field.stringValue == "Retained query" && query == "Retained query")
+  }
+
   @Test func repeatedMissingFontNamesRemainVisibleInDisambiguatedRows() {
     let missing = FontConfiguration("TypefaceOff-Missing-Region-Fixture")
     #expect(

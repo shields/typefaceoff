@@ -61,23 +61,38 @@ import TypefaceCore
     #expect(cancelled.problem == nil && !cancelled.checking)
   }
 
-  @Test func errorsAndLoadingAreVisible() async throws {
-    let loading = LanguageBrowserModel()
+  enum LoadState: CaseIterable, Sendable { case loading, failed, ready }
+
+  @Test(arguments: LoadState.allCases)
+  func errorsAndLoadingAreVisible(state: LoadState) async throws {
+    let browser = LanguageBrowserModel(load: {
+      if state == .failed { throw LanguageTestError() }
+      return LanguageDatabase.shared
+    })
+    if state != .loading { await browser.update(.init(Comparison())) }
     let host = WorkbenchTestHost(
       LanguageBrowserView(
-        browser: loading, comparison: Comparison(), inspect: { _ in }, useSpecimen: { _ in }),
+        browser: browser, comparison: Comparison(), inspect: { _ in }, useSpecimen: { _ in }),
       width: 750, height: 700)
     defer { host.window.close() }
     try await host.settle()
-    _ = try await host.element("Loading languages")
-    let failed = LanguageBrowserModel(load: { throw LanguageTestError() })
-    await failed.update(LanguageBrowserModel.Request(Comparison()))
-    #expect(failed.problem == "Expected language failure")
-    host.setContent(
-      LanguageBrowserView(
-        browser: failed, comparison: Comparison(), inspect: { _ in }, useSpecimen: { _ in }))
-    try await host.settle()
-    _ = try await host.element("Language coverage error message")
+    switch state {
+    case .loading:
+      _ = try await host.element("Loading languages")
+      #expect(browser.database == nil && browser.problem == nil)
+    case .failed:
+      _ = try await host.element("Language coverage error message")
+      #expect(browser.database == nil && browser.problem == "Expected language failure")
+    case .ready:
+      let languages = Array(browser.rows.prefix(3))
+      try #require(languages.count == 3)
+      for language in languages {
+        browser.filter.query = language.name
+        try await host.settle()
+        _ = try await host.element("Language row \(language.id)")
+      }
+      #expect(browser.database != nil && browser.problem == nil && !browser.checking)
+    }
   }
 
   @Test func historicalOnlyOrthographiesAndEmptySheetsStayExplicit() async throws {

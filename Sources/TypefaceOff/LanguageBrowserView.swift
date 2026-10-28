@@ -28,18 +28,23 @@ struct LanguageBrowserView: View {
           .accessibilityLabel(Text(verbatim: "Language coverage failed: \(problem)"))
           .accessibilityIdentifier("Language coverage error message")
       }
-      if browser.database == nil && browser.problem == nil {
-        ProgressView("Loading languages").frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if browser.database != nil {
-        HStack(spacing: 0) {
-          languageList.frame(minWidth: 180, idealWidth: 210, maxWidth: 260)
-          Divider()
-          detail.frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
-        }
-      }
+      browserContent
     }
     .onChange(of: browser.filter.minimumSpeakers) {
       threshold = SpeakerThreshold.format(browser.filter.minimumSpeakers)
+    }
+  }
+
+  // Swift coverage mapping can derive negative counts after an optional binding in the same builder.
+  @ViewBuilder private var browserContent: some View {
+    if browser.database != nil {
+      HStack(spacing: 0) {
+        languageList.frame(minWidth: 180, idealWidth: 210, maxWidth: 260)
+        Divider()
+        detail.frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
+      }
+    } else if browser.problem == nil {
+      ProgressView("Loading languages").frame(maxWidth: .infinity, maxHeight: .infinity)
     }
   }
 

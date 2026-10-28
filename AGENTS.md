@@ -41,3 +41,7 @@ file. Exit tests must enable LLVM continuous profiling (`%c` in the inherited
 Keep fail-fast checks concise with `precondition(condition)` or `try!`. Coverage
 counts the closing line of a `while true` loop, which has no reachable exit, so
 loop on a condition.
+
+Cover optional font metadata with synthetic fixtures. Coverage must not depend
+on user-installed fonts or incidental view teardown. Counts clamped by
+`llvm-cov`'s JSON exporter are invalid coverage measurements and fail the gate.

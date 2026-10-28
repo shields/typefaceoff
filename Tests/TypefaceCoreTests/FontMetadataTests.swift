@@ -5,6 +5,25 @@ import Testing
 @testable import TypefaceCore
 
 @Suite struct FontMetadataTests {
+  @Test(arguments: [
+    ["wdth", "wght", "opsz"], ["wght", "opsz", "wdth"], ["opsz", "wdth", "wght"],
+  ])
+  func weightAxesPrecedeOtherAxesSortedByName(order: [String]) {
+    let names = ["wght": "Z weight", "wdth": "Width", "opsz": "Optical size"]
+    let axes: [[String: Any]] = order.map { tag in
+      [
+        kCTFontVariationAxisIdentifierKey as String: NSNumber(value: tagNumber(tag)),
+        kCTFontVariationAxisNameKey as String: names[tag]!,
+        kCTFontVariationAxisMinimumValueKey as String: 0.0,
+        kCTFontVariationAxisMaximumValueKey as String: 1000.0,
+        kCTFontVariationAxisDefaultValueKey as String: 100.0,
+      ]
+    }
+    let parsed = FontFace.readAttributes(styleName: nil, variation: nil, axes: axes, os2: nil)
+    #expect(parsed.axes.map(\.tag) == ["wght", "opsz", "wdth"])
+    #expect(parsed.axes.map(\.name) == ["Z weight", "Optical size", "Width"])
+  }
+
   @Test func absentOrMalformedFontAttributesUseDocumentedDefaults() {
     let empty = FontFace.readAttributes(styleName: nil, variation: nil, axes: nil, os2: nil)
     #expect(empty.style == "Regular")

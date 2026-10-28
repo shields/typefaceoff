@@ -50,13 +50,18 @@ if ! jq -e '
     any(.filename | contains("/Sources/TypefaceOff/")) and
     any(.filename | contains("/Sources/UIFuzzSupport/")) and
     all(.summary.lines.covered == .summary.lines.count and
-        .summary.regions.covered == .summary.regions.count)
+        .summary.regions.covered == .summary.regions.count and
+        all(.segments[]; (.[3] | not) or .[2] < 9223372036854775807))
 ' "$report" >/dev/null; then
-    echo "Coverage must include core, app, and fuzzing-support sources, with 100% line and region coverage for every file." >&2
+    echo "Coverage must include core, app, and fuzzing-support sources, with 100% line and region coverage for every file and no clamped execution counts." >&2
     jq -r '
         .data[].files[] | .filename as $file |
-        .segments[] | select(.[2] == 0 and .[3] and .[4] and (.[5] != true)) |
-        "\($file):\(.[0]):\(.[1]): uncovered region"
+        .segments[] | select(.[3]) |
+        if .[2] >= 9223372036854775807 then
+            "\($file):\(.[0]):\(.[1]): execution count clamped by llvm-cov"
+        elif .[2] == 0 and .[4] and (.[5] != true) then
+            "\($file):\(.[0]):\(.[1]): uncovered region"
+        else empty end
     ' "$report" >&2
     exit 1
 fi

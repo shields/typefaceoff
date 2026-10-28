@@ -128,7 +128,7 @@ public enum Differences {
     frequency: Bool
   ) -> Set<String> {
     var selected = Set<String>()
-    for isShape in [true, false] where isShape ? shape : spacing {
+    for (enabled, isShape) in [(shape, true), (spacing, false)] where enabled {
       selected.formUnion(
         ranked(scores, shape: isShape, spacing: !isShape, frequency: frequency)
           .filter { present.contains($0.id) && (isShape ? $0.shape : $0.spacing) > 1e-9 }

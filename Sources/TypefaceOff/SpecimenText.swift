@@ -175,7 +175,8 @@ struct SpecimenText: NSViewRepresentable {
       var placeholders: [[Unicode.Scalar]: [NSAttributedString]] = [:]
       func placeholder(for glyph: String, emphasized: Bool) -> NSAttributedString {
         let scalars = Array(glyph.unicodeScalars)
-        if let cached = placeholders[scalars] { return cached[emphasized ? 1 : 0] }
+        let style = emphasized ? 1 : 0
+        if let cached = placeholders[scalars] { return cached[style] }
         let displayed =
           "[\(scalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))]"
         let tooltip = "Unavailable: \(unicodeDescription(glyph))"
@@ -188,7 +189,7 @@ struct SpecimenText: NSViewRepresentable {
           return NSAttributedString(string: displayed, attributes: styled)
         }
         placeholders[scalars] = runs
-        return runs[emphasized ? 1 : 0]
+        return runs[style]
       }
       var sourceOffset = 0
       var displayedOffset = content.length

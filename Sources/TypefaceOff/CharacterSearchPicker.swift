@@ -13,12 +13,13 @@ struct CharacterSearchPicker: View {
 
   init(
     comparison: Comparison,
+    search: CharacterSearchModel? = nil,
     load: @escaping CharacterSearchModel.Load = CharacterSearch.results(for:fonts:),
     choose: @escaping (String) -> Void
   ) {
     self.comparison = comparison
     self.choose = choose
-    _search = StateObject(wrappedValue: CharacterSearchModel(load: load))
+    _search = StateObject(wrappedValue: search ?? CharacterSearchModel(load: load))
     _query = State(initialValue: "")
     _selection = State(initialValue: nil)
     _confirming = State(initialValue: nil)

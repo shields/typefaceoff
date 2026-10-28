@@ -1,8 +1,14 @@
+import Darwin
+import Foundation
 import Testing
 
 @testable import TypefaceCore
 
-@Suite struct CharacterFrequencyTests {
+@Suite(.serialized) struct CharacterFrequencyTests {
+  @Test(arguments: ["", "\u{200D}", "\u{FE0F}", "\u{E0100}"])
+  func emptyAndFormattingOnlyGraphemesHaveNoFrequency(grapheme: String) {
+    #expect(CharacterFrequency.frequency(of: grapheme) == nil)
+  }
   @Test func tableLoadsAndIsNonEmptyAndSortedByDescendingShare() {
     let shares = CharacterFrequency.parseEntries(CharacterFrequency.resourceContents()).map(\.1)
     #expect(!shares.isEmpty)
@@ -58,20 +64,38 @@ import Testing
   }
 
   @Test func missingResourceFailsFast() async {
+    Self.preserveExitCoverage()
     await #expect(processExitsWith: .failure) {
       _ = CharacterFrequency.resourceContents(name: "does-not-exist")
     }
   }
 
   @Test func malformedLineFailsFast() async {
+    Self.preserveExitCoverage()
     await #expect(processExitsWith: .failure) {
       _ = CharacterFrequency.parseEntries("00XY\tnot-a-number\n")
     }
   }
 
   @Test func emptyTableFailsFast() async {
+    Self.preserveExitCoverage()
     await #expect(processExitsWith: .failure) {
       _ = CharacterFrequency.parseEntries("# only a comment\n")
     }
+  }
+
+  @Test func missingFrequencyFailsFast() async {
+    Self.preserveExitCoverage()
+    await #expect(processExitsWith: .failure) {
+      _ = CharacterFrequency.parseEntries("0065\n")
+    }
+  }
+
+  private static func preserveExitCoverage() {
+    guard let value = getenv("LLVM_PROFILE_FILE") else { return }
+    let pattern = String(cString: value)
+    guard !pattern.contains("%c") else { return }
+    let path = URL(filePath: pattern).deletingPathExtension().path + "%c.profraw"
+    precondition(setenv("LLVM_PROFILE_FILE", path, 1) == 0)
   }
 }

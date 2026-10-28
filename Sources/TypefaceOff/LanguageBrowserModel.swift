@@ -15,6 +15,11 @@ final class LanguageBrowserModel: ObservableObject {
   }
 
   typealias Load = @Sendable () async throws -> LanguageDatabase
+  typealias Check =
+    @Sendable (
+      [LanguageRecord], FontConfiguration, [String],
+      @escaping @Sendable ([String: LanguageCoverage]) async -> Void
+    ) async throws -> Void
 
   @Published var filter: LanguageFilter
   @Published var coverageFilter: LanguageCoverageFilter
@@ -29,16 +34,21 @@ final class LanguageBrowserModel: ObservableObject {
   @Published private(set) var b: [String: LanguageCoverage]
   @Published private(set) var checking: Bool
   @Published private(set) var problem: String?
-  private let engine: LanguageCoverageEngine
+  private let check: Check
   private let load: Load
   private var token: UUID
   private var request: Request?
 
   init(
     engine: LanguageCoverageEngine = .shared,
-    load: @escaping Load = LanguageBrowserModel.loadDatabase
+    load: @escaping Load = LanguageBrowserModel.loadDatabase,
+    check: Check? = nil
   ) {
-    self.engine = engine
+    self.check =
+      check ?? { languages, font, priority, progress in
+        _ = try await engine.results(
+          for: languages, font: font, priority: priority, progress: progress)
+      }
     self.load = load
     filter = LanguageFilter()
     coverageFilter = .all
@@ -117,8 +127,8 @@ final class LanguageBrowserModel: ObservableObject {
         for (side, font) in [(Side.a, request.a), (.b, request.b)].compactMap({ side, font in
           font.map { (side, $0) }
         }) {
-          group.addTask { [engine] in
-            _ = try await engine.results(for: database.languages, font: font, priority: priority) {
+          group.addTask { [check, weak self] in
+            try await check(database.languages, font, priority) {
               [weak self] partial in
               await self?.accept(partial, side: side, token: token)
             }

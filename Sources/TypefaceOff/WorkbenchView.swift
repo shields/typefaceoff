@@ -162,7 +162,7 @@ struct WorkbenchView: View {
         Spacer()
         Button("Undo", systemImage: "arrow.uturn.backward") { undoManager?.undo() }
           .labelStyle(.iconOnly).disabled(undoManager?.canUndo != true).help("Undo the last change")
-        Button("Match…", systemImage: "slider.horizontal.3", action: openMatch)
+        Button("Match…", systemImage: "slider.horizontal.3", action: commands.match)
           .disabled(!commands.canMatch)
           .help("Preview closer axes, typography, and tracking for font B")
       }
@@ -181,7 +181,7 @@ struct WorkbenchView: View {
         ) {
           ForEach(Sample.allCases, id: \.self) { Text(verbatim: $0.title).tag($0) }
         }.labelsHidden().frame(maxWidth: 245)
-        Button("Edit text", action: openEditor).buttonStyle(.plain)
+        Button("Edit text", action: commands.editText).buttonStyle(.plain)
         Spacer(minLength: 4)
         TextField(
           comparison.b != nil && comparison.a.size != comparison.b?.size ? "Mixed" : "Size",
@@ -398,8 +398,7 @@ struct WorkbenchView: View {
   private func navigate(_ direction: Int) {
     let glyphs =
       ranked.isEmpty ? Differences.candidates(sample: comparison.text) : ranked.map(\.glyph)
-    guard let glyph = comparison.neighbour(in: glyphs, direction: direction) else { return }
-    selectGlyph(glyph)
+    selectGlyph(comparison.neighbour(in: glyphs, direction: direction)!)
   }
 }
 

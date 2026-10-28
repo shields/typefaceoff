@@ -61,7 +61,6 @@ final class FontFitModel: ObservableObject {
         let stream = try await load(request, previous?.proposed ?? request.b)
         for try await result in stream {
           try Task.checkCancellation()
-          guard self.generation == generation else { return }
           self.searchImproved = result.improved
           self.result = FontFitResult(
             proposed: result.proposed,
@@ -77,11 +76,13 @@ final class FontFitModel: ObservableObject {
     }
   }
 
-  func stop() {
+  @discardableResult func stop() -> Task<Void, Never>? {
     generation = UUID()
+    let previous = task
     task?.cancel()
     task = nil
     running = false
+    return previous
   }
 
   func apply(to model: WorkbenchModel, undoManager: UndoManager?) -> Bool {

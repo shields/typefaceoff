@@ -4,6 +4,23 @@ import Testing
 @testable import TypefaceCore
 
 struct LanguageTests {
+  @Test func equalCaseAndDiacriticInsensitiveNamesSortByIdentifier() throws {
+    let entry: [String: Any] = [
+      "id": "zzz", "name": "Example", "isoName": "Example", "status": "living",
+      "validity": "verified", "autonyms": [String](), "orthographies": [Self.orthography()],
+      "notes": [String](), "sources": [String](), "contributors": [String](),
+      "reviewers": [String](),
+    ]
+    var earlier = entry
+    earlier["id"] = "aaa"
+    earlier["name"] = "éXAMPLE"
+    let data = try JSONSerialization.data(withJSONObject: [
+      "schema": 1, "version": "test", "source": "test", "excluded": [String: Int](),
+      "languages": [entry, earlier],
+    ])
+    #expect(try LanguageDatabase.decode(data).languages.map(\.id) == ["aaa", "zzz"])
+  }
+
   @Test func bundledCatalogAndDefaults() throws {
     let database = LanguageDatabase.shared
     #expect(database.schema == 1)

@@ -1,0 +1,217 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ttFont sfntVersion="\x00\x01\x00\x00" ttLibVersion="4.66">
+  <GlyphOrder>
+    <GlyphID id="0" name=".notdef" />
+    <GlyphID id="1" name="space" />
+    <GlyphID id="2" name="a" />
+  </GlyphOrder>
+  <head>
+    <tableVersion value="1.0" />
+    <fontRevision value="1.0" />
+    <checkSumAdjustment value="0x17a18193" />
+    <magicNumber value="0x5f0f3cf5" />
+    <flags value="00000000 00000011" />
+    <unitsPerEm value="1000" />
+    <created value="Wed Oct 28 01:37:43 2026" />
+    <modified value="Wed Oct 28 01:37:43 2026" />
+    <xMin value="100" />
+    <yMin value="0" />
+    <xMax value="500" />
+    <yMax value="700" />
+    <macStyle value="00000000 00000000" />
+    <lowestRecPPEM value="3" />
+    <fontDirectionHint value="2" />
+    <indexToLocFormat value="0" />
+    <glyphDataFormat value="0" />
+  </head>
+  <hhea>
+    <tableVersion value="0x00010000" />
+    <ascent value="800" />
+    <descent value="-200" />
+    <lineGap value="0" />
+    <advanceWidthMax value="600" />
+    <minLeftSideBearing value="100" />
+    <minRightSideBearing value="100" />
+    <xMaxExtent value="500" />
+    <caretSlopeRise value="1" />
+    <caretSlopeRun value="0" />
+    <caretOffset value="0" />
+    <reserved0 value="0" />
+    <reserved1 value="0" />
+    <reserved2 value="0" />
+    <reserved3 value="0" />
+    <metricDataFormat value="0" />
+    <numberOfHMetrics value="3" />
+  </hhea>
+  <maxp>
+    <tableVersion value="0x10000" />
+    <numGlyphs value="3" />
+    <maxPoints value="4" />
+    <maxContours value="1" />
+    <maxCompositePoints value="0" />
+    <maxCompositeContours value="0" />
+    <maxZones value="2" />
+    <maxTwilightPoints value="0" />
+    <maxStorage value="0" />
+    <maxFunctionDefs value="0" />
+    <maxInstructionDefs value="0" />
+    <maxStackElements value="0" />
+    <maxSizeOfInstructions value="0" />
+    <maxComponentElements value="0" />
+    <maxComponentDepth value="0" />
+  </maxp>
+  <OS_2>
+    <version value="3" />
+    <xAvgCharWidth value="500" />
+    <usWeightClass value="400" />
+    <usWidthClass value="5" />
+    <fsType value="00000000 00000100" />
+    <ySubscriptXSize value="0" />
+    <ySubscriptYSize value="0" />
+    <ySubscriptXOffset value="0" />
+    <ySubscriptYOffset value="0" />
+    <ySuperscriptXSize value="0" />
+    <ySuperscriptYSize value="0" />
+    <ySuperscriptXOffset value="0" />
+    <ySuperscriptYOffset value="0" />
+    <yStrikeoutSize value="0" />
+    <yStrikeoutPosition value="0" />
+    <sFamilyClass value="0" />
+    <panose>
+      <bFamilyType value="0" />
+      <bSerifStyle value="0" />
+      <bWeight value="0" />
+      <bProportion value="0" />
+      <bContrast value="0" />
+      <bStrokeVariation value="0" />
+      <bArmStyle value="0" />
+      <bLetterForm value="0" />
+      <bMidline value="0" />
+      <bXHeight value="0" />
+    </panose>
+    <ulUnicodeRange1 value="00000000 00000000 00000000 00000001" />
+    <ulUnicodeRange2 value="00000000 00000000 00000000 00000000" />
+    <ulUnicodeRange3 value="00000000 00000000 00000000 00000000" />
+    <ulUnicodeRange4 value="00000000 00000000 00000000 00000000" />
+    <achVendID value="????" />
+    <fsSelection value="00000000 00000000" />
+    <usFirstCharIndex value="32" />
+    <usLastCharIndex value="97" />
+    <sTypoAscender value="800" />
+    <sTypoDescender value="-200" />
+    <sTypoLineGap value="0" />
+    <usWinAscent value="800" />
+    <usWinDescent value="200" />
+    <ulCodePageRange1 value="00000000 00000000 00000000 00000000" />
+    <ulCodePageRange2 value="00000000 00000000 00000000 00000000" />
+    <sxHeight value="0" />
+    <sCapHeight value="0" />
+    <usDefaultChar value="0" />
+    <usBreakChar value="32" />
+    <usMaxContext value="0" />
+  </OS_2>
+  <hmtx>
+    <mtx name=".notdef" width="600" lsb="0" />
+    <mtx name="a" width="600" lsb="100" />
+    <mtx name="space" width="300" lsb="0" />
+  </hmtx>
+  <cmap>
+    <tableVersion version="0" />
+    <cmap_format_4 platformID="0" platEncID="3" language="0">
+      <map code="0x20" name="space" />
+      <map code="0x61" name="a" />
+    </cmap_format_4>
+    <cmap_format_4 platformID="3" platEncID="1" language="0">
+      <map code="0x20" name="space" />
+      <map code="0x61" name="a" />
+    </cmap_format_4>
+  </cmap>
+  <loca>
+</loca>
+  <glyf>
+    <TTGlyph name=".notdef" />
+    <TTGlyph name="a" xMin="100" yMin="0" xMax="500" yMax="700">
+      <contour>
+        <pt x="100" y="0" on="1" />
+        <pt x="500" y="0" on="1" />
+        <pt x="500" y="700" on="1" />
+        <pt x="100" y="700" on="1" />
+      </contour>
+      <instructions />
+    </TTGlyph>
+    <TTGlyph name="space" />
+  </glyf>
+  <name>
+    <namerecord nameID="1" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      TypefaceOff Region Optical
+    </namerecord>
+    <namerecord nameID="2" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      Regular
+    </namerecord>
+    <namerecord nameID="3" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      TypefaceOffRegionOptical-Regular
+    </namerecord>
+    <namerecord nameID="4" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      TypefaceOff Region Optical Regular
+    </namerecord>
+    <namerecord nameID="5" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      Version 1.0
+    </namerecord>
+    <namerecord nameID="6" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      TypefaceOffRegionOptical-Regular
+    </namerecord>
+    <namerecord nameID="256" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      Optical Size
+    </namerecord>
+    <namerecord nameID="1" platformID="3" platEncID="1" langID="0x409">
+      TypefaceOff Region Optical
+    </namerecord>
+    <namerecord nameID="2" platformID="3" platEncID="1" langID="0x409">
+      Regular
+    </namerecord>
+    <namerecord nameID="3" platformID="3" platEncID="1" langID="0x409">
+      TypefaceOffRegionOptical-Regular
+    </namerecord>
+    <namerecord nameID="4" platformID="3" platEncID="1" langID="0x409">
+      TypefaceOff Region Optical Regular
+    </namerecord>
+    <namerecord nameID="5" platformID="3" platEncID="1" langID="0x409">
+      Version 1.0
+    </namerecord>
+    <namerecord nameID="6" platformID="3" platEncID="1" langID="0x409">
+      TypefaceOffRegionOptical-Regular
+    </namerecord>
+    <namerecord nameID="256" platformID="3" platEncID="1" langID="0x409">
+      Optical Size
+    </namerecord>
+  </name>
+  <post>
+    <formatType value="2.0" />
+    <italicAngle value="0.0" />
+    <underlinePosition value="0" />
+    <underlineThickness value="0" />
+    <isFixedPitch value="0" />
+    <minMemType42 value="0" />
+    <maxMemType42 value="0" />
+    <minMemType1 value="0" />
+    <maxMemType1 value="0" />
+    <psNames>
+</psNames>
+    <extraNames>
+</extraNames>
+  </post>
+  <fvar>
+    <Axis>
+      <AxisTag>opsz</AxisTag>
+      <Flags>0x0</Flags>
+      <MinValue>8.0</MinValue>
+      <DefaultValue>12.0</DefaultValue>
+      <MaxValue>72.0</MaxValue>
+      <AxisNameID>256</AxisNameID>
+    </Axis>
+  </fvar>
+  <gvar>
+    <version value="1" />
+    <reserved value="0" />
+  </gvar>
+</ttFont>

@@ -31,7 +31,7 @@ HIGHLIGHT_OUTPUT ?= $(CURDIR)/.build/highlight-benchmark
 ARCHIVE = $(CURDIR)/.build/distribution/TypefaceOff.xcarchive
 ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Release -destination 'generic/platform=macOS' -derivedDataPath .build/distribution/xcode -archivePath "$(ARCHIVE)" -allowProvisioningUpdates
 
-.PHONY: build project run test test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
+.PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm
 .PHONY: archive testflight
@@ -58,10 +58,12 @@ testflight: archive
 run: build
 	open "$(APP)"
 
-test: test-fuzz-vm test-languages
+test: test-package
+	$(MAKE) test-app
+
+test-package: test-fuzz-vm test-languages
 	# Font discovery shares macOS's font registry; serialize the package tests.
 	swift test $(SWIFT_FLAGS) --enable-code-coverage --no-parallel
-	$(MAKE) test-app
 
 test-fuzz-vm:
 	sh scripts/test-fuzz-vm.sh

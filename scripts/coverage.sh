@@ -49,13 +49,14 @@ if ! jq -e '
     any(.filename | contains("/Sources/TypefaceCore/")) and
     any(.filename | contains("/Sources/TypefaceOff/")) and
     any(.filename | contains("/Sources/UIFuzzSupport/")) and
-    all(.summary.lines.covered == .summary.lines.count)
+    all(.summary.lines.covered == .summary.lines.count and
+        .summary.regions.covered == .summary.regions.count)
 ' "$report" >/dev/null; then
-    echo "Coverage must include core, app, and fuzzing-support sources, with 100% line coverage for every file." >&2
-    # Include function locations so compiler-generated gaps can be diagnosed in CI.
+    echo "Coverage must include core, app, and fuzzing-support sources, with 100% line and region coverage for every file." >&2
     jq -r '
-        .data[].functions[] | select(.count == 0) |
-        "\(.filenames[0]):\(.regions[0][0]): \(.name)"
-    ' "$report" | xcrun swift-demangle >&2
+        .data[].files[] | .filename as $file |
+        .segments[] | select(.[2] == 0 and .[3] and .[4] and (.[5] != true)) |
+        "\($file):\(.[0]):\(.[1]): uncovered region"
+    ' "$report" >&2
     exit 1
 fi

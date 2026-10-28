@@ -127,9 +127,12 @@ final class RankingModel: ObservableObject {
   private var preparation: PreparedSearch<Comparison, [GlyphDifference]>?
   private var hasRequested = false
 
-  init(preparation: InitialFontWork? = nil) {
+  init(
+    preparation: InitialFontWork? = nil,
+    preparedRanking: PreparedSearch<Comparison, [GlyphDifference]>? = nil
+  ) {
     engine = preparation?.rankingEngine ?? DifferenceEngine()
-    self.preparation = preparation?.ranking
+    self.preparation = preparedRanking ?? preparation?.ranking
   }
 
   func update(_ comparison: Comparison) async {

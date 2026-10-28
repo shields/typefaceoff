@@ -135,11 +135,14 @@ public enum FontRenderer {
 
   /// For callers that already have the font's PostScript name, such as one probing many
   /// glyphs against the same font.
-  static func supports(_ line: CTLine, configuredName: String) -> Bool {
+  static func supports(
+    _ line: CTLine, configuredName: String,
+    runAttributes: (CTRun) -> NSDictionary = { CTRunGetAttributes($0) as NSDictionary }
+  ) -> Bool {
     // Core Text guarantees that this array contains CTRun objects.
     let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     return runs.allSatisfy { run in
-      let attrs = CTRunGetAttributes(run) as NSDictionary
+      let attrs = runAttributes(run)
       guard let actual = attrs[kCTFontAttributeName] else { return false }
       let runFont = actual as! CTFont
       guard CTFontCopyPostScriptName(runFont) as String == configuredName else {
@@ -160,8 +163,11 @@ public enum FontRenderer {
     measure(line(text, config: config, size: size, tracking: tracking))
   }
 
-  static func measure(_ line: CTLine) -> GlyphMeasurement {
-    let bounds = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+  static func measure(
+    _ line: CTLine,
+    inkBounds: (CTLine) -> CGRect = { CTLineGetBoundsWithOptions($0, [.useGlyphPathBounds]) }
+  ) -> GlyphMeasurement {
+    let bounds = inkBounds(line)
     return GlyphMeasurement(
       bounds: bounds.isNull ? .zero : bounds,
       advance: CTLineGetTypographicBounds(line, nil, nil, nil))

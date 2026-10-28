@@ -51,7 +51,16 @@ struct SimilarityImage: Sendable {
       radius: raster.radius, measurement: raster.measurement)
   }
 
-  static func rasterize(_ line: CTLine, scale: Double, radius: Float) throws -> Raster {
+  static func rasterize(
+    _ line: CTLine, scale: Double, radius: Float,
+    makeContext: (UnsafeMutableRawPointer?, Int, Int) -> CGContext? = { data, width, height in
+      CGContext(
+        data: data, width: width, height: height, bitsPerComponent: 8,
+        bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+          | CGBitmapInfo.byteOrder32Big.rawValue)
+    }
+  ) throws -> Raster {
     let measurement = FontRenderer.measure(line)
     let bounds = measurement.bounds
     let padding = Double(ceil(radius)) + 5
@@ -67,12 +76,7 @@ struct SimilarityImage: Sendable {
     let height = Int(h)
     var rgba = [UInt8](repeating: 0, count: width * height * 4)
     let rendered = rgba.withUnsafeMutableBytes { bytes in
-      guard
-        let context = CGContext(
-          data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
-          bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
-          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            | CGBitmapInfo.byteOrder32Big.rawValue)
+      guard let context = makeContext(bytes.baseAddress, width, height)
       else { return false }
       context.setShouldAntialias(true)
       context.setShouldSmoothFonts(false)

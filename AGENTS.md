@@ -35,8 +35,9 @@ must use long-established characters.
 `make frequencies`; change `scripts/character-frequencies.swift`, never the
 table.
 
-Write fail-fast checks as `precondition(condition)` or `try!` on a line that
-also runs normally. `make coverage` counts a `fatalError` call or a
-`precondition` message as unexecuted lines, because the exit tests that reach
-them record no coverage. It also counts the closing line of a `while true` loop,
-which has no reachable exit, so loop on a condition.
+`make coverage` requires 100% line and region coverage for every gated source
+file. Exit tests must enable LLVM continuous profiling (`%c` in the inherited
+`LLVM_PROFILE_FILE`) before spawning their child so crashes preserve counters.
+Keep fail-fast checks concise with `precondition(condition)` or `try!`. Coverage
+counts the closing line of a `while true` loop, which has no reachable exit, so
+loop on a condition.

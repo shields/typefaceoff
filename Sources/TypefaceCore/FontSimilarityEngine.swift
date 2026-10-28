@@ -227,9 +227,17 @@ public actor FontSimilarityEngine {
       return .init(
         family: family, score: nil, unavailableReason: "No installed face is available.")
     }
-    do {
-      let score = try await compare(
+    return try await Self.familyScore(family: family) {
+      try await self.compare(
         a: reference, b: b, corpus: .diagnostic, scale: scale, concurrency: 1)
+    }
+  }
+
+  static func familyScore(
+    family: String, compare: @Sendable () async throws -> SimilarityScore
+  ) async throws -> FamilySimilarity {
+    do {
+      let score = try await compare()
       return .init(family: family, score: score)
     } catch is CancellationError { throw CancellationError() } catch {
       return .init(family: family, score: nil, unavailableReason: error.localizedDescription)

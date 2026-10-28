@@ -327,6 +327,25 @@ import Testing
 }
 
 extension FontFitTests {
+  @Test func nonfiniteScreeningScoresCannotReplaceTheVerifiedBaseline() async throws {
+    let b = FontConfiguration("ArialMT")
+    var options = FontFitOptions(config: b)
+    options.axes = []
+    options.features = []
+    let engine = FontFitEngine { _, candidate, _, _ in
+      Self.score(candidate == b ? 0.5 : .infinity)
+    }
+    var last: FontFitResult?
+    for try await result in await engine.fit(
+      a: b, b: b, options: options, corpus: corpus, catalog: catalog,
+      budget: Self.evaluations(50))
+    {
+      #expect(result.proposed == b && result.score.total.isFinite)
+      last = result
+    }
+    #expect(last?.finished == true && (last?.evaluations ?? 0) > 1)
+  }
+
   @Test func interactingFeaturesAreNotDiscardedWhenSingleChangesAreWorse() async throws {
     let b = FontConfiguration("ArialMT")
     let features = Array(b.face.features.filter { !$0.isAutomatic }.prefix(2))

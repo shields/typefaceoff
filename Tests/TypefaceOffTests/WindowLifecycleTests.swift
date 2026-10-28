@@ -77,6 +77,7 @@ import Testing
     defer { fresh.close() }
     #expect(try sizeField(in: fresh).stringValue == "22")
     #expect(fresh.undoManager?.canUndo == false)
+    try await waitUntil { !NSApp.isActive }
     #expect(!NSApp.isActive)
   }
 

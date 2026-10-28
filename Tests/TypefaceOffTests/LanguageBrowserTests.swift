@@ -119,13 +119,14 @@ import TypefaceCore
     #expect(browser.rows.isEmpty)
   }
 
-  @Test func browserAppliesOneUndoableSpecimenAndRetainsBrowsing() async throws {
+  @Test(arguments: [600.0, 900.0])
+  func browserAppliesOneUndoableSpecimenAndRetainsBrowsing(height: Double) async throws {
     let model = WorkbenchModel()
     let fonts = model.comparison
     model.languages.selection = "eng"
     model.languages.filter.query = "English"
     model.updatePresentation { $0.mode = .languages }
-    let host = WorkbenchTestHost(WorkbenchView(model: model))
+    let host = WorkbenchTestHost(WorkbenchView(model: model), height: height)
     defer { host.window.close() }
     try await host.settle { model.languages.a.count == 705 && model.languages.b.count == 705 }
     model.languages.selection = nil
@@ -133,16 +134,17 @@ import TypefaceCore
     try await host.press("Language row eng")
     #expect(model.languages.selection == "eng")
     let orthography = try #require(model.languages.selectedOrthography)
-    try await host.press("Language orthography \(orthography.id)")
+    try await host.press(
+      "Language orthography \(orthography.id)", in: "Language detail scroll area")
     #expect(model.languages.orthographySelection == orthography.id)
-    try await host.press("Language specimen numerals toggle")
-    try await host.press("Language specimen currency toggle")
-    try await host.press("Language specimen auxiliary toggle")
-    try await host.press("Language specimen auxiliary toggle")
+    try await host.press("Language specimen numerals toggle", in: "Language detail scroll area")
+    try await host.press("Language specimen currency toggle", in: "Language detail scroll area")
+    try await host.press("Language specimen auxiliary toggle", in: "Language detail scroll area")
+    try await host.press("Language specimen auxiliary toggle", in: "Language detail scroll area")
     let expected = LanguageSpecimen.text(orthography, categories: model.languages.categories)
     let undo = try #require(host.window.undoManager)
     undo.beginUndoGrouping()
-    try await host.press("Language use specimen button")
+    try await host.press("Language use specimen button", in: "Language detail scroll area")
     undo.endUndoGrouping()
     try await host.settle { model.comparison.mode == .text }
     #expect(model.comparison.customText.unicodeScalars.elementsEqual(expected.unicodeScalars))
@@ -177,7 +179,7 @@ import TypefaceCore
     #expect(model.languages.filter.showHistorical)
     try await host.press("Language clear filters button")
     #expect(model.languages.filter.minimumSpeakers == 0)
-    try await host.press("Language sources disclosure")
+    try await host.press("Language sources disclosure", in: "Language detail scroll area")
   }
 
   @Test func specimenEditsPreserveCanonicalVariantsThroughUndo() {
@@ -206,6 +208,7 @@ import TypefaceCore
     let model = WorkbenchModel(comparison: comparison)
     model.languages.selection = "eng"
     model.languages.filter.query = "zzzz"
+    await model.languages.update(.init(comparison))
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle { !model.languages.checking && model.languages.database != nil }

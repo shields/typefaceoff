@@ -282,19 +282,21 @@ import TypefaceCore
     try await host.press("Edit text")
     try await host.settle { sheetEditor(host) != nil }
     let editor = try #require(sheetEditor(host))
+    let cancelledSheet = try #require(editor.window)
     host.enter("Discarded sample", in: editor)
     try await host.settle()
     try await host.press("Cancel")
-    try await host.settle { host.window.sheets.isEmpty }
+    try await host.settle { host.window.sheets.isEmpty && !cancelledSheet.isVisible }
     #expect(model.comparison.sample == .reading)
     #expect(model.comparison.customText.isEmpty)
     try await host.press("Edit text")
     try await host.settle { sheetEditor(host) != nil }
     let replacement = try #require(sheetEditor(host))
+    let appliedSheet = try #require(replacement.window)
     host.enter("A custom specimen with punctuation: @ & !", in: replacement)
     try await host.settle()
     try await host.press("Apply")
-    try await host.settle { host.window.sheets.isEmpty }
+    try await host.settle { host.window.sheets.isEmpty && !appliedSheet.isVisible }
     #expect(model.comparison.sample == .custom)
     #expect(model.comparison.text == replacement.string)
     try await host.press("Undo")
@@ -699,21 +701,29 @@ import TypefaceCore
       sourceLocation: sourceLocation)
   }
 
-  func element(_ label: String, timeout: Duration = .seconds(10)) async throws -> AnyObject {
+  func element(_ label: String, in area: String? = nil, timeout: Duration = .seconds(10))
+    async throws
+    -> AnyObject
+  {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
-      if let result = try await find(label, until: deadline) { return result }
+      if let result = try await find(label, in: area, until: deadline) { return result }
       if ContinuousClock.now < deadline { try await settle() }
     }
     throw MissingControl(label: label, available: accessibilitySummary)
   }
 
-  private func find(_ label: String, until deadline: ContinuousClock.Instant) async throws
+  private func find(_ label: String, in area: String?, until deadline: ContinuousClock.Instant)
+    async throws
     -> AnyObject?
   {
-    if let result = visibleElement(label, until: deadline) { return result }
+    let scrolls = subviews.compactMap { $0 as? NSScrollView }.filter {
+      area == nil || $0.accessibilityIdentifier() == area
+    }
+    let roots = area == nil ? contentRoots : scrolls.map(\.contentView)
+    if let result = visibleElement(label, in: roots, until: deadline) { return result }
     // Older SwiftUI versions expose only the visible portion of a scroll view.
-    for scroll in subviews.compactMap({ $0 as? NSScrollView }) {
+    for scroll in scrolls {
       guard ContinuousClock.now < deadline else { return nil }
       guard let document = scroll.documentView else { continue }
       let original = scroll.contentView.bounds.origin
@@ -725,7 +735,9 @@ import TypefaceCore
         scroll.contentView.scroll(to: NSPoint(x: original.x, y: min(offset, maximum)))
         scroll.reflectScrolledClipView(scroll.contentView)
         try await settle()
-        if let result = visibleElement(label, until: deadline) { return result }
+        if let result = visibleElement(label, in: [scroll.contentView], until: deadline) {
+          return result
+        }
       }
       scroll.contentView.scroll(to: original)
       scroll.reflectScrolledClipView(scroll.contentView)
@@ -768,15 +780,25 @@ import TypefaceCore
       + (samplingTimedOut ? ". Hit-test sampling reached its deadline" : "")
   }
 
-  private func visibleElement(_ label: String, until deadline: ContinuousClock.Instant? = nil)
+  private func visibleElement(
+    _ label: String, in roots: [NSView]? = nil, until deadline: ContinuousClock.Instant? = nil
+  )
     -> AnyObject?
   {
     func matches(_ element: AnyObject) -> Bool {
       element.accessibilityIdentifier?() == label || element.accessibilityLabel?() == label
         || element.accessibilityTitle?() == label
     }
-    return elements.first(where: matches) ?? hitElements(until: deadline).first(where: matches)
-      ?? finelySampledHitElements(until: deadline).first(where: matches)
+    if let result = elements.first(where: matches) { return result }
+    // Offscreen controls need part of the search deadline for scrolling and layout.
+    let scanDeadline = min(deadline ?? .now + .seconds(1), .now + .seconds(1))
+    let coarseDeadline = min(scanDeadline, .now + .milliseconds(500))
+    let roots = roots ?? contentRoots
+    return hitElements(in: roots, until: coarseDeadline, matching: matches).first(where: matches)
+      ?? roots.lazy.compactMap {
+        self.sampledHits(in: $0, rowStep: 4, until: scanDeadline, matching: matches).first(
+          where: matches)
+      }.first
   }
 
   func isEnabled(_ label: String) -> Bool {
@@ -789,14 +811,14 @@ import TypefaceCore
     var description: String { "Missing control: \(label). Available controls: \(available)" }
   }
 
-  func press(_ label: String) async throws {
+  func press(_ label: String, in area: String? = nil) async throws {
     if let item = window.toolbar?.items.first(where: { $0.label == label }),
       let action = item.action
     {
       #expect(NSApp.sendAction(action, to: item.target, from: item))
       return
     }
-    let control = try await element(label)
+    let control = try await element(label, in: area)
     // SwiftUI toolbar proxies can return false after dispatching the action.
     // Callers verify the resulting model or view state after settling.
     _ = control.accessibilityPerformPress?()
@@ -899,26 +921,34 @@ import TypefaceCore
       + (window.sheets + (window.childWindows ?? [])
       + NSApp.windows.filter {
         $0.isVisible && String(describing: type(of: $0)).contains("Popover")
-      }).compactMap(\.contentView)
+      }).filter(\.isVisible).compactMap(\.contentView)
   }
 
   var hitElements: [AnyObject] {
     hitElements(until: nil)
   }
 
-  private func hitElements(until deadline: ContinuousClock.Instant?) -> [AnyObject] {
+  private func hitElements(
+    in roots: [NSView]? = nil, until deadline: ContinuousClock.Instant?,
+    matching matches: ((AnyObject) -> Bool)? = nil
+  ) -> [AnyObject] {
     var result: [AnyObject] = []
-    for root in contentRoots {
+    for root in roots ?? contentRoots {
       guard let owner = root.window else { continue }
+      let hitRoot = contentRoots.first { root.isDescendant(of: $0) } ?? root
       // Small native controls can fall between the fallback grid's sample points.
       for view in descendants(of: root) where view is NSControl {
         if let deadline, ContinuousClock.now >= deadline { return result }
         let frame = owner.convertToScreen(view.convert(view.bounds, to: nil))
-        if let hit = root.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) {
-          result.append(hit as AnyObject)
+        if let hit = hitRoot.accessibilityHitTest(NSPoint(x: frame.midX, y: frame.midY)) {
+          let hit = hit as AnyObject
+          result.append(hit)
+          if matches?(hit) == true { return result }
         }
       }
-      result += sampledHits(in: root, rowStep: 16, until: deadline)
+      let sampled = sampledHits(in: root, rowStep: 16, until: deadline, matching: matches)
+      result += sampled
+      if let last = sampled.last, matches?(last) == true { return result }
     }
     return result
   }
@@ -929,18 +959,22 @@ import TypefaceCore
   }
 
   private func sampledHits(
-    in root: NSView, rowStep: Double, until deadline: ContinuousClock.Instant?
+    in root: NSView, rowStep: Double, until deadline: ContinuousClock.Instant?,
+    matching matches: ((AnyObject) -> Bool)? = nil
   )
     -> [AnyObject]
   {
     guard let owner = root.window else { return [] }
+    let hitRoot = contentRoots.first { root.isDescendant(of: $0) } ?? root
     var result: [AnyObject] = []
     let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
     for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: rowStep) {
       for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
         if let deadline, ContinuousClock.now >= deadline { return result }
-        if let hit = root.accessibilityHitTest(NSPoint(x: x, y: y)) {
-          result.append(hit as AnyObject)
+        if let hit = hitRoot.accessibilityHitTest(NSPoint(x: x, y: y)) {
+          let hit = hit as AnyObject
+          result.append(hit)
+          if matches?(hit) == true { return result }
         }
       }
     }

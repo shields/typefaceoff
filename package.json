@@ -2,7 +2,7 @@
   "name": "typefaceoff-tooling",
   "private": true,
   "devDependencies": {
-    "prettier": "^3.9.9",
-    "prettier-plugin-toml": "^3.0.2"
+    "prettier": "3.9.10",
+    "prettier-plugin-toml": "3.0.2"
   }
 }

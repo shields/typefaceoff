@@ -1,27 +1,28 @@
 name: CI
 
+# Contributions come from branches of this private repository, and a pull request
+# shows its branch's push checks, so a pull_request trigger would only rerun them.
 on:
   push:
     branches: ["**"]
-  pull_request:
 
 permissions:
   contents: read
 
-# prettier-ignore
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # Xcode 27 is offered only on the xcode-27 image, a public preview that runs macOS 27:
-  # https://github.com/actions/runner-images/issues/14404
+  # Xcode 27 is offered only on the xcode-27 image, which runs macOS 27:
+  # https://github.blog/changelog/2026-10-15-xcode-27-runner-image-generally-available/
   DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
 
 jobs:
   test:
     name: Build, lint, and test
     runs-on: xcode-27
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,6 +44,7 @@ jobs:
   build-tests:
     name: Build tests
     runs-on: xcode-27
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,6 +65,7 @@ jobs:
   stage-support:
     name: Stage the Xcode 26.6 XCTest support
     runs-on: macos-26
+    timeout-minutes: 5
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
@@ -82,6 +85,7 @@ jobs:
     name: Test on macOS ${{ matrix.macos }}
     needs: [build-tests, stage-support]
     runs-on: macos-${{ matrix.macos }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

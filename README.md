@@ -391,7 +391,9 @@ and runs them with the active Xcode, saving results like `make test-app`;
 `testing` also unpacks the Testing runtime, and `support` that and the staged
 XCTest support. `make smoke-launch` starts the built app and fails if it exits
 within 15 seconds, so an older macOS checks the binary itself. A run that
-executes no tests fails.
+executes no tests fails. A push to `main` skips the macOS jobs when
+`make ci-reuse` finds a branch run of the same tree, finished within the last
+day, whose every job passed on GitHub-hosted runners.
 
 `make review` renders native text, glyph, single-font, and character search
 windows into `.build/review` for visual inspection and records glyph redraw

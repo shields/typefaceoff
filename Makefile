@@ -33,7 +33,7 @@ ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -confi
 
 .PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
-.PHONY: benchmark-highlights test-fuzz-vm
+.PHONY: benchmark-highlights test-fuzz-vm ci-reuse test-ci-reuse
 .PHONY: archive testflight
 .PHONY: languages languages-check test-languages
 
@@ -61,12 +61,18 @@ run: build
 test: test-package
 	$(MAKE) test-app
 
-test-package: test-fuzz-vm test-languages
+test-package: test-fuzz-vm test-ci-reuse test-languages
 	# Font discovery shares macOS's font registry; serialize the package tests.
 	swift test $(SWIFT_FLAGS) --enable-code-coverage --no-parallel
 
 test-fuzz-vm:
 	sh scripts/test-fuzz-vm.sh
+
+ci-reuse:
+	tree=$$(git rev-parse 'HEAD^{tree}') && sh scripts/ci-reuse.sh "$$tree"
+
+test-ci-reuse:
+	sh scripts/test-ci-reuse.sh
 
 test-app: project
 	rm -rf .build/xcode/Build/ProfileData

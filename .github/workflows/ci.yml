@@ -19,8 +19,33 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
 
 jobs:
+  reuse:
+    name: Reuse a passing branch run
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read # Finds a branch run that already passed this tree
+    outputs:
+      reused: ${{ steps.reuse.outputs.reused }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: reuse
+        name: Find a passing branch run
+        run: make ci-reuse
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   test:
     name: Build, lint, and test
+    needs: reuse
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
@@ -43,6 +68,10 @@ jobs:
 
   build-tests:
     name: Build tests
+    needs: reuse
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
@@ -64,6 +93,10 @@ jobs:
 
   stage-support:
     name: Stage the Xcode 26.6 XCTest support
+    needs: reuse
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: macos-26
     timeout-minutes: 5
     env:
@@ -84,6 +117,11 @@ jobs:
   test-older-macos:
     name: Test on macOS ${{ matrix.macos }}
     needs: [build-tests, stage-support]
+    # A skipped reuse job skips its indirect dependents too, even when the jobs in
+    # between run, unless each overrides the default success() (actions/runner#2205).
+    if:
+      ${{ !cancelled() && needs.build-tests.result == 'success' &&
+      needs.stage-support.result == 'success' }}
     runs-on: macos-${{ matrix.macos }}
     timeout-minutes: 20
     strategy:

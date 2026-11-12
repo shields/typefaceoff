@@ -4,7 +4,7 @@ name: zizmor
 # shows its branch's push checks, so a pull_request trigger would only rerun them.
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
 
 permissions:
   contents: read

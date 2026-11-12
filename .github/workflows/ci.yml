@@ -4,7 +4,7 @@ name: CI
 # shows its branch's push checks, so a pull_request trigger would only rerun them.
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
 
 permissions:
   contents: read
@@ -43,7 +43,9 @@ jobs:
   test:
     name: Build, lint, and test
     needs: reuse
-    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
@@ -70,7 +72,9 @@ jobs:
   build-tests:
     name: Build tests
     needs: reuse
-    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
@@ -93,7 +97,9 @@ jobs:
   stage-support:
     name: Stage the Xcode 26.6 XCTest support
     needs: reuse
-    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
+    if:
+      ${{ !cancelled() && needs.reuse.result != 'failure' &&
+      needs.reuse.outputs.reused != 'true' }}
     runs-on: macos-26
     timeout-minutes: 5
     env:
@@ -113,10 +119,12 @@ jobs:
 
   test-older-macos:
     name: Test on macOS ${{ matrix.macos }}
-    needs: [ build-tests, stage-support ]
+    needs: [build-tests, stage-support]
     # A skipped reuse job skips its indirect dependents too, even when the jobs in
     # between run, unless each overrides the default success() (actions/runner#2205).
-    if: ${{ !cancelled() && needs.build-tests.result == 'success' && needs.stage-support.result == 'success' }}
+    if:
+      ${{ !cancelled() && needs.build-tests.result == 'success' &&
+      needs.stage-support.result == 'success' }}
     runs-on: macos-${{ matrix.macos }}
     timeout-minutes: 20
     strategy:
@@ -130,7 +138,8 @@ jobs:
           - { macos: 26, xcode: "26.6", runtime: testing }
     env:
       # The runners lack Xcode 27, so they run its bundles with their own Xcode 26.
-      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      DEVELOPER_DIR:
+        /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
       RUNTIME: ${{ matrix.runtime }}
     steps:
       - uses: actions/checkout@v7.0.1

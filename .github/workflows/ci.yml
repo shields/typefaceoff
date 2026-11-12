@@ -4,7 +4,7 @@ name: CI
 # shows its branch's push checks, so a pull_request trigger would only rerun them.
 on:
   push:
-    branches: ["**"]
+    branches: [ "**" ]
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
     outputs:
       reused: ${{ steps.reuse.outputs.reused }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: reuse
@@ -43,22 +43,23 @@ jobs:
   test:
     name: Build, lint, and test
     needs: reuse
-    if:
-      ${{ !cancelled() && needs.reuse.result != 'failure' &&
-      needs.reuse.outputs.reused != 'true' }}
+    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@v2.2.0
       - name: Install developer tools
         run: |
           brew update
           brew install xcodegen zizmor shellcheck shfmt jq uv
           uv python install 3.15
           bun install --frozen-lockfile
+      - run: make actions-lock-install
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Lint
         run: make lint
       - name: Test with coverage
@@ -69,20 +70,18 @@ jobs:
   build-tests:
     name: Build tests
     needs: reuse
-    if:
-      ${{ !cancelled() && needs.reuse.result != 'failure' &&
-      needs.reuse.outputs.reused != 'true' }}
+    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Install developer tools
         run: brew install xcodegen
       - name: Build tests
         run: make build-for-testing
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: portable-tests
           path: |
@@ -94,20 +93,18 @@ jobs:
   stage-support:
     name: Stage the Xcode 26.6 XCTest support
     needs: reuse
-    if:
-      ${{ !cancelled() && needs.reuse.result != 'failure' &&
-      needs.reuse.outputs.reused != 'true' }}
+    if: ${{ !cancelled() && needs.reuse.result != 'failure' && needs.reuse.outputs.reused != 'true' }}
     runs-on: macos-26
     timeout-minutes: 5
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Stage the support library
         run: make stage-support
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: xctest-support-26
           path: .build/support.tar
@@ -116,12 +113,10 @@ jobs:
 
   test-older-macos:
     name: Test on macOS ${{ matrix.macos }}
-    needs: [build-tests, stage-support]
+    needs: [ build-tests, stage-support ]
     # A skipped reuse job skips its indirect dependents too, even when the jobs in
     # between run, unless each overrides the default success() (actions/runner#2205).
-    if:
-      ${{ !cancelled() && needs.build-tests.result == 'success' &&
-      needs.stage-support.result == 'success' }}
+    if: ${{ !cancelled() && needs.build-tests.result == 'success' && needs.stage-support.result == 'success' }}
     runs-on: macos-${{ matrix.macos }}
     timeout-minutes: 20
     strategy:
@@ -135,18 +130,17 @@ jobs:
           - { macos: 26, xcode: "26.6", runtime: testing }
     env:
       # The runners lack Xcode 27, so they run its bundles with their own Xcode 26.
-      DEVELOPER_DIR:
-        /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
       RUNTIME: ${{ matrix.runtime }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: portable-tests
           path: .build
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: xctest-support-26
           path: .build

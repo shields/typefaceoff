@@ -1,26 +1,12 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["config:best-practices", ":semanticCommitsDisabled"],
-  automerge: true,
-  platformAutomerge: true,
-  // Main does not require up-to-date branches, and its own CI run tests the
-  // merged tree, so rebasing onto each main commit would only rerun branch CI.
+  extends: [
+    "github>shields/right-answers//renovate/base.json5",
+    "github>shields/right-answers//renovate/paid-ci.json5",
+  ],
   rebaseWhen: "conflicted",
-  timezone: "America/Los_Angeles",
-  schedule: ["* 0-3 * * *"],
-  updateNotScheduled: false,
-  vulnerabilityAlerts: { updateNotScheduled: true },
+  automerge: true,
   packageRules: [
-    {
-      matchDatasources: ["npm"],
-      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
-      groupName: "JavaScript non-major dependencies",
-    },
-    {
-      matchManagers: ["github-actions"],
-      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
-      groupName: "GitHub Actions non-major dependencies",
-    },
     {
       matchManagers: ["swift"],
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],

@@ -2,7 +2,13 @@
   "name": "Protect main",
   "target": "branch",
   "enforcement": "active",
-  "bypass_actors": [],
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ],
   "conditions": {
     "ref_name": {
       "include": ["refs/heads/main"],
@@ -10,22 +16,41 @@
     }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
     {
       "type": "required_status_checks",
       "parameters": {
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
-          { "context": "Build, lint, and test", "integration_id": 15368 },
-          { "context": "Build tests", "integration_id": 15368 },
+          {
+            "context": "Build, lint, and test",
+            "integration_id": 15368
+          },
+          {
+            "context": "Build tests",
+            "integration_id": 15368
+          },
           {
             "context": "Stage the Xcode 26.6 XCTest support",
             "integration_id": 15368
           },
-          { "context": "Test on macOS 15", "integration_id": 15368 },
-          { "context": "Test on macOS 26", "integration_id": 15368 },
-          { "context": "zizmor", "integration_id": 15368 }
+          {
+            "context": "Test on macOS 15",
+            "integration_id": 15368
+          },
+          {
+            "context": "Test on macOS 26",
+            "integration_id": 15368
+          },
+          {
+            "context": "zizmor",
+            "integration_id": 15368
+          }
         ]
       }
     }

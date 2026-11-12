@@ -220,7 +220,7 @@ benchmark-startup: startup-build
 profile-startup: startup-build
 	./scripts/profile-startup.sh "$(abspath $(STARTUP_APP))" "$(abspath $(STARTUP_PROFILE))"
 
-lint:
+lint: actions-lock-verify-local
 	uv run --frozen ruff check scripts/language_data.py Tests/LanguageDataTests
 	uv run --frozen ruff format --check scripts/language_data.py Tests/LanguageDataTests
 	uv run --frozen ty check scripts/language_data.py Tests/LanguageDataTests
@@ -243,3 +243,17 @@ fmt:
 setup:
 	bun install --frozen-lockfile
 	lefthook install
+
+.PHONY: actions-lock-install actions-lock actions-lock-verify-local actions-lock-verify
+
+actions-lock-install:
+	gh extension install github/gh-actions-lock --pin v0.4.1 --force
+
+actions-lock:
+	gh actions-lock --no-interactive
+
+actions-lock-verify-local:
+	gh actions-lock --verify-local
+
+actions-lock-verify:
+	gh actions-lock --verify

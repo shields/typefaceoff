@@ -198,7 +198,7 @@ struct WorkbenchView: View {
           }
           syncSize()
         }
-        .accessibilityLabel("Shared point size")
+        .accessibilityLabel("Shared size in points")
         .accessibilityIdentifier("Shared point size")
         Text("pt").foregroundStyle(.secondary)
         Button("Swap fonts", systemImage: "arrow.left.arrow.right", action: swapFonts)

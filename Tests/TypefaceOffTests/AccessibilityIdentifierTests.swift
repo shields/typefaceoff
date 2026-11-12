@@ -109,10 +109,13 @@ import TypefaceCore
     collect(NSApp.mainMenu)
     let identifiers = Set(elements.map(Self.identifier).filter { !$0.isEmpty })
     for element in elements {
-      let own = Self.identifier(of: element)
+      // Some macOS versions put a SwiftUI text field's identifier on its cell only, while the
+      // field and the cell expose the same label; they are one accessibility element.
+      let own = [element, (element as? NSTextField)?.cell as AnyObject?].compactMap { $0 }.map(
+        Self.identifier)
       for text in [
         element.accessibilityLabel?(), element.accessibilityTitle?(),
-      ].compactMap({ $0 }) where text != own && identifiers.contains(text) {
+      ].compactMap({ $0 }) where !own.contains(text) && identifiers.contains(text) {
         Issue.record("\(text) names one element by label or title and another by identifier")
       }
     }

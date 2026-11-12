@@ -3,6 +3,9 @@
   extends: ["config:best-practices", ":semanticCommitsDisabled"],
   automerge: true,
   platformAutomerge: true,
+  // Main does not require up-to-date branches, and its own CI run tests the
+  // merged tree, so rebasing onto each main commit would only rerun branch CI.
+  rebaseWhen: "conflicted",
   timezone: "America/Los_Angeles",
   schedule: ["* 0-3 * * *"],
   updateNotScheduled: false,

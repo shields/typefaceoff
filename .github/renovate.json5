@@ -4,7 +4,6 @@
     "github>shields/right-answers//renovate/base.json5",
     "github>shields/right-answers//renovate/paid-ci.json5",
   ],
-  rebaseWhen: "conflicted",
   automerge: true,
   packageRules: [
     {

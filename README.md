@@ -145,14 +145,14 @@ on the app’s TestFlight tab. External testing requires TestFlight App Review.
   means closer. Search filters the live results; pending and unsupported
   families remain selectable. Choosing a family carries B’s settings forward as
   usual, so its specimen can differ from the default settings used for ranking.
-- **Match…** lists B’s axes, tracking, size, and typography. Click **Optimize**
-  beside a setting to search for its closest value while keeping every other
-  preview setting fixed. Searches start only when clicked, and successive
-  searches build on the preview. Each search uses up to 15 seconds or 2,048
-  evaluations. A started comparison can finish after the time budget. **Stop**
-  retains the best verified preview. Cancel discards it, and Apply changes only
-  B in one undoable edit, recalibrating appearance links. Only improvements
-  verified on the full fitting corpus can be applied.
+- **Match…** lists B’s axes, size, leading, tracking, and typography. Click
+  **Optimize** beside a setting to search for its closest value while keeping
+  every other preview setting fixed. Searches start only when clicked, and
+  successive searches build on the preview. Each search uses up to 15 seconds or
+  2,048 evaluations. A started comparison can finish after the time budget.
+  **Stop** retains the best verified preview. Cancel discards it, and Apply
+  changes only B in one undoable edit, recalibrating appearance links. Only
+  improvements verified on the full fitting corpus can be applied.
 - Browsing or searching glyphs, switching views, and toggling highlights
   preserve Undo/Redo. Undoing a font edit keeps the current inspection in view.
 - Launching the app opens a fresh comparison window. Each window is independent;

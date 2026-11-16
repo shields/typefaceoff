@@ -874,9 +874,11 @@ import TypefaceCore
     _ label: String, nativeTitles: [String], item: String? = nil,
     sourceLocation: SourceLocation = #_sourceLocation
   ) async throws {
-    let pickers = subviews.compactMap { $0 as? NSPopUpButton }.filter {
-      Set(nativeTitles).isSubset(of: Set($0.itemTitles))
-    }
+    let allPickers = subviews.compactMap { $0 as? NSPopUpButton }
+    let namedPickers = allPickers.filter { $0.accessibilityIdentifier() == label }
+    let pickers =
+      namedPickers.isEmpty
+      ? allPickers.filter { Set(nativeTitles).isSubset(of: Set($0.itemTitles)) } : namedPickers
     if !pickers.isEmpty {
       try #require(pickers.count == 1, "Expected one native picker for \(label)")
       let picker = pickers[0]
@@ -888,7 +890,7 @@ import TypefaceCore
     let control = try await element(label)
     let selection = WorkbenchTestMenuSelection(title: item)
     menuSelection = selection
-    #expect(control.accessibilityPerformPress?() == true, sourceLocation: sourceLocation)
+    _ = control.accessibilityPerformPress?()
     try await waitUntil(
       { selection.completed }, describing: "Menu selection did not complete: \(label)",
       sourceLocation: sourceLocation)

@@ -6,6 +6,23 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct DifferenceIndexTests {
+  @Test func removingAndRestoringFontBKeepsExistingCellsSafe() async throws {
+    let model = WorkbenchModel()
+    let ranking = RankingModel()
+    ranking.scores = [GlyphDifference(glyph: "A", shape: 0.5, spacing: 0)]
+    let host = WorkbenchTestHost(
+      DifferenceIndex(
+        model: model, ranking: ranking, inspectorOpen: false, select: { _ in }, navigate: { _ in }),
+      width: 960, height: 76)
+    defer { host.window.close() }
+    try await host.settle()
+    for b: FontConfiguration? in [nil, .init("ArialMT"), nil] {
+      model.comparison.b = b
+      try await host.settle()
+      #expect(host.subviews.compactMap { $0 as? DifferenceStripView }.count == (b == nil ? 0 : 1))
+    }
+  }
+
   @Test(arguments: [(960.0, 12), (1120.0, 16), (1440.0, 22)])
   func cellsFitTheGridAndExposeTheirRank(layout: (Double, Int)) async throws {
     let model = WorkbenchModel()

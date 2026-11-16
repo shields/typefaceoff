@@ -75,6 +75,7 @@ struct DifferenceIndex: View {
   }
 
   private var strip: some View {
+    let comparison = comparison
     let items = self.items
     let maximum = items.map(\.measured).max() ?? 0
     return DifferenceStrip(

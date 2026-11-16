@@ -7,6 +7,18 @@ import Testing
 @Suite struct ComparisonTests {
   let catalog = FontCatalog()
 
+  @Test func customTextEqualityPreservesTheEnteredScalars() {
+    var composed = Comparison()
+    composed.sample = .custom
+    composed.customText = "é"
+    var decomposed = composed
+    decomposed.customText = "e\u{301}"
+    #expect(composed.text == decomposed.text)
+    #expect(composed != decomposed)
+    #expect(composed == composed)
+    #expect(Array(decomposed.customText.unicodeScalars) == ["e", "\u{301}"])
+  }
+
   @Test(arguments: [true, false], [Side.a, .b])
   func appearanceResetRestoresRegularAndRespectsTheLock(locked: Bool, side: Side) {
     var state = Comparison(a: .init("HelveticaNeue-BoldItalic"), b: .init("Arial-BoldItalicMT"))

@@ -125,7 +125,7 @@ public struct Comparison: Equatable, Sendable {
   public var link: AppearanceLink?
   public var mode: ComparisonMode = .text
   public var sample: Sample = .reading
-  public var customText = ""
+  @ExactText public var customText = ""
   public var selectedGlyph: String {
     get { String(String.UnicodeScalarView(selectedScalars)) }
     set { selectedScalars = Array(newValue.unicodeScalars) }

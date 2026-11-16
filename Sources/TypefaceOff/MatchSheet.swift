@@ -84,7 +84,7 @@ struct MatchSheet: View {
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
         Button("Apply") {
           if fit.apply(to: model, undoManager: undoManager) { dismiss() }
-        }.keyboardShortcut(.defaultAction).disabled(fit.result?.improved != true)
+        }.keyboardShortcut(.defaultAction).disabled(fit.running || fit.result?.improved != true)
       }
     }.padding(24).frame(width: 540).background(WorkbenchStyle.sheet)
       .environment(\.colorScheme, .light).preferredColorScheme(.light)

@@ -3,7 +3,7 @@ import TypefaceCore
 
 @MainActor
 final class FontFitModel: ObservableObject {
-  struct Request: Hashable {
+  struct Request: Equatable {
     let a: FontConfiguration
     let b: FontConfiguration
     let text: String
@@ -11,7 +11,13 @@ final class FontFitModel: ObservableObject {
     let scale: Double
 
     func hasSameInputs(as other: Self?) -> Bool {
-      a == other?.a && b == other?.b && text == other?.text && scale == other?.scale
+      guard let other else { return false }
+      return a == other.a && b == other.b && scale == other.scale
+        && text.unicodeScalars.elementsEqual(other.text.unicodeScalars)
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.hasSameInputs(as: rhs) && lhs.options == rhs.options
     }
   }
 
@@ -86,9 +92,9 @@ final class FontFitModel: ObservableObject {
   }
 
   func apply(to model: WorkbenchModel, undoManager: UndoManager?) -> Bool {
-    guard let request, let result, result.improved,
+    guard !running, let request, let result, result.improved,
       model.comparison.a == request.a, model.comparison.b == request.b,
-      model.comparison.text == request.text
+      model.comparison.text.unicodeScalars.elementsEqual(request.text.unicodeScalars)
     else { return false }
     stop()
     model.edit("Match fonts", undoManager: undoManager) {

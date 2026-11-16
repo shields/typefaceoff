@@ -3,6 +3,7 @@ import CoreText
 import TypefaceCore
 
 final class GlyphDrawingView: NSView {
+  var differentiateWithoutColor = false
   var navigate: (Int) -> Void = { _ in }
   var showText: () -> Void = {}
   var focusChanged: (Bool) -> Void = { _ in }
@@ -131,11 +132,24 @@ final class GlyphDrawingView: NSView {
     setAccessibilityElement(true)
     setAccessibilityRole(.button)
     setAccessibilityIdentifier("Glyph canvas")
-    setAccessibilityLabel(
-      value.b == nil
-        ? "\(unicodeDescription(value.selectedGlyph)). Font A."
-        : "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
-    )
+    let installedA = FontRenderer.isAvailable(value.a)
+    let installedB = value.b.map(FontRenderer.isAvailable) == true
+    var description = "\(unicodeDescription(value.selectedGlyph)). "
+    if installedA && installedB {
+      description += "Font A in red, font B in blue, shared ink in black."
+    } else {
+      description += installedA ? "Font A." : installedB ? "Font B." : "No installed fonts."
+    }
+    for side in [Side.a, .b] {
+      if let config = value[side] {
+        if !FontRenderer.isAvailable(config) {
+          description += " \(side.fontName) is not installed."
+        } else if !FontRenderer.supports(value.selectedGlyph, config: config) {
+          description += " Character unavailable in \(side.fontName)."
+        }
+      }
+    }
+    setAccessibilityLabel(description)
     setAccessibilityHelp(
       "Scroll the mouse wheel or pinch to zoom. When zoomed, drag or use two fingers to pan. "
         + "At 100%, click to return to text. Use Left Arrow and Right Arrow to inspect characters.")
@@ -163,6 +177,7 @@ final class GlyphDrawingView: NSView {
         "\(comparison.a.hashValue):\(comparison.b?.hashValue ?? 0):\(bounds.width):\(bounds.height)",
       glyph: comparison.selectedScalars, baseline: baseline)
     let comparing = figures.allSatisfy(\.installed)
+    let zoom = enclosingScrollView?.magnification ?? 1
     let rect = bounds.intersection(visibleRect).intersection(dirtyRect)
     guard !rect.isEmpty else { return }
     let key = OverlayKey(comparison: comparison, size: bounds.size)
@@ -181,7 +196,8 @@ final class GlyphDrawingView: NSView {
       let ink = NSColor(WorkbenchStyle.ink).cgColor
       outline.draw(
         in: context, red: comparing ? WorkbenchStyle.red.cgColor : ink,
-        blue: comparing ? WorkbenchStyle.blue.cgColor : ink)
+        blue: comparing ? WorkbenchStyle.blue.cgColor : ink,
+        differentiateWithoutColor: differentiateWithoutColor && comparing, scale: zoom)
       context.restoreGState()
     } else {
       let scale = (window?.backingScaleFactor ?? 2) * (enclosingScrollView?.magnification ?? 1)
@@ -200,7 +216,8 @@ final class GlyphDrawingView: NSView {
       }
       if comparing {
         GlyphOverlay.draw(
-          masks[0], masks[1], width: width, height: height, context: context, rect: rect)
+          masks[0], masks[1], width: width, height: height, context: context, rect: rect,
+          differentiateWithoutColor: differentiateWithoutColor, scale: zoom)
       } else {
         let ink = figures[0].installed ? masks[0] : masks[1]
         GlyphOverlay.draw(ink, ink, width: width, height: height, context: context, rect: rect)

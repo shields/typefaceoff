@@ -7,6 +7,7 @@ struct DifferenceIndex: View {
   let inspectorOpen: Bool
   let select: (String) -> Void
   let navigate: (Int) -> Void
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
   private var comparison: Comparison { model.comparison }
   private var items: [RankedDifference] {
@@ -23,7 +24,7 @@ struct DifferenceIndex: View {
     GeometryReader { geometry in
       let width = max(960, geometry.size.width)
       let layout = SpecificationLayout(width: width, inspectorOpen: inspectorOpen)
-      let controlX = min(layout.indexControls, width - 280)
+      let controlX = min(layout.indexControls, width - (differentiateWithoutColor ? 304 : 280))
       ZStack(alignment: .topLeading) {
         Rectangle().fill(WorkbenchStyle.hairline).frame(height: 1)
           .padding(.horizontal, 24).offset(y: 75)
@@ -55,8 +56,10 @@ struct DifferenceIndex: View {
           ProgressView().controlSize(.mini).accessibilityLabel("Comparing glyphs")
         }
         Spacer(minLength: 4)
+        if differentiateWithoutColor { hatch(rising: true) }
         Text("Only A").foregroundStyle(Color(nsColor: WorkbenchStyle.red)).fontWeight(.semibold)
         Text("Shared").fontWeight(.semibold)
+        if differentiateWithoutColor { hatch(rising: false) }
         Text("Only B").foregroundStyle(Color(nsColor: WorkbenchStyle.blue)).fontWeight(.semibold)
       }.font(.system(size: 11))
       HStack(spacing: 0) {
@@ -72,6 +75,18 @@ struct DifferenceIndex: View {
           .padding(.leading, 4).accessibilityHidden(true)
       }.controlSize(.small)
     }
+  }
+
+  private func hatch(rising: Bool) -> some View {
+    Canvas { context, size in
+      context.withCGContext { drawing in
+        drawing.translateBy(x: 0, y: size.height)
+        drawing.scaleBy(x: 1, y: -1)
+        ComparisonHatch(rising: rising).draw(
+          in: drawing, rect: CGRect(origin: .zero, size: size))
+      }
+    }.background(Color(nsColor: rising ? WorkbenchStyle.red : WorkbenchStyle.blue))
+      .frame(width: 9, height: 9).accessibilityHidden(true)
   }
 
   private var strip: some View {

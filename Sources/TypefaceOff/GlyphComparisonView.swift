@@ -209,12 +209,15 @@ struct GlyphCanvas: NSViewRepresentable {
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
   @Binding var zoom: Double
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
   func makeNSView(context: Context) -> GlyphScrollView { GlyphScrollView() }
   func updateNSView(_ scroll: GlyphScrollView, context: Context) {
     let view = scroll.canvas
     view.navigate = navigate
     view.showText = showText
     view.focusChanged = focusChanged
+    view.differentiateWithoutColor = differentiateWithoutColor
     view.update(comparison)
     view.requestFocus(focusRequest)
     scroll.zoomChanged = { zoom = $0 }

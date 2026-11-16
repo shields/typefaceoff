@@ -147,7 +147,7 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
     if field.isEnabled {
-      NSColor(WorkbenchStyle.track).setStroke()
+      NSColor(WorkbenchStyle.fieldUnderline).setStroke()
       let line = NSBezierPath()
       line.move(to: NSPoint(x: 6, y: 3))
       line.line(to: NSPoint(x: numberWidth + 6, y: 3))

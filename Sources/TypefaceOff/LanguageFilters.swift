@@ -89,7 +89,7 @@ struct LanguageFilters: View {
     TextField("Minimum speaker count", text: $threshold)
       .textFieldStyle(.plain)
       .monospacedDigit()
-      .overlay(alignment: .bottom) { WorkbenchStyle.track.frame(height: 1) }
+      .overlay(alignment: .bottom) { WorkbenchStyle.fieldUnderline.frame(height: 1) }
       .accessibilityLabel("Minimum language speakers")
       .accessibilityIdentifier("Language speaker field")
       .onSubmit {

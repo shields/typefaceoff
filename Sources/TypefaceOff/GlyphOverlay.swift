@@ -1,12 +1,15 @@
 import Accelerate
+import AppKit
 import CoreGraphics
 import Foundation
 
 enum GlyphOverlay {
   static func draw(
-    _ a: [UInt8], _ b: [UInt8], width: Int, height: Int, context: CGContext, rect: CGRect
+    _ a: [UInt8], _ b: [UInt8], width: Int, height: Int, context: CGContext, rect: CGRect,
+    differentiateWithoutColor: Bool = false, scale: CGFloat = 1
   ) {
-    let pixels = pixels(a, b)
+    let pixels = pixels(
+      a, b, increasedContrast: WorkbenchStyle.increasedContrast(.currentDrawing()))
     guard let provider = CGDataProvider(data: Data(pixels) as CFData),
       let image = CGImage(
         width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
@@ -15,10 +18,25 @@ enum GlyphOverlay {
         provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     else { return }
     context.draw(image, in: rect)
+    if differentiateWithoutColor {
+      for (left, right, rising) in [(a, b, true), (b, a, false)] {
+        let coverage = zip(left, right).map { $0 > $1 ? $0 - $1 : 0 }
+        let provider = CGDataProvider(data: Data(coverage) as CFData)!
+        let mask = CGImage(
+          width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width,
+          space: CGColorSpaceCreateDeviceGray(), bitmapInfo: [], provider: provider,
+          decode: nil, shouldInterpolate: true, intent: .defaultIntent)!
+        context.saveGState()
+        context.setBlendMode(.sourceAtop)
+        context.clip(to: rect, mask: mask)
+        ComparisonHatch(rising: rising, scale: scale).draw(in: context, rect: rect)
+        context.restoreGState()
+      }
+    }
   }
 
   /// Composite coverage masks using vector operations, including in unoptimized app builds.
-  static func pixels(_ a: [UInt8], _ b: [UInt8]) -> [UInt8] {
+  static func pixels(_ a: [UInt8], _ b: [UInt8], increasedContrast: Bool = false) -> [UInt8] {
     precondition(!a.isEmpty && a.count == b.count)
     let count = vDSP_Length(a.count)
     var left = [Float](repeating: 0, count: a.count)
@@ -31,12 +49,14 @@ enum GlyphOverlay {
     var planes = [UInt8](repeating: 0, count: a.count * 4)
     channel.withUnsafeMutableBufferPointer { values in
       planes.withUnsafeMutableBufferPointer { output in
-        let palette: [(Float, Float, Float)] = [
-          (180 / 255, 40 / 255, 27 / 255), (59 / 255, 107 / 255, 28 / 255),
-          (67 / 255, 157 / 255, 31 / 255),
-        ]
+        let palette: [(Float, Float, Float)] =
+          increasedContrast
+          ? [(143, 26, 27), (37, 82, 28), (48, 125, 31)]
+          : [(180, 40, 27), (59, 107, 28), (67, 157, 31)]
         for (index, colors) in palette.enumerated() {
-          var (red, blue, ink) = colors
+          var red = colors.0 / 255
+          var blue = colors.1 / 255
+          let ink = colors.2 / 255
           var overlap: Float = ink - red - blue
           // a * red + b * blue + min(a, b) * (black - red - blue)
           vDSP_vsmsma(left, 1, &red, right, 1, &blue, values.baseAddress!, 1, count)

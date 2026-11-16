@@ -8,17 +8,20 @@ struct GlyphDifferencePreview: NSViewRepresentable {
   let b: FontConfiguration
   let spacingOnly: Bool
   var index = false
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
   func makeNSView(context: Context) -> GlyphDifferenceDrawingView { GlyphDifferenceDrawingView() }
 
   func updateNSView(_ view: GlyphDifferenceDrawingView, context: Context) {
     view.preview = self
+    view.differentiateWithoutColor = differentiateWithoutColor
     view.needsDisplay = true
   }
 }
 
 final class GlyphDifferenceDrawingView: NSView {
   var preview: GlyphDifferencePreview?
+  var differentiateWithoutColor = false
 
   override func draw(_ dirtyRect: NSRect) {
     guard let preview, let context = NSGraphicsContext.current?.cgContext,
@@ -30,7 +33,7 @@ final class GlyphDifferenceDrawingView: NSView {
     guard configs.allSatisfy({ FontRenderer.supports(preview.glyph, config: $0) }) else {
       ("Unavailable" as NSString).draw(
         at: CGPoint(x: 2, y: bounds.midY - 5),
-        withAttributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.darkGray])
+        withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.darkGray])
       return
     }
     let size = preview.index ? 26.0 : 30
@@ -74,6 +77,7 @@ final class GlyphDifferenceDrawingView: NSView {
           x: (origin.x + offsets[index] * scale) * pixelScale, y: origin.y * pixelScale))
     }
     GlyphOverlay.draw(
-      masks[0], masks[1], width: width, height: height, context: context, rect: bounds)
+      masks[0], masks[1], width: width, height: height, context: context, rect: bounds,
+      differentiateWithoutColor: differentiateWithoutColor)
   }
 }

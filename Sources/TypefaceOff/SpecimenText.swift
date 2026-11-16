@@ -19,6 +19,7 @@ struct SpecimenText: NSViewRepresentable {
   var side: Side = .a
   var scrollPosition: SpecimenScrollPosition?
   var select: (String) -> Void = { _ in }
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
   func makeCoordinator() -> Coordinator { Coordinator(position: scrollPosition ?? .init()) }
 
@@ -81,7 +82,7 @@ struct SpecimenText: NSViewRepresentable {
       || view.textContainer?.lineFragmentPadding != lineFragmentPadding
     guard
       contentChanged || geometryChanged || view.highlights != highlights
-        || coordinator.side != side
+        || coordinator.side != side || view.underlineHighlights != differentiateWithoutColor
     else {
       return
     }
@@ -91,6 +92,7 @@ struct SpecimenText: NSViewRepresentable {
     coordinator.inset = inset
     coordinator.firstBaseline = firstBaseline?.value
     view.highlights = highlights
+    view.underlineHighlights = differentiateWithoutColor
     view.highlightColor = side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue
     coordinator.position.preserveDuringUpdate {
       view.textContainer?.lineFragmentPadding = lineFragmentPadding
@@ -402,6 +404,9 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
   var highlights: Set<String> = [] {
     didSet { highlightsDirty = true }
   }
+  var underlineHighlights = false {
+    didSet { highlightsDirty = true }
+  }
   var highlightColor: NSColor = WorkbenchStyle.red {
     didSet { highlightsDirty = true }
   }
@@ -514,6 +519,7 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
       coloredRange, NSRange(location: 0, length: textStorage.length))
     if previous.length > 0 {
       layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: previous)
+      layoutManager.removeTemporaryAttribute(.underlineStyle, forCharacterRange: previous)
     }
     coloredRange = NSRange(location: 0, length: 0)
     for span in spans(intersecting: visible)
@@ -523,6 +529,10 @@ final class SpecimenNSTextView: NSTextView, NSViewToolTipOwner,
       // Temporary drawing attributes preserve shaping runs and ligatures.
       layoutManager.addTemporaryAttribute(
         .foregroundColor, value: highlightColor, forCharacterRange: span.range)
+      if underlineHighlights {
+        layoutManager.addTemporaryAttribute(
+          .underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: span.range)
+      }
       coloredRange = coloredRange.length == 0 ? span.range : NSUnionRange(coloredRange, span.range)
     }
     highlightedCharacters = visible

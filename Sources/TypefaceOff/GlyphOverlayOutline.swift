@@ -17,16 +17,27 @@ struct GlyphOverlayOutline {
     shared = left.intersection(right)
   }
 
-  func draw(in context: CGContext, red: CGColor, blue: CGColor) {
+  func draw(
+    in context: CGContext, red: CGColor, blue: CGColor,
+    differentiateWithoutColor: Bool, scale: CGFloat
+  ) {
     context.saveGState()
-    for (path, color) in [
-      (a, red), (b, blue),
-      (shared, CGColor(red: 27 / 255, green: 28 / 255, blue: 31 / 255, alpha: 1)),
-    ] {
+    for (path, color, rising) in [(a, red, true), (b, blue, false)] {
       context.setFillColor(color)
       context.addPath(path)
       context.fillPath()
+      if differentiateWithoutColor {
+        context.saveGState()
+        context.addPath(path)
+        context.clip()
+        ComparisonHatch(rising: rising, scale: scale).draw(
+          in: context, rect: context.boundingBoxOfClipPath)
+        context.restoreGState()
+      }
     }
+    context.setFillColor(CGColor(red: 27 / 255, green: 28 / 255, blue: 31 / 255, alpha: 1))
+    context.addPath(shared)
+    context.fillPath()
     context.restoreGState()
   }
 

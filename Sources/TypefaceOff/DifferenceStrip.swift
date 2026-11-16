@@ -9,17 +9,25 @@ struct DifferenceStrip<Content: View>: NSViewRepresentable {
 
   func makeNSView(context: Context) -> DifferenceStripView {
     let view = DifferenceStripView()
-    view.documentView = NSHostingView(rootView: content())
+    view.documentView = NSHostingView(
+      rootView: InheritedContent(content: content(), values: context.environment))
     updateNSView(view, context: context)
     return view
   }
 
   func updateNSView(_ view: DifferenceStripView, context: Context) {
-    let document = view.documentView as! NSHostingView<Content>
-    document.rootView = content()
+    let document = view.documentView as! NSHostingView<InheritedContent>
+    document.rootView = InheritedContent(content: content(), values: context.environment)
     document.setFrameSize(NSSize(width: count * 48, height: 76))
     view.navigate = navigate
     view.follow(selection)
+  }
+
+  private struct InheritedContent: View {
+    let content: Content
+    let values: EnvironmentValues
+
+    var body: some View { content.environment(\.self, values) }
   }
 }
 

@@ -29,7 +29,16 @@ struct TypefaceOffApp: App {
 
 @MainActor
 final class TypefaceOffAppDelegate: NSObject, NSApplicationDelegate {
+  @objc func updateAppearance() {
+    WorkbenchStyle.useLightAppearance(
+      increasedContrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
+    updateAppearance()
+    NSWorkspace.shared.notificationCenter.addObserver(
+      self, selector: #selector(updateAppearance),
+      name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
     if ProcessInfo.processInfo.environment["TYPEFACEOFF_TESTING"] == "1" {
       // AppKit can change the activation policy during launch.
       if NSApp.activationPolicy() != .prohibited {

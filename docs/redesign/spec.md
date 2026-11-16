@@ -867,12 +867,12 @@ design and was not discussed on its own; **Open** awaits a ruling.
     (`250k`), and under a thousand as the count. The filter's own value keeps
     its decimal (`8.3M`): it is the threshold the app documents, not a row of
     the list.
-17. Decided. **Accessibility identifiers may change.** `AGENTS.md` says never to
-    change an identifier, label or title the fuzzer uses. The owner ruled that
-    "never" is too strong for a complete rebuild and that losing the recorded
-    fuzz traces is worth it. The rebuild gives controls the identifiers the
-    design needs, regenerates the fuzz corpus, and rewrites that paragraph of
-    `AGENTS.md` to describe the new contract.
+17. Decided. **Accessibility identifiers may change.** Recorded fuzz traces
+    replay the names they saw, so renaming a control breaks them. The owner
+    ruled that a complete rebuild is worth losing the traces recorded before it.
+    The rebuild gives controls the identifiers the design needs, regenerates the
+    fuzz corpus, and keeps the fuzzer paragraph of `AGENTS.md` naming the
+    controls in use.
 18. Decided. **The Languages list** shows speakers in whole millions and no
     language code, and the detail's facts line omits the language's own name
     when it repeats the title.

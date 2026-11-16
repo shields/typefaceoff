@@ -114,10 +114,10 @@ import TypefaceCore
     let host = WorkbenchTestHost(
       LanguageBrowserView(
         browser: browser, comparison: comparison, inspect: { _ in }, useSpecimen: { _ in }),
-      width: 900, height: 900)
+      width: 960, height: 900)
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Language missing base disclosure")
+    _ = try await host.element("Language base missing scroll area")
     try await host.press("Language sources disclosure")
     try await host.settle()
     let elements = Self.allElements(in: host)

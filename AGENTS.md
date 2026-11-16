@@ -25,18 +25,19 @@ title. Changing an identifier, label, or title the fuzzer uses, such as
 `Font A Size field`, `Font B Inspector Size field`,
 `Comparison inspector scroll area`, `Glyph canvas`, `Find Character`,
 `Search Languages`, `Open typography inspector`, the `Font A specimen` labels,
-`Search characters`, `Zoom in`, `Zoom out`, `Reset glyph zoom`, and the
-symbol-name identifiers of icon-only buttons, breaks every recorded trace that
-replays it. Change one only when the design calls for it, regenerate the
-affected traces in the same change, and keep this paragraph naming the controls
-in use. The redesign replaces many of these names, and the owner has accepted
-losing the traces recorded before it. Match mode's `Cancel matching` button and
-the editor sheet's `Custom specimen text` field also tell the fuzzer which
-operation is active, so a recorded action can require it. Name matching, window
-scope, and visibility rules live in `Sources/UIFuzzSupport` behind
-`AccessibilityNode`, where the coverage gate applies. `Sources/UIFuzz` adapts
-the system accessibility API to them, and its `AXDiscovery.swift` still decides
-which actions each control offers, outside the gate.
+`Search characters`, `Zoom in`, `Zoom out`, `Reset glyph zoom`,
+`Language script picker`, `Language use specimen button`, and the symbol-name
+identifiers of icon-only buttons, breaks every recorded trace that replays it.
+Change one only when the design calls for it, regenerate the affected traces in
+the same change, and keep this paragraph naming the controls in use. The
+redesign replaces many of these names, and the owner has accepted losing the
+traces recorded before it. Match mode's `Cancel matching` button and the editor
+sheet's `Custom specimen text` field also tell the fuzzer which operation is
+active, so a recorded action can require it. Name matching, window scope, and
+visibility rules live in `Sources/UIFuzzSupport` behind `AccessibilityNode`,
+where the coverage gate applies. `Sources/UIFuzz` adapts the system
+accessibility API to them, and its `AXDiscovery.swift` still decides which
+actions each control offers, outside the gate.
 
 Character search uses the running macOS's Unicode names, which differ between
 macOS versions, and CI tests on macOS 15, 26, and 27. Tests that depend on names

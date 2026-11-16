@@ -145,7 +145,7 @@ public final class AccessibilityResolver<Node: AccessibilityNode> {
     var node = roots[path[0]]
     for index in path.dropFirst() {
       guard !isOverBudget else { return nil }
-      let children = node.children
+      let children = node.traversalChildren
       guard children.indices.contains(index) else { return nil }
       node = children[index]
     }
@@ -223,7 +223,8 @@ public final class AccessibilityResolver<Node: AccessibilityNode> {
       guard seen.insert(node.identity).inserted else { continue }
       ordinal += 1
       if visit(node, parent) { return }
-      pending.append(contentsOf: node.children.reversed().map { (node: $0, parent: ordinal - 1) })
+      pending.append(
+        contentsOf: node.traversalChildren.reversed().map { (node: $0, parent: ordinal - 1) })
     }
   }
 

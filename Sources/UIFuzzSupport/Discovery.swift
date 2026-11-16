@@ -78,7 +78,7 @@ public enum Discovery {
       traversed.append(
         ModalCandidate(identity: node.identity, path: path, role: input.role, offered: emits))
       if emits { offered.append(DiscoveredElement(node: node, path: path, role: input.role)) }
-      for (index, child) in node.children.enumerated().reversed() {
+      for (index, child) in node.traversalChildren.enumerated().reversed() {
         pending.append((child, path + [index], clip))
       }
     }

@@ -63,6 +63,8 @@ public protocol AccessibilityNode: AnyObject {
   var visibilityInput: VisibilityInput { get }
   /// In `AXChildren` order.
   var children: [Self] { get }
+  var visibleRows: [Self]? { get }
+  var header: Self? { get }
   /// Reads that failed for a reason other than "no value" since this capture began. Called on the
   /// application node, so every node of one capture shares the count.
   var readErrors: Int { get }
@@ -73,6 +75,11 @@ public protocol AccessibilityNode: AnyObject {
 }
 
 extension AccessibilityNode {
+  public var traversalChildren: [Self] {
+    guard let visibleRows else { return children }
+    return header.map { [$0] + visibleRows } ?? visibleRows
+  }
+
   public var names: Set<String> { attributes.names }
 
   public func hasName(_ name: String) -> Bool { names.contains(name) }

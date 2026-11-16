@@ -60,10 +60,10 @@ struct WorkbenchState: Equatable, Sendable {
     case "Font A specimen", "Font B specimen": return .mode(.text)
     case let name where name.hasPrefix("Language ") || name.hasPrefix("Inspect language "):
       return .mode(.languages)
-    case "Search Languages", "Search languages", "Minimum speaker count",
+    case "Search Languages", "Minimum speaker count",
       "Minimum language speakers",
-      "Show historical", "Use as specimen",
-      "Clear filters":
+      "Show historical", "Use Checked as Specimen",
+      "Clear Filters":
       return .mode(.languages)
     case "Custom specimen text": return .operation(.editor)
     case "Stop", "Cancel matching": return .operation(.match)
@@ -327,8 +327,8 @@ struct WorkbenchState: Equatable, Sendable {
     case "Glyph": mode = .glyph
     case "Text": mode = .text
     case "Languages", "Languages view": if operation == .closed { mode = .languages }
-    case "Language use specimen button", "Use as specimen": mode = .text
-    case let name where name.hasPrefix("Language missing ") && !name.hasSuffix(" disclosure"):
+    case "Language use specimen button", "Use Checked as Specimen": mode = .text
+    case let name where name.hasPrefix("Language missing "):
       mode = .glyph
     case "Edit Text…", "Edit Sample Text…": if operation == .closed { operation = .editor }
     case "Match…", "Match fonts…": openMatch()

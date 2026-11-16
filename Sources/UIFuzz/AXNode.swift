@@ -55,6 +55,20 @@ final class AXNode: AccessibilityNode {
     AXNode($0, reads: reads)
   }
 
+  lazy var visibleRows: [AXNode]? = {
+    guard role == kAXTableRole, let rows = read(kAXVisibleRowsAttribute) as? [AXUIElement] else {
+      return nil
+    }
+    return rows.map { AXNode($0, reads: reads) }
+  }()
+
+  lazy var header: AXNode? = {
+    guard let value = read(kAXHeaderAttribute), CFGetTypeID(value) == AXUIElementGetTypeID() else {
+      return nil
+    }
+    return AXNode(value as! AXUIElement, reads: reads)
+  }()
+
   /// The first of identifier, title, and description, reading no more of them than needed.
   var discoveryTarget: String? {
     if !identifier.isEmpty { return identifier }

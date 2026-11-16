@@ -109,6 +109,8 @@ final class FakeNode: AccessibilityNode {
   var frame: CGRect?
   var isEnabled: Bool?
   var isHidden: Bool?
+  var visibleRows: [FakeNode]?
+  var header: FakeNode?
   var childNodes: [FakeNode]
   var failsToReadChildren = false
 

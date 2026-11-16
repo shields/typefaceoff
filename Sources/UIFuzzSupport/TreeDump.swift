@@ -184,7 +184,7 @@ extension TreeDump {
           description: attributes.description, help: attributes.help,
           frame: input.frame.map(Self.array), enabled: input.isEnabled, hidden: input.isHidden,
           offered: offered, target: attributes.discoveryTarget))
-      for (index, child) in item.node.children.enumerated().reversed() {
+      for (index, child) in item.node.traversalChildren.enumerated().reversed() {
         pending.append((child, item.path + [index], clip, live))
       }
     }

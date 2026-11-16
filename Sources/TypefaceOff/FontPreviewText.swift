@@ -7,7 +7,7 @@ import TypefaceCore
 struct FontPreviewText: NSViewRepresentable {
   let config: FontConfiguration
   let text: String
-  var size: CGFloat = 21
+  let size: CGFloat
 
   func makeNSView(context: Context) -> FontPreviewDrawingView { FontPreviewDrawingView() }
 

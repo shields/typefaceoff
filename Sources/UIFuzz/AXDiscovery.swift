@@ -82,9 +82,6 @@ extension AXDriver {
               && ![
                 "Search installed fonts", "Search Unicode characters", "Find Character",
                 "Search Languages",
-                "Language search field",
-                "Language query",
-                "Search languages",
               ].contains(target)
             : nil,
           context: context?.forTarget(target))

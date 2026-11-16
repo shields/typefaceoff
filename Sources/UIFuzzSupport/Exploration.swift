@@ -79,7 +79,7 @@ public struct ActionExplorer {
         action.value = queries[Int(random.next() % UInt64(queries.count))]
       case "Custom specimen text":
         action.value = mutator.text(using: &random)
-      case "Search Languages", "Language search field", "Search languages", "Language query":
+      case "Search Languages":
         let queries = [
           "", "English", "eng", "Latin", "العربية", "Japanese", "Ancient Greek", "zzzz",
         ]

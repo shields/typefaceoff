@@ -74,7 +74,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(
       LanguageBrowserView(
         browser: browser, comparison: Comparison(), inspect: { _ in }, useSpecimen: { _ in }),
-      width: 750, height: 700)
+      width: 960, height: 700)
     defer { host.window.close() }
     try await host.settle()
     switch state {
@@ -119,7 +119,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(
       LanguageBrowserView(
         browser: browser, comparison: comparison, inspect: { _ in }, useSpecimen: { _ in }),
-      width: 900, height: 850)
+      width: 960, height: 850)
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Language specimen base toggle")
@@ -133,6 +133,7 @@ import TypefaceCore
     try await host.settle()
     #expect(browser.selectedOrthography == nil)
     #expect(browser.rows.isEmpty)
+    try await host.press("Language sources disclosure", in: "Language detail scroll area")
   }
 
   @Test(arguments: [600.0, 900.0])
@@ -152,9 +153,6 @@ import TypefaceCore
     try await host.press("Language row eng")
     #expect(model.languages.selection == "eng")
     let orthography = try #require(model.languages.selectedOrthography)
-    try await host.press(
-      "Language orthography \(orthography.id)", in: "Language detail scroll area")
-    #expect(model.languages.orthographySelection == orthography.id)
     try await host.press("Language specimen numerals toggle", in: "Language detail scroll area")
     try await host.press("Language specimen currency toggle", in: "Language detail scroll area")
     try await host.press("Language specimen auxiliary toggle", in: "Language detail scroll area")
@@ -162,7 +160,7 @@ import TypefaceCore
     let expected = LanguageSpecimen.text(orthography, categories: model.languages.categories)
     let undo = try #require(host.window.undoManager)
     undo.beginUndoGrouping()
-    try await host.press("Language use specimen button", in: "Language detail scroll area")
+    try await host.press("Language use specimen button")
     undo.endUndoGrouping()
     try await host.settle { model.comparison.mode == .text }
     #expect(model.comparison.customText.unicodeScalars.elementsEqual(expected.unicodeScalars))
@@ -232,8 +230,6 @@ import TypefaceCore
     try await host.settle { !model.languages.checking && model.languages.database != nil }
     _ = try await host.element("Language empty list message")
     model.languages.filter.query = "English"
-    try await host.settle()
-    try await host.press("Missing base characters")
     try await host.settle()
     try await host.press("Inspect language \(unicodeDescription("A"))")
     #expect(model.comparison.mode == .glyph && model.comparison.matches("A"))

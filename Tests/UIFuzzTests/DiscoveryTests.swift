@@ -7,6 +7,39 @@ import Testing
 @Suite struct DiscoveryTests {
   let world = FakeWorld()
 
+  @Test func visibleTableRowsKeepHeadersAndLeaveTheToolbarReachable() {
+    let row = button("Browse English")
+    let header = button("Speakers")
+    let toolbar = button("Search Languages")
+    let table = world.node("AXTable", children: (0..<500).map { button("Offscreen \($0)") })
+    table.visibleRows = [row]
+    table.header = header
+    table.failsToReadChildren = true
+    let window = world.window(children: [table, toolbar])
+    let application = world.application([window])
+    let capture = discover(application, focused: window)
+    #expect(names(capture).contains("Speakers"))
+    #expect(names(capture).contains("Browse English"))
+    #expect(names(capture).contains("Search Languages"))
+    #expect(!names(capture).contains { $0.hasPrefix("Offscreen") })
+    #expect(world.readErrors == 0)
+    for entry in capture.elements
+    where entry.node === row || entry.node === header || entry.node === toolbar {
+      let resolver = world.resolver(application, focused: window)
+      let action = FuzzAction(
+        kind: .press, target: entry.node.attributes.discoveryTarget,
+        targetPath: entry.path, targetRole: entry.role)
+      #expect(
+        resolver.resolve(ResolutionRequest(action, allowVisibleTieBreak: false)).node === entry.node
+      )
+    }
+    table.visibleRows = []
+    #expect(table.traversalChildren.map(\.identity) == [header.identity])
+    table.header = nil
+    table.visibleRows = [row]
+    #expect(table.traversalChildren.map(\.identity) == [row.identity])
+  }
+
   static let sheetFrame = CGRect(x: 200, y: 150, width: 600, height: 400)
   static let insideSheet = CGRect(x: 220, y: 170, width: 100, height: 30)
   static let panelFrame = CGRect(x: 100, y: 100, width: 300, height: 300)

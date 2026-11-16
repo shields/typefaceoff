@@ -160,6 +160,24 @@ import TypefaceCore
     #expect(try bitmap(canvas) == without)
   }
 
+  @Test func unavailableFeaturePreviewsExposeTheUnsupportedText() async throws {
+    let host = WorkbenchTestHost(
+      FontPreviewText(config: .init("Missing-Preview-Font"), text: "A", size: 17), width: 200,
+      height: 40)
+    defer { host.window.close() }
+    for (name, glyph) in [("Missing-Preview-Font", "A"), ("HelveticaNeue", "🦄")] {
+      host.setContent(FontPreviewText(config: .init(name), text: glyph, size: 17))
+      try await host.settle()
+      let view = try #require(host.subviews.compactMap { $0 as? FontPreviewDrawingView }.first)
+      #expect(view.content.string == "Unavailable")
+      #expect(view.toolTip == "Unavailable: \(unicodeDescription(glyph))")
+    }
+    host.setContent(FontPreviewText(config: .init("HelveticaNeue"), text: "fi", size: 17))
+    try await host.settle()
+    let view = try #require(host.subviews.compactMap { $0 as? FontPreviewDrawingView }.first)
+    #expect(view.content.string == "fi" && view.toolTip == nil)
+  }
+
   @Test func featurePreviewDrawsDifferentInkForLigatures() throws {
     let view = FontPreviewDrawingView(frame: NSRect(x: 0, y: 0, width: 90, height: 30))
     view.draw(.zero)

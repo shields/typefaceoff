@@ -21,6 +21,7 @@ final class LanguageBrowserModel: ObservableObject {
       @escaping @Sendable ([String: LanguageCoverage]) async -> Void
     ) async throws -> Void
 
+  @Published var ordering = LanguageOrdering()
   @Published var filter: LanguageFilter
   @Published var coverageFilter: LanguageCoverageFilter
   @Published var selection: String?
@@ -72,10 +73,11 @@ final class LanguageBrowserModel: ObservableObject {
   var comparing: Bool { request?.b != nil }
   var maximumSpeakers: Int { database?.languages.compactMap(\.speakers).max() ?? 1_000_000_000 }
   var rows: [LanguageRecord] {
-    (database?.languages ?? []).filter {
+    let filtered = (database?.languages ?? []).filter {
       filter.includes($0)
         && coverageFilter.includes(a: a[$0.id]?.complete($0), b: b[$0.id]?.complete($0))
     }
+    return ordering.sorted(filtered, a: a, b: b)
   }
   var hiddenMatches: Int {
     (database?.languages ?? []).count { $0.matches(filter.query) && !filter.includes($0) }

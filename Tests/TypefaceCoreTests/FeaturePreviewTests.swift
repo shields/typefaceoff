@@ -6,6 +6,23 @@ import Testing
 @testable import TypefaceCore
 
 @Suite struct FeaturePreviewTests {
+  @Test func requestingOneRowDoesNotSearchOtherRowsAndCachesItsMiss() async throws {
+    let calls = Mutex<[String]>([])
+    let engine = FontFeaturePreviewEngine { feature, _ in
+      calls.withLock { $0.append(feature.id) }
+      return nil
+    }
+    let config = FontConfiguration("HelveticaNeue")
+    let features = config.face.features.filter { !$0.isAutomatic }
+    let first = try #require(features.first)
+    #expect(try await engine.preview(feature: first, config: config) == nil)
+    #expect(try await engine.preview(feature: first, config: config) == nil)
+    #expect(calls.withLock { $0 } == [first.id])
+    _ = try await engine.previews(config: config)
+    #expect(calls.withLock { $0.count } == features.count)
+    #expect(try await engine.preview(feature: first, config: config) == nil)
+    #expect(calls.withLock { $0.count } == features.count)
+  }
   @Test @MainActor func searchesRunOffTheMainThreadAndShareCachedMisses() async throws {
     let calls = Mutex(0)
     let engine = FontFeaturePreviewEngine { _, _ in

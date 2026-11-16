@@ -61,7 +61,11 @@ public struct FontFeaturePreview: Sendable {
 /// Serial searches run off the main actor and share a bounded cache across inspectors.
 public actor FontFeaturePreviewEngine {
   public static let shared = FontFeaturePreviewEngine()
-  private var cache: [FontConfiguration: [String: FontFeaturePreview]] = [:]
+  private struct CachedPreviews {
+    var searched: Set<String> = []
+    var values: [String: FontFeaturePreview] = [:]
+  }
+  private var cache: [FontConfiguration: CachedPreviews] = [:]
   private var search: @Sendable (FontFeature, FontConfiguration) -> FontFeaturePreview? =
     FontFeaturePreview.make
 
@@ -72,20 +76,31 @@ public actor FontFeaturePreviewEngine {
   }
 
   public func previews(config: FontConfiguration) throws -> [String: FontFeaturePreview] {
+    try previews(config: config, features: config.face.features)
+  }
+
+  public func preview(feature: FontFeature, config: FontConfiguration) throws -> FontFeaturePreview?
+  {
+    try previews(config: config, features: [feature])[feature.id]
+  }
+
+  private func previews(config: FontConfiguration, features: [FontFeature]) throws -> [String:
+    FontFeaturePreview]
+  {
     try Task.checkCancellation()
     var config = config
     config.size = 21
     config.leading = nil
-    if let cached = cache[config] { return cached }
-    var result: [String: FontFeaturePreview] = [:]
-    for feature in config.face.features where !feature.isAutomatic {
+    var result = cache[config] ?? CachedPreviews()
+    for feature in features where !feature.isAutomatic && !result.searched.contains(feature.id) {
       try Task.checkCancellation()
-      result[feature.id] = search(feature, config)
+      result.values[feature.id] = search(feature, config)
+      result.searched.insert(feature.id)
     }
     try Task.checkCancellation()
-    if cache.count >= 8 { cache.removeAll(keepingCapacity: true) }
+    if cache[config] == nil && cache.count >= 8 { cache.removeAll(keepingCapacity: true) }
     // Empty results are cached too: searches without an example are the most expensive.
     cache[config] = result
-    return result
+    return result.values
   }
 }

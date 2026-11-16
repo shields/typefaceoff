@@ -5,6 +5,47 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct FontFamilyPickerTests {
+  @Test func rowsUseTheirOwnFaceAndExposeCurrentFontAndDistances() async throws {
+    let ranking = FamilySimilarityModel { _, _, _ in
+      AsyncThrowingStream {
+        $0.yield(.init(family: "Arial", score: SimilarityModelTests.score(0.123)))
+        $0.yield(
+          .init(family: "Helvetica Neue", score: nil, unavailableReason: "Missing character"))
+        $0.finish()
+      }
+    }
+    ranking.sort = .similarity
+    let family = FontConfiguration("NotoSansSyriac-Regular").face.family
+    var chosen: String?
+    let host = WorkbenchTestHost(
+      FontFamilyPicker(
+        families: ["Arial", "Helvetica Neue", family], currentFamily: "Arial", allowsNone: true,
+        ranking: ranking, reference: .init("ArialMT"), choose: { chosen = $0 }), width: 300,
+      height: 400)
+    defer { host.window.close() }
+    try await host.settle { !ranking.comparing && ranking.results.count == 2 }
+    let rows = host.subviews.compactMap { $0 as? FontFamilyRowButton }
+    let arial = try #require(rows.first { $0.title == "Arial" })
+    #expect(arial.font?.familyName == "Arial")
+    #expect(arial.current)
+    #expect(arial.accessibilityValue() as? String == "Current font, 0.123")
+    let unavailable = try #require(rows.first { $0.title == "Helvetica Neue" })
+    #expect(unavailable.font?.familyName == "Helvetica Neue")
+    #expect(unavailable.distance == "Unavailable" && unavailable.toolTip == "Missing character")
+    #expect(unavailable.isEnabled)
+    let pending = try #require(rows.first { $0.title == family })
+    #expect(pending.font == NSFont.systemFont(ofSize: 15))
+    #expect(pending.distance == "Pending" && pending.isEnabled)
+    if let folder = ProcessInfo.processInfo.environment["TYPEFACEOFF_HEADER_REVIEW"] {
+      let bitmap = try #require(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
+      host.view.cacheDisplay(in: host.view.bounds, to: bitmap)
+      try #require(bitmap.representation(using: .png, properties: [:])).write(
+        to: URL(fileURLWithPath: folder).appendingPathComponent("font-picker.png"))
+    }
+    try await host.press("Helvetica Neue")
+    #expect(chosen == "Helvetica Neue")
+  }
+
   @Test func theResultListSupportsArrowKeysAndReturn() async throws {
     var chosen: [String?] = []
     let host = WorkbenchTestHost(
@@ -126,6 +167,22 @@ import TypefaceCore
     try sendKey(53, characters: "\u{1b}", to: popover)
     try await host.settle { fontSearch(host) == nil }
     #expect(model.comparison.a.face.family == "Skia")
+  }
+
+  @Test func escapeDismissesThePopoverFromTheSortControl() async throws {
+    let model = WorkbenchModel()
+    let initial = model.comparison
+    let host = WorkbenchTestHost(
+      FontInspector(model: model, side: .b), width: 246)
+    defer { host.window.close() }
+    try await host.press("Font B family")
+    try await host.settle()
+    let sort = try #require(host.subviews.compactMap { $0 as? NSSegmentedControl }.first)
+    let popover = try #require(sort.window)
+    #expect(popover.makeFirstResponder(sort))
+    try sendKey(53, characters: "\u{1b}", to: popover)
+    try await host.settle { fontSearch(host) == nil }
+    #expect(model.comparison == initial)
   }
 
   @Test func typingHidesTheSearchPlaceholder() async throws {

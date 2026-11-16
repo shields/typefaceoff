@@ -30,7 +30,7 @@ struct FontFamilyPicker: View {
     _query = State(initialValue: "")
   }
 
-  private enum Choice: Hashable {
+  enum Choice: Hashable {
     case none
     case family(String)
 
@@ -67,67 +67,46 @@ struct FontFamilyPicker: View {
           ForEach(FamilySimilarityModel.Sort.allCases, id: \.self) {
             Text(verbatim: $0.rawValue).tag($0)
           }
-        }.pickerStyle(.segmented).padding(.horizontal)
+        }.pickerStyle(.segmented).labelsHidden().padding(.horizontal)
         if ranking.sort == .similarity, let reference {
           VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: "Similarity to \(reference.face.family) · default settings")
-              .font(.caption)
+            HStack(alignment: .firstTextBaseline) {
+              Text(verbatim: "Similarity to \(reference.face.family) · default settings")
+                .lineLimit(2)
+              Spacer(minLength: 8)
+              Text("Distance").help("Lower is closer")
+            }
             if let error = ranking.error {
-              Text(verbatim: error).foregroundStyle(.orange)
+              Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(
+                WorkbenchStyle.ink)
             } else if ranking.comparing {
-              ProgressView(
-                value: Double(ranking.results.count), total: Double(max(1, families.count)))
+              GeometryReader { geometry in
+                Rectangle().fill(WorkbenchStyle.ink)
+                  .frame(
+                    width: geometry.size.width * Double(ranking.results.count)
+                      / Double(max(1, families.count)))
+              }.frame(height: 2)
+                .accessibilityLabel("Font comparison progress")
+                .accessibilityValue("\(ranking.results.count) of \(families.count)")
               Text(verbatim: "Compared \(ranking.results.count) of \(families.count)")
             }
-          }.font(.caption).foregroundStyle(.secondary).padding(.horizontal)
+          }.font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk).padding(
+            .horizontal)
         }
       }
-      ScrollViewReader { proxy in
-        if choices.isEmpty {
-          Text("No matching fonts").foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-          List(choices, id: \.self, selection: $selection) { choice in
-            Button {
-              choose(choice.family)
-            } label: {
-              HStack {
-                Text(verbatim: choice.title).lineLimit(1)
-                Spacer()
-                if reference != nil, ranking.sort == .similarity, let family = choice.family {
-                  if let result = ranking.results[family] {
-                    Text(
-                      verbatim: result.score.map(\.formattedDistance) ?? "Unavailable"
-                    )
-                    .font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                    .help(result.unavailableReason ?? "Heuristic distance; lower is closer")
-                  } else {
-                    Text("Pending").font(.caption).foregroundStyle(.secondary)
-                  }
-                }
-              }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain).tag(choice).id(choice)
-          }
-          .onKeyPress(.return) {
-            confirm()
-            return .handled
-          }
-          .onChange(of: selection) { _, choice in
-            if let choice { proxy.scrollTo(choice) }
-          }
-          // Live similarity results and toggling sort order both reorder `choices` without
-          // changing `selection`, so keep the highlighted row in view for either.
-          .onChange(of: ranking.results.count) {
-            if let selection { proxy.scrollTo(selection) }
-          }
-          .onChange(of: ranking.sort) {
-            if let selection { proxy.scrollTo(selection) }
-          }
-        }
+      if choices.isEmpty {
+        Text("No matching fonts").foregroundStyle(WorkbenchStyle.secondaryInk)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        FontFamilyTable(
+          choices: choices, currentFamily: currentFamily, selection: $selection,
+          similarity: reference != nil && ranking.sort == .similarity ? ranking.results : nil,
+          catalog: catalog, choose: choose, confirm: confirm, cancel: { dismiss() })
       }
     }
     .frame(width: 300, height: 400)
-    .background(WorkbenchStyle.sheet)
+    .background(WorkbenchStyle.paper)
+    .foregroundStyle(WorkbenchStyle.ink).tint(WorkbenchStyle.ink)
     .environment(\.colorScheme, .light)
     .onAppear {
       let current = currentFamily.map(Choice.family) ?? .none

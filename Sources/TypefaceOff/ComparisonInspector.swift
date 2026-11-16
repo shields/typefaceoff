@@ -221,8 +221,11 @@ struct ComparisonInspector: View {
   }
 
   private func letter(_ side: Side) -> some View {
-    Text(side == .a ? "A" : "B").fontWeight(.semibold)
-      .foregroundStyle(Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
+    Text(side == .a ? "A" : "B").fontWeight(.bold)
+      .foregroundStyle(
+        installed(side) == nil
+          ? WorkbenchStyle.secondaryInk
+          : Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
   }
 
   private func apply(

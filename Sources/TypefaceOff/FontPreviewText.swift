@@ -22,11 +22,13 @@ struct FontPreviewText: NSViewRepresentable {
   {
     guard FontRenderer.supports(text, config: config) else {
       return NSAttributedString(
-        string: "Unavailable",
-        attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.systemOrange])
+        string: "⚠︎ Unavailable",
+        attributes: [
+          .font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor(WorkbenchStyle.ink),
+        ])
     }
     var attributes = FontRenderer.attributes(config, size: size)
-    attributes[.foregroundColor] = NSColor.labelColor
+    attributes[.foregroundColor] = NSColor(WorkbenchStyle.ink)
     return NSAttributedString(string: text, attributes: attributes)
   }
 }

@@ -80,10 +80,10 @@ import TypefaceCore
     let disabled = FontPreviewText.content(config: config, text: "fi")
     #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(enabled)) == 1)
     #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(disabled)) == 2)
-    #expect(FontPreviewText.content(config: config, text: "🦄").string == "Unavailable")
+    #expect(FontPreviewText.content(config: config, text: "🦄").string == "⚠︎ Unavailable")
     #expect(
       FontPreviewText.content(config: .init("TypefaceOff-Does-Not-Exist"), text: "a").string
-        == "Unavailable")
+        == "⚠︎ Unavailable")
   }
 
   @Test func specimenRunsKeepUTF16TargetsAroundMissingCharactersAndWhitespace() throws {

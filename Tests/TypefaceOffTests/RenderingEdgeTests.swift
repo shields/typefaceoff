@@ -169,7 +169,7 @@ import TypefaceCore
       host.setContent(FontPreviewText(config: .init(name), text: glyph, size: 17))
       try await host.settle()
       let view = try #require(host.subviews.compactMap { $0 as? FontPreviewDrawingView }.first)
-      #expect(view.content.string == "Unavailable")
+      #expect(view.content.string == "⚠︎ Unavailable")
       #expect(view.toolTip == "Unavailable: \(unicodeDescription(glyph))")
     }
     host.setContent(FontPreviewText(config: .init("HelveticaNeue"), text: "fi", size: 17))

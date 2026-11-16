@@ -130,7 +130,8 @@ struct CharacterSearchRow: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(verbatim: unicodeDescription(result.glyph)).lineLimit(2)
         if let unavailable = Self.unavailability(result, names: names) {
-          Text(verbatim: unavailable).font(.caption).foregroundStyle(.orange)
+          Text(verbatim: "⚠︎ " + unavailable).font(.system(size: 11))
+            .foregroundStyle(WorkbenchStyle.ink)
         }
       }
       Spacer(minLength: 0)

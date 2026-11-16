@@ -31,9 +31,11 @@ final class GlyphDifferenceDrawingView: NSView {
     bounds.fill()
     let configs = [preview.a, preview.b]
     guard configs.allSatisfy({ FontRenderer.supports(preview.glyph, config: $0) }) else {
-      ("Unavailable" as NSString).draw(
+      ("⚠︎ Unavailable" as NSString).draw(
         at: CGPoint(x: 2, y: bounds.midY - 5),
-        withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.darkGray])
+        withAttributes: [
+          .font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor(WorkbenchStyle.ink),
+        ])
       return
     }
     let size = preview.index ? 26.0 : 30

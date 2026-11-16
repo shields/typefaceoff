@@ -162,8 +162,11 @@ struct ComparisonTypography: View {
   }
 
   private func letter(_ side: Side) -> some View {
-    Text(side == .a ? "A" : "B").fontWeight(.semibold)
-      .foregroundStyle(Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
+    Text(side == .a ? "A" : "B").fontWeight(.bold)
+      .foregroundStyle(
+        installed(side) == nil
+          ? WorkbenchStyle.secondaryInk
+          : Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
   }
 }
 
@@ -255,7 +258,7 @@ struct InspectorFeaturePreview: View {
 
   var body: some View {
     HStack(spacing: 5) {
-      Text(side == .a ? "A" : "B").font(.system(size: 11, weight: .semibold))
+      Text(side == .a ? "A" : "B").font(.system(size: 11, weight: .bold))
         .foregroundStyle(Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue))
       if let preview {
         FontPreviewText(config: preview.before, text: preview.text, size: 17)

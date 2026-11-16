@@ -13,7 +13,8 @@ struct LanguageBrowserView: View {
       VStack(spacing: 0) {
         LanguageFilters(browser: browser, comparing: comparison.b != nil)
         if let problem = browser.problem {
-          Text(verbatim: "Language coverage failed: \(problem)").foregroundStyle(.red).padding()
+          Text(verbatim: "⚠︎ Language coverage failed: \(problem)")
+            .foregroundStyle(WorkbenchStyle.ink).padding()
             .accessibilityLabel(Text(verbatim: "Language coverage failed: \(problem)"))
             .accessibilityIdentifier("Language coverage error message")
         }

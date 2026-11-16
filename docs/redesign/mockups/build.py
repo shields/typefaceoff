@@ -4,9 +4,6 @@ Run with `uv run --no-project --with fonttools python3 build.py`. Output is plai
 with no scripts and the style sheet inlined; all geometry is in window coordinates (1440x900), so
 each block can be checked by reading its numbers. Measured data comes from data.json (written by
 data.py) and from the font files through fontdata.py.
-
-The pages are written twice, once for each setting of LETTERS: the main set beside this file and
-four pages of the other option in letters-header/.
 """
 
 from __future__ import annotations
@@ -33,26 +30,12 @@ TRACK = "#8e939b"
 FAM = {"a": HN, "b": AR}
 FIGURE_SPACE = "\u2007"
 
-# The one switch between the two ways of colouring the letters A and B. "throughout": every letter
-# that labels a font is in that font's colour. "header": only the letters of the header rows and
-# at the heads of the two text columns are; every other label is bold ink.
-LETTERS = "throughout"
-VARIANT_DIR = "letters-header"
-VARIANT_PAGES = ("text", "glyph", "languages", "detail")
+def ab(letter: str, live: bool = True, cls: str = "", style: str = "") -> str:
+    """A letter that labels a font: bold, and red for A or blue for B.
 
-
-def ab(letter: str, place: str = "body", live: bool = True, cls: str = "", style: str = "") -> str:
-    """A letter that labels a font: bold, and red for A or blue for B where LETTERS reaches `place`.
-
-    `place` is "head" (the header rows and the heads of the text columns) or "body" (everywhere
-    else). A font that is None or not installed has nothing to key: its letter is secondary ink.
+    A font that is None or not installed has nothing to key: its letter is secondary ink.
     """
-    if not live:
-        tone = " kl-off"
-    elif place == "head" or LETTERS == "throughout":
-        tone = f" kl-{letter.lower()}"
-    else:
-        tone = ""
+    tone = f" kl-{letter.lower()}" if live else " kl-off"
     extra = f" {cls}" if cls else ""
     attr = f' style="{style}"' if style else ""
     return f'<b class="kl{tone}{extra}"{attr}>{letter}</b>'
@@ -113,8 +96,6 @@ def rule(left: float, top: float, width: float, ink: bool = False) -> str:
 
 
 def page(title: str, body: str) -> str:
-    if LETTERS == "header":
-        title += " (letters coloured in the header only)"
     return (
         '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
         f"<title>Typeface/Off — {title}</title>\n<style>\n{CSS}</style></head>\n<body>\n<div class=\"win\">\n"
@@ -263,7 +244,7 @@ def spec_row(
     widths = [b - a for a, b in zip(xs, xs[1:])] + [96]
     chev = "" if locked else CHEV
     # Each cell: (extra classes, extra style, content).
-    cells: list[tuple[str, str, str]] = [("sp-key", "", ab(f.key, "head", f.key == "A" or comparing))]
+    cells: list[tuple[str, str, str]] = [("sp-key", "", ab(f.key, f.key == "A" or comparing))]
     if f.family is None:
         cells.append(("sp-fam sys", "", f"None{chev}"))
     elif not f.installed:
@@ -561,8 +542,8 @@ def text_view(g: Grid, top: int, lh_a: float, lh_b: float, size_b: float = 22, s
     base = top + 49
     body = passage_html(ranked=not b_message)
     out = [
-        ab("A", "head", cls="tx-key", style=f"left:40px;top:{base - 13}px"),
-        ab("B", "head", not b_message, "tx-key", f"left:{g.half - 24}px;top:{base - 13}px"),
+        ab("A", cls="tx-key", style=f"left:40px;top:{base - 13}px"),
+        ab("B", not b_message, "tx-key", f"left:{g.half - 24}px;top:{base - 13}px"),
     ]
     columns = [("tx-a", 64, "a", 22.0, lh_a, ""), ("tx-b", g.half, "b", size_b, lh_b, style_b)]
     if b_message:
@@ -988,14 +969,12 @@ def picker() -> str:
 # ---------------------------------------------------------------- pages
 
 
-def build(out: Path, only: tuple[str, ...] = ()) -> None:
-    """Write the pages into `out` with the current LETTERS; `only` limits them by name."""
+def build(out: Path) -> None:
+    """Write the pages into `out`."""
 
     def write(name: str, title: str, body: str) -> None:
-        if not only or name.removesuffix(".html") in only:
-            (out / name).write_text(page(title, body), encoding="utf-8")
+        (out / name).write_text(page(title, body), encoding="utf-8")
 
-    out.mkdir(exist_ok=True)
     g = WIDE
     top = 158  # index band; the canvas starts at top + 77
     text_items = ranked_shape_frequency(24)
@@ -1060,11 +1039,7 @@ def build(out: Path, only: tuple[str, ...] = ()) -> None:
 
 
 def main() -> None:
-    global LETTERS
-    LETTERS = "throughout"
     build(OUT)
-    LETTERS = "header"
-    build(OUT / VARIANT_DIR, VARIANT_PAGES)
 
 
 if __name__ == "__main__":

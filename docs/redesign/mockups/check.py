@@ -51,9 +51,8 @@ class Check(HTMLParser):
 
 
 MAIN = ("text", "glyph", "languages", "detail", "match", "none", "missing", "missing-font")
-VARIANT = ("text", "glyph", "languages", "detail")
 failed = False
-for name in MAIN + tuple(f"letters-header/{n}" for n in VARIANT):
+for name in MAIN:
     c = Check()
     c.feed((HERE / f"{name}.html").read_text(encoding="utf-8"))
     dup = {i for i in c.ids if c.ids.count(i) > 1}

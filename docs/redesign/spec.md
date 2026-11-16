@@ -11,11 +11,6 @@ such as `glyph.html`, it means the page that `mockups/build.py` generates and
 its render of the same name (see [Notes on the mockups](#notes-on-the-mockups)).
 All measurements below are points in that window.
 
-The letters A and B are drawn two ways, because how far their colour reaches is
-still open (decision 15). The main pages colour every letter that labels a font;
-`mockups/letters-header/` holds `text`, `glyph`, `languages` and `detail` with
-the colour kept to the header. `LETTERS` in `build.py` is the one switch.
-
 `research/` holds what the design rests on: `platform-api.md` and `hig.md`
 (Apple's documentation and Human Interface Guidelines, read through the
 `cupertino` index), `buildability.md` (how each structural idea is built and
@@ -258,11 +253,10 @@ One composition on one baseline (`glyph.html`).
   beside their guides: in a pair, the left guide's letter hangs to its left and
   the right guide's to its right, so two letters never touch. Guides within a
   pixel of each other merge into one, lettered `A B`. The letters are red and
-  blue (bold ink in the header-only option of decision 15), and a merged guide's
-  two letters keep one colour each. No red or blue line anywhere. Nothing else
-  stands on the letters' line, so a letter can never be read as part of a
-  control. A letter that would cross the 1416 margin hangs on the other side of
-  its guide.
+  blue, and a merged guide's two letters keep one colour each. No red or blue
+  line anywhere. Nothing else stands on the letters' line, so a letter can never
+  be read as part of a control. A letter that would cross the 1416 margin hangs
+  on the other side of its guide.
 - **"x-height"**, **"baseline"** and the caption are the stage's three labels,
   all flush left at x 752: the first two just above their lines, the caption
   under the overlay. None of them moves when stepping between characters.
@@ -308,8 +302,8 @@ gives the language's name only; its ISO code is in the detail.
   right-aligned. The table sorts by the exact count, so rows that show the same
   figure keep their true order, and the exact count is in the detail's facts
   line. A language under one million, which shows when the filter is lowered, is
-  given in whole thousands (`250k`), and one under a thousand as its count: the
-  designer's assumption (decision 16).
+  given in whole thousands (`250k`), and one under a thousand as its count
+  (decision 16).
 - Coverage is one mark per font: a filled dot for complete, a hollow dot for
   incomplete, a dash for a font that is not installed, a progress mark while
   checking. A note above the A and B columns names the two dots.
@@ -439,13 +433,13 @@ A popover hanging from the family name (`detail.html`):
   stays in view above the canvas, so the canvas itself carries no "preview"
   label.
 - Left half of the band: **Match** and the app's line "Optimize one B setting at
-  a time. Each search keeps your other preview settings.", whose B is bold blue
-  (ink in the header-only option); the status ("Comparing settings…", "Distance
-  0.203 → 0.187 · 412 evaluations", **Stop**, or "No better value found for this
-  setting."); the app's caveat on one line (x 64-781), "Experimental visual
-  heuristic using the current sample and Latin diagnostics. Lower distance is
-  closer; this is not a confidence percentage." It clears Cancel (about x 1280
-  at 1440) at every content width down to the 960 minimum.
+  a time. Each search keeps your other preview settings.", whose B is bold blue;
+  the status ("Comparing settings…", "Distance 0.203 → 0.187 · 412 evaluations",
+  **Stop**, or "No better value found for this setting."); the app's caveat on
+  one line (x 64-781), "Experimental visual heuristic using the current sample
+  and Latin diagnostics. Lower distance is closer; this is not a confidence
+  percentage." It clears Cancel (about x 1280 at 1440) at every content width
+  down to the 960 minimum.
 - **Cancel** (Escape) and **Apply** (Return) at the right, on the third
   baseline. Only **Stop**, **Cancel** and **Apply** are bordered. Apply is
   enabled only for a verified improvement, changes only B, and is one Undo step.
@@ -527,24 +521,25 @@ three words in their own inks. Both colours are 5.6:1 on paper (5.7 on the white
 of a popover), above the 4.5:1 that text needs, and a coloured letter or word is
 never smaller than 11 pt nor lighter than semibold.
 
-How far the colour goes is the owner's choice (decision 15), and both are drawn:
+The colour runs throughout the window (decision 15). Every letter that labels a
+font is in that font's colour:
 
-| Where the letter stands                                                                                          | Throughout (the main pages) | Header only (`letters-header/`) |
-| ---------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------- |
-| Header rows A and B, 13 pt bold                                                                                  | Colour                      | Colour                          |
-| Hanging at the heads of the two text columns, 13 pt bold                                                         | Colour                      | Colour                          |
-| The key's words, 11 pt semibold                                                                                  | Colour                      | Colour                          |
-| Glyph: guide letters (11 pt bold) and the table's heads                                                          | Colour                      | Bold ink                        |
-| Inspector: column heads of Facts and Typography, row letters of the settings, the value pop-ups and the previews | Colour                      | Bold ink                        |
-| Languages: table heads, the counts (`A 56/56`) and the hanging letters of the character grid                     | Colour                      | Bold ink                        |
-| Match band: the B of "Optimize one B setting at a time." (11 pt bold)                                            | Colour                      | Bold ink                        |
+- the header rows A and B and the letters hanging at the heads of the two text
+  columns, 13 pt bold;
+- the key's words, 11 pt semibold;
+- in Glyph, the guide letters (11 pt bold) and the table's heads;
+- in the inspector, the column heads of Facts and Typography, the row letters of
+  the settings, the value pop-ups and the previews;
+- in Languages, the table heads, the counts (`A 56/56`) and the hanging letters
+  of the character grid;
+- in the Match band, the B of "Optimize one B setting at a time." (11 pt bold).
 
-In both, the letter of a font that is None or not installed is secondary ink,
-and A's stays red when B is absent. A letter inside a control's title, a
-caption, a message or a command (**Link A and B**, **A over B**, "B is not
-installed.", **Make B Equal to A**) is text and takes the colour and weight of
-the words around it; the Match band's line is the one exception, because its B
-is the band's only pointer to the row it acts on.
+The letter of a font that is None or not installed is secondary ink, and A's
+stays red when B is absent. A letter inside a control's title, a caption, a
+message or a command (**Link A and B**, **A over B**, "B is not installed.",
+**Make B Equal to A**) is text and takes the colour and weight of the words
+around it; the Match band's line is the one exception, because its B is the
+band's only pointer to the row it acts on.
 
 ### Numbers
 
@@ -858,35 +853,20 @@ design and was not discussed on its own; **Open** awaits a ruling.
     font units none (see Numbers). The alternative, fixed decimals for typed
     values too, was turned down because the default header would read `22.00 pt`
     and `0.000 em`.
-15. Decided in part, open in part. **The letters A and B carry the colour; the
-    key squares are gone.** The owner proposed it "either here, or throughout
-    the UI", and both are drawn. Settled in both: no squares, the header's
-    letters and the letters at the heads of the text columns in colour, the key
-    as three coloured words. Open is the rest of the window:
-    - **Throughout** (the main pages). Every label is keyed where it stands, so
-      a column of the inspector or a guide in Glyph can be matched to its font
-      without looking back at the header; the cost is 26 more red and blue
-      letters on the Languages page as drawn and 16 in the inspector, where no
-      red or blue ink is being compared, so the two colours no longer mark only
-      the comparison and its key.
-    - **Header only** (`letters-header/`). Red and blue stay where the
-      comparison is drawn and where it is keyed, and every table keeps a quiet
-      ink head; the cost is that the same letter is red in the header and black
-      in the body, and a body label must be matched to its colour by reading the
-      letter.
-
-    Three consequences hold in both and want a yes: A's letter stays red when B
-    is None or not installed, although nothing red is then drawn; with
-    Differentiate Without Color the key regains two small hatched squares,
-    because a word cannot show a hatch; and Swap moves from x 24 to x 34 to stay
-    centred over the letters.
-
-16. Open. **Speakers under one million are shown in whole thousands** (`250k`),
-    and under a thousand as the count. The owner asked for whole millions only;
-    no row at the default filter is under one million, so this is the designer's
-    assumption for the rows that appear when the filter is lowered. The filter's
-    own value keeps its decimal (`8.3M`): it is the threshold the app documents,
-    not a row of the list.
+15. Decided. **The letters A and B carry the colour throughout; the key squares
+    are gone.** Every letter that labels a font is bold in that font's colour,
+    in the header, the canvas, the inspector and the Languages page, and the key
+    is three coloured words. The owner chose this over keeping the colour to the
+    header: every label is keyed where it stands, at the cost of red and blue
+    letters on pages where no ink is being compared. As drawn with it: A's
+    letter stays red when B is None or not installed, although nothing red is
+    then drawn; with Differentiate Without Color the key regains two small
+    hatched squares, because a word cannot show a hatch; and Swap stands at x
+    34, centred over the letters.
+16. Decided. **Speakers under one million are shown in whole thousands**
+    (`250k`), and under a thousand as the count. The filter's own value keeps
+    its decimal (`8.3M`): it is the threshold the app documents, not a row of
+    the list.
 17. Decided. **Accessibility identifiers may change.** `AGENTS.md` says never to
     change an identifier, label or title the fuzzer uses. The owner ruled that
     "never" is too strong for a complete rebuild and that losing the recorded

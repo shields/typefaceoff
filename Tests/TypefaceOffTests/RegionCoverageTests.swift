@@ -187,6 +187,25 @@ import TypefaceCore
     #expect(field.doubleValue == axis.defaultValue)
   }
 
+  @Test func opticalSizeAndSectionResetsAgreeAboutDefaults() throws {
+    let url = try #require(
+      Bundle(for: RegionFixtureBundle.self).url(forResource: "OpticalSize", withExtension: "ttf"))
+    try #require(CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil))
+    defer { CTFontManagerUnregisterFontsForURL(url as CFURL, .process, nil) }
+    var comparison = Comparison(a: .init("TypefaceOffRegionOptical-Regular"), b: nil)
+    let catalog = FontCatalog()
+    let axis = SpecificationSetting.axis(tagNumber("opsz"))
+    comparison.a.size = 44
+    #expect(axis.isChanged(in: comparison.a))
+    axis.reset(in: &comparison, catalog: catalog)
+    #expect(comparison.a.axes[tagNumber("opsz")] == 44)
+    #expect(!axis.isChanged(in: comparison.a))
+    comparison.resetAppearance(catalog: catalog)
+    #expect(comparison.a.size == 22 && comparison.a.axes[tagNumber("opsz")] == 22)
+    #expect(!comparison.hasAppearanceChanges(catalog: catalog))
+    #expect(!axis.isChanged(in: comparison.a))
+  }
+
   @Test func missingCharactersRemainExplicitInsideEmphasizedPassages() {
     let content = SpecimenText.makeContent(
       config: .init("NotoSansSyriac-Regular"), text: Sample.reading.text, sample: .reading)

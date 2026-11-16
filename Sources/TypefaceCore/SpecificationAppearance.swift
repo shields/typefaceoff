@@ -39,8 +39,13 @@ extension SpecificationSetting {
     case .size: .number(22)
     case .leading: .automatic
     case .tracking: .number(0)
-    case .axis(let id): .number(config.face.axes.first { $0.id == id }!.defaultValue)
+    case .axis(let id):
+      .number(Self.defaultAxisValue(config.face.axes.first { $0.id == id }!, size: config.size))
     }
+  }
+
+  static func defaultAxisValue(_ axis: FontAxis, size: Double) -> Double {
+    axis.tag == "opsz" ? size.clamped(to: axis.minimum...axis.maximum) : axis.defaultValue
   }
 
   public func isChanged(in config: FontConfiguration) -> Bool {

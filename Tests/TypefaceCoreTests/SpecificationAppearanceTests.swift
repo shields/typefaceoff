@@ -28,6 +28,17 @@ import Testing
     #expect(!comparison.hasAppearanceChanges(catalog: catalog))
   }
 
+  @Test func opticalSizeDefaultsFollowPointSizeWithinTheFontsRange() {
+    let optical = FontAxis(
+      id: tagNumber("opsz"), name: "Optical size", minimum: 8, maximum: 72, defaultValue: 12)
+    let width = FontAxis(
+      id: tagNumber("wdth"), name: "Width", minimum: 50, maximum: 200, defaultValue: 100)
+    for (size, expected) in [(4.0, 8.0), (22, 22), (44, 44), (144, 72)] {
+      #expect(SpecificationSetting.defaultAxisValue(optical, size: size) == expected)
+      #expect(SpecificationSetting.defaultAxisValue(width, size: size) == 100)
+    }
+  }
+
   @Test func axesAreUnitedByTagAndSlidersRespectNativeRanges() {
     let weight = FontAxis(
       id: tagNumber("wght"), name: "Weight", minimum: 1, maximum: 2, defaultValue: 1)

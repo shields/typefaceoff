@@ -51,7 +51,6 @@ struct CharacterSearchPicker: View {
       }
       confirming = nil
     }
-    .onExitCommand { dismiss() }
   }
 
   @ViewBuilder private var content: some View {

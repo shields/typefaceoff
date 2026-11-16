@@ -408,19 +408,7 @@ enum SharedSizeFormat {
   }
 
   static func parse(_ text: String, locale: Locale) -> Double? {
-    let formatter = NumberFormatter()
-    formatter.locale = locale
-    formatter.numberStyle = .decimal
-    formatter.isLenient = false
-    formatter.usesGroupingSeparator = false
-    let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    var range = NSRange(location: 0, length: text.utf16.count)
-    var result: AnyObject?
-    do { try formatter.getObjectValue(&result, for: text, range: &range) } catch { return nil }
-    guard range.length == text.utf16.count, let value = (result as? NSNumber)?.doubleValue,
-      value.isFinite
-    else { return nil }
-    return value
+    SpecificationNumber.parse(text, locale: locale)
   }
 }
 

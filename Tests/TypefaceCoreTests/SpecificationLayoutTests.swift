@@ -32,7 +32,8 @@ import Testing
     #expect(layout.size == 512 && layout.weight == 600)
     #expect(layout.leading == 664 && layout.tracking == 760)
     #expect(layout.indexControls == 760)
-    #expect(SpecificationLayout(width: 1000, inspectorOpen: false).showsTypography)
+    #expect(!SpecificationLayout(width: 1119, inspectorOpen: false).showsTypography)
+    #expect(SpecificationLayout(width: 1120, inspectorOpen: false).showsTypography)
     #expect(SpecificationLayout(width: 1239, inspectorOpen: false).compact)
     #expect(!SpecificationLayout(width: 1240, inspectorOpen: false).compact)
   }

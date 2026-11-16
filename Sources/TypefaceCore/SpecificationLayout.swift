@@ -6,7 +6,7 @@ public struct SpecificationLayout: Equatable, Sendable {
   public init(width: Double, inspectorOpen: Bool) {
     self.width = width
     compact = width < 1240 || inspectorOpen
-    showsTypography = width >= 1000 && !inspectorOpen
+    showsTypography = width >= 1120 && !inspectorOpen
   }
 
   public var style: Double { width * 0.2 + 96 }

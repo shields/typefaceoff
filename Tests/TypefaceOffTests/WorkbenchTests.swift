@@ -26,7 +26,7 @@ import TypefaceCore
     #expect(CTLineGetGlyphCount(CTLineCreateWithAttributedString(sample.text)) == 1)
     #expect(sample.spans.map(\.glyph) == ["f", "i"])
     let missing = SpecimenText.makeContent(config: config, text: "🦄")
-    #expect(missing.text.string == "1 unavailable character\n[U+1F984]")
+    #expect(missing.text.string == "⚠︎ 1 unavailable character\n[U+1F984]")
     #expect(missing.spans.first?.glyph == "🦄")
     #expect(missing.spans.first?.supported == false)
   }
@@ -56,7 +56,7 @@ import TypefaceCore
     config.size = size
     config.tracking = 0.022
     let content = SpecimenText.makeContent(config: config, text: "A🦄🦄👩‍🚀")
-    #expect(content.text.string.hasPrefix("2 unavailable characters\nA"))
+    #expect(content.text.string.hasPrefix("⚠︎ 2 unavailable characters\nA"))
     #expect(content.spans.map(\.glyph) == ["A", "🦄", "🦄", "👩‍🚀"])
     let astronaut = try #require(content.spans.last)
     #expect(
@@ -72,7 +72,7 @@ import TypefaceCore
       #expect(
         attributes[.font] as? NSFont
           == NSFont.monospacedSystemFont(ofSize: max(11, size * 0.55), weight: .medium))
-      #expect(attributes[.foregroundColor] as? NSColor == .systemOrange)
+      #expect(attributes[.foregroundColor] as? NSColor == NSColor(WorkbenchStyle.ink))
       #expect(attributes[.toolTip] as? String == "Unavailable: \(unicodeDescription(span.glyph))")
       #expect(
         attributes[NSAttributedString.Key(kCTTrackingAttributeName as String)] as? Double
@@ -80,7 +80,8 @@ import TypefaceCore
     }
     let missingFont = SpecimenText.makeContent(
       config: .init("TypefaceOff-Does-Not-Exist"), text: "A")
-    #expect(missingFont.text.string.hasPrefix("Font unavailable: TypefaceOff-Does-Not-Exist"))
+    #expect(
+      missingFont.text.string == "This font is not installed.\nChoose an installed font above.")
     #expect(missingFont.spans.isEmpty)
   }
 
@@ -104,7 +105,7 @@ import TypefaceCore
     let content = SpecimenText.makeContent(config: config, text: text)
     #expect(
       content.text.string
-        == "2 unavailable characters\n\tfi e\u{301} [U+1F984]\r\n[U+1F469 U+200D U+1F680] fl  ")
+        == "⚠︎ 2 unavailable characters\n\tfi e\u{301} [U+1F984]\r\n[U+1F469 U+200D U+1F680] fl  ")
     #expect(content.spans.map(\.glyph) == ["f", "i", "e\u{301}", "🦄", "👩‍🚀", "f", "l"])
     for span in content.spans {
       let rendered = content.text.attributedSubstring(from: span.range)

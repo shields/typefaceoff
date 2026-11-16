@@ -4,10 +4,16 @@ import SwiftUI
 import TypefaceCore
 
 struct SpecimenText: NSViewRepresentable {
+  private static let warningFont =
+    CTFontCreateForString(
+      NSFont.systemFont(ofSize: 12) as CTFont, "⚠︎" as CFString, CFRange(location: 0, length: 2))
+    as NSFont
   let config: FontConfiguration
-  let text: String
+  @ExactText var text: String
   var sample: Sample = .custom
   var inset = NSSize(width: 24, height: 31)
+  var firstBaseline: (value: Double, measured: (Double) -> Void)?
+  var lineFragmentPadding: CGFloat = 5
   var highlights: Set<String> = []
   var highlightKinds: [String: String] = [:]
   var side: Side = .a
@@ -23,12 +29,13 @@ struct SpecimenText: NSViewRepresentable {
     scroll.hasVerticalScroller = true
     scroll.autohidesScrollers = true
     scroll.drawsBackground = true
-    scroll.backgroundColor = .white
+    scroll.backgroundColor = NSColor(WorkbenchStyle.paper)
     let storage = NSTextStorage()
     let layout = SpecimenLayoutManager()
     // Partial layout can move the scroll origin as earlier lines are measured.
     layout.allowsNonContiguousLayout = false
     let container = NSTextContainer()
+    container.lineFragmentPadding = lineFragmentPadding
     storage.addLayoutManager(layout)
     layout.addTextContainer(container)
     let view = SpecimenNSTextView(frame: .zero, textContainer: container)
@@ -44,7 +51,12 @@ struct SpecimenText: NSViewRepresentable {
     view.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
     view.textContainer?.widthTracksTextView = true
     view.textContainerInset = inset
-    view.backgroundColor = .white
+    view.backgroundColor = NSColor(WorkbenchStyle.paper)
+    view.insertionPointColor = NSColor(WorkbenchStyle.ink)
+    view.selectedTextAttributes = [
+      .backgroundColor: NSColor(WorkbenchStyle.hairline).withAlphaComponent(0.5),
+      .foregroundColor: NSColor(WorkbenchStyle.ink),
+    ]
     view.axLabel = "\(side.fontName) specimen"
     let name = accessibilityName ?? "\(side.fontName) specimen"
     if accessibilityName != nil { view.axIdentifier = name }
@@ -66,15 +78,24 @@ struct SpecimenText: NSViewRepresentable {
     let key = RenderKey(config: config, text: text, sample: sample)
     let contentChanged = coordinator.key != key
     let spacingOnly = coordinator.key.map { key.changesOnlySpacing(from: $0) } == true
-    guard contentChanged || view.highlights != highlights || coordinator.side != side else {
+    let geometryChanged =
+      coordinator.inset != inset || coordinator.firstBaseline != firstBaseline?.value
+      || view.textContainer?.lineFragmentPadding != lineFragmentPadding
+    guard
+      contentChanged || geometryChanged || view.highlights != highlights
+        || coordinator.side != side
+    else {
       return
     }
     view.renderGeneration = FuzzDiagnostics.shared.nextGeneration()
     coordinator.key = key
     coordinator.side = side
+    coordinator.inset = inset
+    coordinator.firstBaseline = firstBaseline?.value
     view.highlights = highlights
     view.highlightColor = side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue
     coordinator.position.preserveDuringUpdate {
+      view.textContainer?.lineFragmentPadding = lineFragmentPadding
       if contentChanged {
         view.configureLeading(config)
         #if TYPEFACEOFF_STARTUP_BENCHMARK
@@ -96,13 +117,33 @@ struct SpecimenText: NSViewRepresentable {
         #if TYPEFACEOFF_STARTUP_BENCHMARK
           StartupDiagnostics.mark("specimen-\(side.rawValue)-ready")
         #endif
-        view.ensureSpecimenLayout()
-        view.refreshToolTips()
         FuzzDiagnostics.shared.measure(
           "specimen-accessibility", text: text, generation: view.renderGeneration
         ) {
           view.setAccessibilityValue(text)
         }
+      }
+      if contentChanged || geometryChanged {
+        view.ensureSpecimenLayout()
+        var alignedInset = inset
+        if let firstBaseline, let layout = view.layoutManager {
+          let baseline: Double
+          if view.bodyRange.length > 0 {
+            let glyph = layout.glyphIndexForCharacter(at: view.bodyRange.location)
+            baseline =
+              layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+              + layout.location(forGlyphAt: glyph).y
+          } else {
+            baseline = 0
+          }
+          alignedInset.height = max(0, firstBaseline.value - baseline)
+          if coordinator.measuredBaseline != baseline {
+            coordinator.measuredBaseline = baseline
+            Task { @MainActor in firstBaseline.measured(baseline) }
+          }
+        }
+        view.textContainerInset = alignedInset
+        view.refreshToolTips()
       }
     }
     view.refreshHighlights()
@@ -120,8 +161,11 @@ struct SpecimenText: NSViewRepresentable {
       content.append(
         NSAttributedString(
           string:
-            "Font unavailable: \(config.postScriptName)\nChoose an installed font in the inspector.",
-          attributes: [.font: NSFont.systemFont(ofSize: 16), .foregroundColor: NSColor.darkGray]))
+            "This font is not installed.\nChoose an installed font above.",
+          attributes: [
+            .font: NSFont.systemFont(ofSize: 15),
+            .foregroundColor: NSColor(WorkbenchStyle.secondaryInk),
+          ]))
     } else {
       let italicRanges = text == sample.text ? sample.italicRanges : []
       var italicLocations = IndexSet()
@@ -148,28 +192,28 @@ struct SpecimenText: NSViewRepresentable {
         content.append(
           NSAttributedString(
             string:
-              "\(unavailable.count) unavailable character\(unavailable.count == 1 ? "" : "s")\n",
+              "⚠︎ \(unavailable.count) unavailable character\(unavailable.count == 1 ? "" : "s")\n",
             attributes: [
-              .font: NSFont.systemFont(ofSize: 12),
-              .foregroundColor: NSColor.systemOrange, .paragraphStyle: paragraph,
+              .font: Self.warningFont,
+              .foregroundColor: NSColor(WorkbenchStyle.ink), .paragraphStyle: paragraph,
             ]))
       }
       if !italicRanges.isEmpty && italicConfig == nil {
         content.append(
           NSAttributedString(
-            string: "Italic unavailable: \(config.face.family)\n",
+            string: "⚠︎ Italic unavailable: \(config.face.family)\n",
             attributes: [
-              .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemOrange,
+              .font: Self.warningFont, .foregroundColor: NSColor(WorkbenchStyle.ink),
             ]))
       }
       bodyRange.location = content.length
       var attributes = FontRenderer.attributes(config)
-      attributes[.foregroundColor] = NSColor(calibratedWhite: 0.16, alpha: 1)
+      attributes[.foregroundColor] = NSColor(WorkbenchStyle.ink)
       var italicAttributes = attributes
       if let italicConfig {
         italicAttributes.merge(FontRenderer.attributes(italicConfig)) { _, new in new }
       } else {
-        italicAttributes[.foregroundColor] = NSColor.systemOrange
+        italicAttributes[.foregroundColor] = NSColor(WorkbenchStyle.ink)
         italicAttributes[.toolTip] = "Italic unavailable: \(config.face.family)"
       }
       var placeholders: [[Unicode.Scalar]: [NSAttributedString]] = [:]
@@ -184,7 +228,7 @@ struct SpecimenText: NSViewRepresentable {
           var styled = base
           styled[.font] = NSFont.monospacedSystemFont(
             ofSize: max(11, config.size * 0.55), weight: .medium)
-          styled[.foregroundColor] = NSColor.systemOrange
+          styled[.foregroundColor] = NSColor(WorkbenchStyle.ink)
           styled[.toolTip] = tooltip
           return NSAttributedString(string: displayed, attributes: styled)
         }
@@ -274,6 +318,9 @@ struct SpecimenText: NSViewRepresentable {
   final class Coordinator {
     var key: RenderKey?
     var side: Side?
+    var inset: NSSize?
+    var firstBaseline: Double?
+    var measuredBaseline: Double?
     let position: SpecimenScrollPosition
     init(position: SpecimenScrollPosition) { self.position = position }
   }
@@ -294,8 +341,14 @@ struct SpecimenText: NSViewRepresentable {
     let text: String
     let sample: Sample
 
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.config == rhs.config && lhs.sample == rhs.sample
+        && lhs.text.unicodeScalars.elementsEqual(rhs.text.unicodeScalars)
+    }
+
     func changesOnlySpacing(from previous: RenderKey) -> Bool {
-      guard text == previous.text, sample == previous.sample,
+      guard text.unicodeScalars.elementsEqual(previous.text.unicodeScalars),
+        sample == previous.sample,
         config.tracking != previous.config.tracking || config.leading != previous.config.leading
       else { return false }
       var unchanged = config

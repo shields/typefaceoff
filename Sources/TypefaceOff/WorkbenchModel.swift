@@ -47,9 +47,7 @@ final class WorkbenchModel: ObservableObject {
     let previous = comparison
     var next = previous
     body(&next)
-    guard previous != next || !previous.customText.utf8.elementsEqual(next.customText.utf8) else {
-      return
-    }
+    guard previous != next else { return }
     if name == "Change typography" {
       FuzzDiagnostics.shared.validateTypographyEdit(previous: previous, next: next)
     }

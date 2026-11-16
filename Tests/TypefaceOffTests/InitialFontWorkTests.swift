@@ -104,7 +104,8 @@ import TypefaceCore
     _ = try await work.ranking.value(for: initial)
     var current = initial
     current.customText = "\u{037E}"
-    #expect(initial == current)
+    #expect(initial.text == current.text)
+    #expect(initial != current)
     let ranking = RankingModel(preparation: work)
     await ranking.update(current)
     #expect(ranking.scores.contains { $0.id == Array("\u{037E}".unicodeScalars) })

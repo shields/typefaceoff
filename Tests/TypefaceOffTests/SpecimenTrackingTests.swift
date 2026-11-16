@@ -6,6 +6,27 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct SpecimenTrackingTests {
+  @Test func canonicalTextEditsReplaceTheRenderedCharactersAndClickTargets() async throws {
+    var config = FontConfiguration("HelveticaNeue")
+    let host = WorkbenchTestHost(SpecimenText(config: config, text: "é"))
+    defer { host.window.close() }
+    try await host.settle()
+    let specimen = try #require(host.subviews.compactMap { $0 as? SpecimenNSTextView }.first)
+    for text in ["e\u{301}", "é"] {
+      host.setContent(SpecimenText(config: config, text: text))
+      try await host.settle()
+      #expect(specimen.string.unicodeScalars.elementsEqual(text.unicodeScalars))
+      #expect(specimen.spans.first?.glyph.unicodeScalars.elementsEqual(text.unicodeScalars) == true)
+    }
+    let previous = SpecimenText.RenderKey(config: config, text: "é", sample: .custom)
+    config.tracking = 0.03
+    let next = SpecimenText.RenderKey(config: config, text: "e\u{301}", sample: .custom)
+    #expect(!next.changesOnlySpacing(from: previous))
+    host.setContent(SpecimenText(config: config, text: next.text))
+    try await host.settle()
+    #expect(specimen.string.unicodeScalars.elementsEqual(next.text.unicodeScalars))
+  }
+
   @Test(arguments: [0.0, 0.025, -0.04], [0.0, 0.025, -0.04])
   func trackingUpdatesMatchFreshRenderingWithMissingGlyphs(before: Double, after: Double) {
     var config = FontConfiguration("HelveticaNeue")

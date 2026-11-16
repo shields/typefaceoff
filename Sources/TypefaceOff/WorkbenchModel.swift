@@ -26,11 +26,11 @@ final class WorkbenchModel: ObservableObject {
   let inspector = ComparisonInspectorState()
   private var continuousEdit: (name: String, initial: Comparison)?
 
-  init(comparison: Comparison = Comparison()) {
+  init(comparison: Comparison = Comparison(), catalog: FontCatalog? = nil) {
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("catalogStart")
     #endif
-    catalog = Self.installedCatalog
+    self.catalog = catalog ?? Self.installedCatalog
     #if TYPEFACEOFF_STARTUP_BENCHMARK
       StartupDiagnostics.mark("catalogReady")
     #endif

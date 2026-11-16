@@ -13,13 +13,14 @@ struct GlyphComparisonView: View {
   let focusChanged: (Bool) -> Void
   @State private var input: String
   @State private var inspected: [Unicode.Scalar]
-  @State private var zoom: Double
+  @Binding private var zoom: Double
   @State private var appeared: Bool
 
   init(
     comparison: Comparison, focusRequest: UUID, searching: Binding<Bool>,
     select: @escaping (String) -> Void, navigate: @escaping (Int) -> Void,
-    showText: @escaping () -> Void, focusChanged: @escaping (Bool) -> Void
+    showText: @escaping () -> Void, focusChanged: @escaping (Bool) -> Void,
+    zoom: Binding<Double> = .constant(1)
   ) {
     self.comparison = comparison
     self.focusRequest = focusRequest
@@ -30,7 +31,7 @@ struct GlyphComparisonView: View {
     self.focusChanged = focusChanged
     _input = State(initialValue: "")
     _inspected = State(initialValue: [])
-    _zoom = State(initialValue: 1)
+    _zoom = zoom
     _appeared = State(initialValue: false)
   }
 

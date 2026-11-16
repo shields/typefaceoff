@@ -10,7 +10,7 @@ struct TypefaceOffApp: App {
       StartupDiagnostics.mark("appInit")
     #endif
     if ProcessInfo.processInfo.environment["TYPEFACEOFF_TESTING"] == "1" {
-      // App-hosted tests need AppKit and SwiftUI, but must not activate on the desktop.
+      // App-hosted tests need AppKit and SwiftUI without taking keyboard focus by default.
       precondition(NSApplication.shared.setActivationPolicy(.prohibited))
     }
     // Font discovery can overlap AppKit's launch work instead of delaying the first window.
@@ -54,8 +54,8 @@ struct WorkbenchWindow: View {
           .environment(\.workbenchUndoManager, undoManager)
       }
     }
-    .frame(minWidth: 1080, minHeight: 680)
+    .frame(minWidth: 960, minHeight: 600)
     .background(WindowUndoManager(undoManager: $undoManager))
-    .preferredColorScheme(.dark)
+    .preferredColorScheme(.light)
   }
 }

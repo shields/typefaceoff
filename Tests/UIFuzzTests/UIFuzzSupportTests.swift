@@ -56,7 +56,7 @@ import Testing
       mutator.mutate(FuzzTrace(seed: 0), seed: UInt64($0)).actions
     }
     for target in [
-      "Swap fonts", "Match…", "Edit text", "Toggle font B inspector", "Search characters",
+      "Swap fonts", "Match…", "Sample selector", "Toggle comparison inspector", "Search characters",
       "Font B Optimize tracking", "Font B Optimize size",
     ] {
       #expect(actions.contains { $0.kind == .press && $0.target == target })
@@ -119,7 +119,8 @@ import Testing
     var left = SplitMix64(seed: 7)
     var right = SplitMix64(seed: 7)
     let edits = [
-      "Search installed fonts", "Search Unicode characters", "Character", "Custom specimen text",
+      "Search installed fonts", "Find Character", "Search Unicode characters", "Search Languages",
+      "Character", "Custom specimen text",
       "Size",
     ].map {
       FuzzAction(

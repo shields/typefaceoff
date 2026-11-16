@@ -279,7 +279,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Edit text")
+    try await host.choose("Sample selector", nativeTitles: ["Edit Text…"], item: "Edit Text…")
     try await host.settle { sheetEditor(host) != nil }
     let editor = try #require(sheetEditor(host))
     let cancelledSheet = try #require(editor.window)
@@ -289,7 +289,7 @@ import TypefaceCore
     try await host.settle { host.window.sheets.isEmpty && !cancelledSheet.isVisible }
     #expect(model.comparison.sample == .reading)
     #expect(model.comparison.customText.isEmpty)
-    try await host.press("Edit text")
+    try await host.choose("Sample selector", nativeTitles: ["Edit Text…"], item: "Edit Text…")
     try await host.settle { sheetEditor(host) != nil }
     let replacement = try #require(sheetEditor(host))
     let appliedSheet = try #require(replacement.window)
@@ -299,7 +299,7 @@ import TypefaceCore
     try await host.settle { host.window.sheets.isEmpty && !appliedSheet.isVisible }
     #expect(model.comparison.sample == .custom)
     #expect(model.comparison.text == replacement.string)
-    try await host.press("Undo")
+    host.window.undoManager?.undo()
     try await host.settle { model.comparison.sample == .reading }
     #expect(model.comparison.sample == .reading)
   }
@@ -372,8 +372,8 @@ import TypefaceCore
     try await host.settle { host.window.title == "Helvetica Neue vs. Arial" }
     #expect(host.window.title == "Helvetica Neue vs. Arial")
     try await host.press("Font B family")
-    try await host.settle { host.subviews.contains { $0 is NSSearchField } }
-    let initialSearch = try #require(host.subviews.compactMap { $0 as? NSSearchField }.first)
+    try await host.settle { installedFontsSearch(host) != nil }
+    let initialSearch = try #require(installedFontsSearch(host))
     host.enter("None", in: initialSearch)
     try await host.settle()
     try await host.press("None")
@@ -472,19 +472,17 @@ import TypefaceCore
     #expect(model.comparison.selectedGlyph == "!")
   }
 
-  @Test func sharedSizeSubmissionCalibratesBothFontsAndRejectsInvalidText() async throws {
+  @Test func headerSizeSubmissionCalibratesBothFontsAndRejectsInvalidText() async throws {
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(
       WorkbenchView(model: model).environment(\.locale, Locale(identifier: "de_DE")))
     defer { host.window.close() }
     let sizeField: () -> NSTextField? = {
-      host.subviews.compactMap { $0 as? NSTextField }.first {
-        $0.placeholderString == "Size" && $0.convert($0.bounds, to: host.view).minX > 246
-          && $0.convert($0.bounds, to: host.view).maxX < host.view.bounds.width - 246
-      }
+      host.subviews.compactMap { $0 as? SpecificationFieldView }.first {
+        $0.field.accessibilityIdentifier() == "Font A Size field"
+      }?.field
     }
-    try await host.settle(
-      until: { sizeField() != nil }, describing: "no Size field between the inspectors")
+    try await host.settle { sizeField() != nil }
     let field = try #require(sizeField())
     try await host.submit("32,5", to: field)
     try await host.settle(
@@ -493,6 +491,8 @@ import TypefaceCore
     #expect(model.comparison.b?.size == 32.5)
     #expect(model.comparison.link?.sizeRatio == 1)
     try await host.submit("invalid", to: field)
+    #expect(model.comparison.a.size == 32.5)
+    field.currentEditor()?.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     try await host.settle(
       until: { field.stringValue == "32,5" },
       describing: "after invalid: \(describe(field, in: host))")
@@ -564,19 +564,23 @@ import TypefaceCore
     #expect(model.comparison.a.axes[axis.id] != initial)
   }
 
-  @Test func workbenchToolbarCanHideAndRestoreBothInspectors() async throws {
+  @Test func workbenchToolbarCanHideAndRestoreTheInspector() async throws {
     let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel()))
     defer { host.window.close() }
     try await host.settle()
-    for side in ["A", "B"] {
-      try await host.press("Toggle font \(side) inspector")
+    let strip = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
+    let closedWidth = strip.frame.width
+    for _ in 0..<2 {
+      try await host.press("Show Inspector")
       try await host.settle {
-        !host.elements.contains { $0.accessibilityLabel?() == "Font \(side) family" }
+        host.subviews.compactMap { $0 as? SpecificationSliderView }.contains {
+          !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+        }
       }
-      #expect(!host.elements.contains { $0.accessibilityLabel?() == "Font \(side) family" })
-      try await host.press("Toggle font \(side) inspector")
-      try await host.settle()
-      _ = try await host.element("Font \(side) family")
+      try await host.press("Show Inspector")
+      try await host.settle { abs(strip.frame.width - closedWidth) < 0.5 }
+      _ = try await host.element("Font A family")
+      _ = try await host.element("Font B family")
     }
   }
 
@@ -591,16 +595,16 @@ import TypefaceCore
     try await host.settle { model.comparison.a.postScriptName != original }
     #expect(model.comparison.a.postScriptName != original)
     let samples = Sample.allCases.map(\.title)
-    try await host.choose("Sample", nativeTitles: samples, item: Sample.alphabet.title)
-    try await host.choose("Sample", nativeTitles: samples, item: Sample.reading.title)
+    try await host.choose("Sample selector", nativeTitles: samples, item: Sample.alphabet.title)
+    try await host.choose("Sample selector", nativeTitles: samples, item: Sample.reading.title)
     try await host.settle { model.comparison.sample == .reading }
     #expect(model.comparison.sample == .reading)
     for sample in [Sample.alphabet, .numerals] {
-      try await host.choose("Sample", nativeTitles: samples, item: sample.title)
+      try await host.choose("Sample selector", nativeTitles: samples, item: sample.title)
       try await host.settle { model.comparison.sample == sample }
       #expect(model.comparison.sample == sample)
     }
-    try await host.choose("Sample", nativeTitles: samples, item: Sample.custom.title)
+    try await host.choose("Sample selector", nativeTitles: samples, item: "Edit Text…")
     try await host.settle { !host.window.sheets.isEmpty }
     #expect(!host.window.sheets.isEmpty)
     try await host.press("Cancel")
@@ -666,6 +670,10 @@ import TypefaceCore
   private var menuSelection: WorkbenchTestMenuSelection?
 
   init(_ content: Content, width: Double = 1440, height: Double = 900) {
+    // Nested SwiftUI hosts require the application's extended accessibility tree.
+    let enhanced = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+    precondition(NSApp.responds(to: enhanced))
+    NSApp.perform(enhanced, with: NSNumber(value: true), with: "AXEnhancedUserInterface")
     window = WorkbenchTestWindow(
       contentRect: NSRect(x: 0, y: 0, width: width, height: height),
       styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -758,10 +766,7 @@ import TypefaceCore
     for element in snapshot
     where seen.insert(ObjectIdentifier(element)).inserted {
       let role = element.accessibilityRole?()?.rawValue ?? "no role"
-      let names = [
-        element.accessibilityIdentifier?(), element.accessibilityLabel?(),
-        element.accessibilityTitle?(),
-      ].compactMap { $0 }.filter { !$0.isEmpty }
+      let names = accessibilityNames(element).filter { !$0.isEmpty }
       if names.isEmpty {
         unnamed[role, default: 0] += 1
       } else {
@@ -780,14 +785,25 @@ import TypefaceCore
       + (samplingTimedOut ? ". Hit-test sampling reached its deadline" : "")
   }
 
+  private func accessibilityNames(_ element: AnyObject) -> [String] {
+    guard let object = element as? NSObject else { return [] }
+    return ["accessibilityIdentifier", "accessibilityLabel", "accessibilityTitle"].compactMap {
+      name in
+      let selector = NSSelectorFromString(name)
+      guard object.responds(to: selector),
+        let value = object.perform(selector)?.takeUnretainedValue()
+      else { return nil }
+      return (value as? String) ?? (value as? NSAttributedString)?.string
+    }
+  }
+
   private func visibleElement(
     _ label: String, in roots: [NSView]? = nil, until deadline: ContinuousClock.Instant? = nil
   )
     -> AnyObject?
   {
     func matches(_ element: AnyObject) -> Bool {
-      element.accessibilityIdentifier?() == label || element.accessibilityLabel?() == label
-        || element.accessibilityTitle?() == label
+      accessibilityNames(element).contains(label)
     }
     if let result = elements.first(where: matches) { return result }
     // Offscreen controls need part of the search deadline for scrolling and layout.
@@ -929,6 +945,7 @@ import TypefaceCore
 
   private var contentRoots: [NSView] {
     [view]
+      + (window.toolbar?.items.compactMap(\.view) ?? []).filter { !$0.isDescendant(of: view) }
       + (window.sheets + (window.childWindows ?? [])
       + NSApp.windows.filter {
         $0.isVisible && String(describing: type(of: $0)).contains("Popover")
@@ -978,7 +995,7 @@ import TypefaceCore
     guard let owner = root.window else { return [] }
     let hitRoot = contentRoots.first { root.isDescendant(of: $0) } ?? root
     var result: [AnyObject] = []
-    let bounds = owner.convertToScreen(root.convert(root.bounds, to: nil))
+    let bounds = owner.convertToScreen(root.convert(root.visibleRect, to: nil))
     for y in stride(from: bounds.minY + 8, to: bounds.maxY, by: rowStep) {
       for x in stride(from: bounds.minX + 8, to: bounds.maxX, by: 16) {
         if let deadline, ContinuousClock.now >= deadline { return result }

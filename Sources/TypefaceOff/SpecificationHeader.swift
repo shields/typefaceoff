@@ -6,15 +6,18 @@ struct SpecificationHeader: View {
   @ObservedObject var model: WorkbenchModel
   let inspectorOpen: Bool
   let matching: Bool
-  let openInspector: () -> Void
+  let openInspector: (ComparisonInspectorState.Section) -> Void
   let match: () -> Void
   @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
   @State private var choosing: Side?
+  @Binding private var familyFocus: Side?
+  @FocusState private var focusedFamily: Side?
 
   init(
     model: WorkbenchModel, inspectorOpen: Bool, matching: Bool,
-    openInspector: @escaping () -> Void, match: @escaping () -> Void
+    familyFocus: Binding<Side?> = .constant(nil),
+    openInspector: @escaping (ComparisonInspectorState.Section) -> Void, match: @escaping () -> Void
   ) {
     self.model = model
     self.inspectorOpen = inspectorOpen
@@ -22,6 +25,7 @@ struct SpecificationHeader: View {
     self.openInspector = openInspector
     self.match = match
     _choosing = State(initialValue: nil)
+    _familyFocus = familyFocus
   }
 
   private var comparison: Comparison { model.comparison }
@@ -32,14 +36,14 @@ struct SpecificationHeader: View {
 
   var body: some View {
     GeometryReader { geometry in
-      let width = geometry.size.width
+      let width = max(960, geometry.size.width)
       let layout = SpecificationLayout(width: width, inspectorOpen: inspectorOpen)
       ZStack(alignment: .topLeading) {
         Button("Swap fonts", systemImage: "arrow.up.arrow.down") {
           edit("Swap fonts") { $0.swap() }
         }
         .labelStyle(.iconOnly).buttonStyle(.plain).frame(width: 20, height: 20)
-        .disabled(!canCompare || matching).offset(x: 34, y: 6)
+        .disabled(comparison.b == nil || matching).offset(x: 34, y: 6)
         Toggle(
           "Link A and B",
           isOn: Binding(
@@ -51,6 +55,7 @@ struct SpecificationHeader: View {
               }
             })
         ).toggleStyle(.checkbox).controlSize(.small).font(.system(size: 11))
+          .accessibilityIdentifier("Header appearance link")
           .disabled(!canCompare || matching)
           .offset(x: 64, y: 6)
         heading("Size", setting: .size).offset(x: layout.size, y: 6)
@@ -76,6 +81,7 @@ struct SpecificationHeader: View {
               width: layout.weightFieldWidth, height: 24, alignment: .leading
             )
             .offset(x: layout.weight - 6, y: y)
+            otherAxesButton(config, side: side).offset(x: layout.weight, y: y + 20)
             field(.leading, title: "Leading", unit: "pt", config: config, side: side)
               .frame(width: 94, height: 24).offset(x: layout.leading - 6, y: y)
             field(.tracking, title: "Tracking", unit: "em", config: config, side: side)
@@ -87,6 +93,19 @@ struct SpecificationHeader: View {
             }
           }
         }
+        if !layout.showsTypography {
+          Button {
+            openInspector(.typography)
+          } label: {
+            HStack(spacing: 4) {
+              Text("Typography")
+              Image(systemName: "chevron.down").font(.system(size: 11))
+            }.frame(width: 88, height: 24, alignment: .leading).contentShape(Rectangle())
+          }.buttonStyle(.plain).disabled(matching)
+            .accessibilityIdentifier("Open typography inspector")
+            .help("Open the comparison inspector at Typography")
+            .offset(x: width - 112, y: 36)
+        }
         if canCompare && !matching {
           Button("Match…", action: match).buttonStyle(.bordered)
             .frame(width: 76, height: 24).offset(x: width - 100, y: 72)
@@ -95,6 +114,12 @@ struct SpecificationHeader: View {
           .offset(x: 24, y: 105)
       }.font(.system(size: 13)).foregroundStyle(WorkbenchStyle.ink)
     }.frame(height: 106)
+      .onChange(of: familyFocus) { _, side in
+        if let side {
+          focusedFamily = side
+          familyFocus = nil
+        }
+      }
   }
 
   private func ink(for side: Side) -> Color {
@@ -124,7 +149,12 @@ struct SpecificationHeader: View {
         }
         Image(systemName: "chevron.down").font(.system(size: 11))
       }.frame(height: 28).contentShape(Rectangle())
-    }.buttonStyle(.plain).disabled(matching)
+    }.buttonStyle(.plain).focusable(!matching)
+      .onKeyPress(.return) {
+        choosing = side
+        return .handled
+      }.disabled(matching)
+      .focused($focusedFamily, equals: side)
       .accessibilityLabel("\(side.fontName) family")
       .accessibilityValue(name)
       .popover(isPresented: Binding(get: { choosing == side }, set: { if !$0 { choosing = nil } }))
@@ -192,16 +222,34 @@ struct SpecificationHeader: View {
     }
   }
 
+  @ViewBuilder private func otherAxesButton(_ config: FontConfiguration, side: Side) -> some View {
+    let changes = config.face.axes.filter {
+      $0.tag != "wght" && SpecificationSetting.axis($0.id).isChanged(in: config)
+    }.count
+    if changes > 0 {
+      Button {
+        openInspector(.appearance)
+      } label: {
+        Text(verbatim: "+\(changes) \(changes == 1 ? "axis" : "axes")")
+      }.buttonStyle(.plain).font(.system(size: 11)).frame(height: 12)
+        .disabled(matching).accessibilityLabel("\(side.fontName) other axes")
+        .accessibilityValue(
+          "\(changes) changed \(changes == 1 ? "axis" : "axes"), opens Appearance")
+    }
+  }
+
   private func typographyButton(_ config: FontConfiguration, side: Side) -> some View {
     let changes = config.face.features.filter { feature in
       (config.features[feature.id] ?? feature.defaultValue) != feature.defaultValue
     }.count
     let title = changes == 0 ? "Default" : "\(changes) \(changes == 1 ? "change" : "changes")"
-    return Button(action: openInspector) {
+    return Button {
+      openInspector(.typography)
+    } label: {
       HStack(spacing: 4) {
         Text(verbatim: title)
         Image(systemName: "chevron.down").font(.system(size: 11))
-      }
+      }.frame(minHeight: 20, alignment: .top).contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(matching)
       .accessibilityLabel("\(side.fontName) typography")
       .accessibilityValue("\(title), opens the inspector")

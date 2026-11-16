@@ -80,7 +80,9 @@ extension AXDriver {
           commitValue: $0 == .setValue
             ? node.role != "AXTextArea"
               && ![
-                "Search installed fonts", "Search Unicode characters", "Language search field",
+                "Search installed fonts", "Search Unicode characters", "Find Character",
+                "Search Languages",
+                "Language search field",
                 "Language query",
                 "Search languages",
               ].contains(target)

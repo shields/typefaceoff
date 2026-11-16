@@ -1,8 +1,9 @@
 {
   "actions": [
     {
-      "kind": "press",
-      "target": "Edit text",
+      "kind": "shortcut",
+      "keyCode": 14,
+      "modifiers": 1179648,
       "delayMilliseconds": 500
     },
     {

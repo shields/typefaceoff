@@ -17,20 +17,22 @@ on layout, controls, or wording, build to the spec. Its Decisions section marks
 what the owner decided; ask before departing from a decided item.
 
 The fuzzer finds controls by accessibility identifier, title, description, and
-help, and recorded traces replay the names they saw. Identifiers for
-per-inspector controls are its contract: `Font A <label>` or `Font B <label>`
-built with `side.fontName`, and scroll areas ending in `scroll area`. An
-identifier must be unique within a window and never equal another element's
-label, title, or menu title. Changing an identifier, label, or title the fuzzer
-uses, such as `Shared point size`, `Glyph canvas`, the search fields, the
-`Font A specimen` labels, and the symbol-name identifiers of icon-only buttons,
-breaks every recorded trace that replays it. Change one only when the design
-calls for it, regenerate the affected traces in the same change, and keep this
-paragraph naming the controls in use. The redesign replaces many of these names,
-and the owner has accepted losing the traces recorded before it. The Match
-sheet's `Cancel matching` button and the editor sheet's `Custom specimen text`
-field also tell the fuzzer which sheet is open, so a recorded action can require
-it. Name matching, window scope, and visibility rules live in
+help, and recorded traces replay the names they saw. Identifiers for per-font
+controls are its contract: `Font A <label>` or `Font B <label>` built with
+`side.fontName`, and scroll areas ending in `scroll area`. An identifier must be
+unique within a window and never equal another element's label, title, or menu
+title. Changing an identifier, label, or title the fuzzer uses, such as
+`Font A Size field`, `Font B Inspector Size field`,
+`Comparison inspector scroll area`, `Glyph canvas`, `Find Character`,
+`Search Languages`, `Open typography inspector`, the `Font A specimen` labels,
+and the symbol-name identifiers of icon-only buttons, breaks every recorded
+trace that replays it. Change one only when the design calls for it, regenerate
+the affected traces in the same change, and keep this paragraph naming the
+controls in use. The redesign replaces many of these names, and the owner has
+accepted losing the traces recorded before it. The Match sheet's
+`Cancel matching` button and the editor sheet's `Custom specimen text` field
+also tell the fuzzer which sheet is open, so a recorded action can require it.
+Name matching, window scope, and visibility rules live in
 `Sources/UIFuzzSupport` behind `AccessibilityNode`, where the coverage gate
 applies. `Sources/UIFuzz` adapts the system accessibility API to them, and its
 `AXDiscovery.swift` still decides which actions each control offers, outside the

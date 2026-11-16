@@ -254,13 +254,16 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle { host.isEnabled("Probe find character") }
     try await host.press("Probe find character")
-    try await host.settle { searchField(host) != nil }
-    let search = try #require(searchField(host))
-    #expect(model.comparison.mode == .glyph)
-    search.window?.makeFirstResponder(search)
-    let editor = try #require(search.currentEditor())
-    editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
-    try await host.settle { searchField(host) == nil }
+    try await host.settle {
+      host.subviews.compactMap { $0 as? NSSearchField }.contains {
+        $0.placeholderString == "Find Character" && $0.currentEditor() != nil
+      }
+    }
+    #expect(model.comparison.mode == .text)
+    try await host.press("Probe focus Font A")
+    try await host.settle {
+      host.subviews.compactMap { $0 as? NSSearchField }.allSatisfy { $0.currentEditor() == nil }
+    }
   }
 
   @Test func aRequestedSearchOpensWithTheGlyphView() async throws {
@@ -289,7 +292,9 @@ private struct FindCharacterProbe: View {
 
   var body: some View {
     VStack {
-      Button("Probe find character") { actions?.characterSearch.wrappedValue = true }
+      Button("Probe find character") { actions?.find() }
+        .disabled(actions == nil)
+      Button("Probe focus Font A") { actions?.focusFont(.a) }
         .disabled(actions == nil)
       WorkbenchView(model: model)
     }

@@ -28,7 +28,7 @@ import Testing
   private static let openMatch = shortcut(46, command | shift)
   private static let glyphMode = shortcut(19)
   private static let textMode = shortcut(18)
-  private static let findCharacter = shortcut(3)
+  private static let findCharacter = press("Search characters")
   private static let escape = key(53)
   private static let canvasPress = press("Glyph canvas")
   private static let zoomIn = press("Zoom in")
@@ -58,7 +58,7 @@ import Testing
       ([press("Apply")], [openEditor, press("Apply")]),
       ([press("Tracking")], [openMatch, press("Tracking")]),
       ([fontSearch], [press("Font A family"), fontSearch]),
-      ([characterSearch], [findCharacter, characterSearch]),
+      ([characterSearch], [glyphMode, findCharacter, characterSearch]),
       (
         [openEditor, zoomIn],
         [openEditor, escape, glyphMode, zoomIn]
@@ -69,7 +69,7 @@ import Testing
       ),
       (
         [press("Font A family"), characterSearch],
-        [press("Font A family"), escape, findCharacter, characterSearch]
+        [press("Font A family"), escape, glyphMode, findCharacter, characterSearch]
       ),
       (
         [openEditor, press("Tracking")],
@@ -104,7 +104,8 @@ import Testing
       (
         [characterSearch, press("Font A family"), fontSearch],
         [
-          findCharacter, characterSearch, press("Font A family"), escape, press("Font A family"),
+          glyphMode, findCharacter, characterSearch, press("Font A family"), escape,
+          press("Font A family"),
           fontSearch,
         ]
       ),
@@ -143,8 +144,8 @@ import Testing
         [press("Match…"), key(36), escape, openMatch, press("Tracking")]
       ),
       (
-        [press("Edit text"), press("Match…"), press("Tracking")],
-        [press("Edit text"), press("Match…"), escape, openMatch, press("Tracking")]
+        [press("Edit Text…"), press("Match…"), press("Tracking")],
+        [press("Edit Text…"), press("Match…"), escape, openMatch, press("Tracking")]
       ),
       (
         [openEditor, glyphMode, zoomIn],
@@ -165,22 +166,26 @@ import Testing
       (
         [findCharacter, characterSearch, set("Search Unicode characters", commit: false)],
         [
-          findCharacter, characterSearch, escape, findCharacter,
+          glyphMode, findCharacter, characterSearch, escape, findCharacter,
           set("Search Unicode characters", commit: false),
         ]
       ),
       (
         [findCharacter, textMode, characterSearch],
-        [findCharacter, textMode, findCharacter, characterSearch]
+        [glyphMode, findCharacter, textMode, glyphMode, findCharacter, characterSearch]
       ),
       (
         [press("Search characters"), canvasPress, characterSearch],
-        [glyphMode, press("Search characters"), canvasPress, findCharacter, characterSearch]
+        [
+          glyphMode, press("Search characters"), canvasPress, glyphMode, findCharacter,
+          characterSearch,
+        ]
       ),
       (
         [findCharacter, FuzzAction(kind: .click, target: "Glyph canvas"), characterSearch],
         [
-          findCharacter, FuzzAction(kind: .click, target: "Glyph canvas"), escape, findCharacter,
+          glyphMode, findCharacter, FuzzAction(kind: .click, target: "Glyph canvas"), escape,
+          glyphMode, findCharacter,
           characterSearch,
         ]
       ),
@@ -210,7 +215,7 @@ import Testing
 
   @Test(
     arguments: [
-      "Tracking", "Weight", "Size", "Typography", "Refine", "Stop", "Cancel matching",
+      "Tracking", "Weight", "Size", "Refine", "Stop", "Cancel matching",
       "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
       "Match options scroll area", "Match status scroll area", "Optimize", "equal.square",
       "Optimize Tracking",
@@ -333,7 +338,7 @@ import Testing
 
   @Test func menuItemsOpenTheirSheetsButNotUnderAnotherSheet() {
     let match = Self.press("Match fonts…")
-    let edit = Self.press("Edit sample text…")
+    let edit = Self.press("Edit Sample Text…")
     #expect(
       Self.repaired([match, Self.press("Size")]).map(Self.describe)
         == Self.expected([match, Self.press("Size")]))
@@ -371,29 +376,11 @@ import Testing
     #expect(Self.repaired([Self.canvasPress]).map(\.delayMilliseconds) == [50, 30])
   }
 
-  @Test func lockLabelFollowsTheLockState() {
-    let lock = FuzzAction(
-      kind: .press, target: "Lock appearance", targetPath: [1, 2], targetRole: "AXButton")
-    let flipped = Self.repaired([lock])
-    #expect(flipped == [FuzzAction(kind: .press, target: "Unlock appearance")])
-    let unlock = FuzzAction(
-      kind: .press, target: "Unlock appearance", targetPath: [1, 2], targetRole: "AXButton")
-    #expect(Self.repaired([unlock]) == [unlock])
-    #expect(
-      Self.repaired([Self.press("Unlock appearance"), Self.press("Unlock appearance")])
-        .compactMap(\.target) == ["Unlock appearance", "Lock appearance"])
-    #expect(
-      Self.repaired([Self.press("Unlock appearance"), Self.press("Lock appearance")])
-        .compactMap(\.target) == ["Unlock appearance", "Lock appearance"])
-    // Undo restores an earlier lock state, so the label is no longer predictable.
-    for undo in [
-      Self.shortcut(6), Self.shortcut(6, Self.command | Self.shift), Self.press("Undo"),
-      Self.press("arrow.uturn.backward"),
-    ] {
-      #expect(Self.repaired([undo, lock]) == [undo, lock])
-    }
-    #expect(
-      Self.repaired([Self.shortcut(6, Self.option), lock]).last?.target == "Unlock appearance")
+  @Test func theLinkToggleHasAStableNameAcrossEditsAndUndo() {
+    let toggle = FuzzAction(
+      kind: .press, target: "Link A and B", targetPath: [1, 2], targetRole: "AXCheckBox")
+    let actions = [toggle, toggle, Self.shortcut(6), toggle]
+    #expect(Self.repaired(actions) == actions)
   }
 
   @Test func repairedStepsKeepTheirOtherFieldsAndUnrelatedStepsAreUntouched() {
@@ -403,7 +390,7 @@ import Testing
     let plain = [
       Self.press("Swap fonts"), Self.key(124), FuzzAction(kind: .pause),
       FuzzAction(kind: .press, targetPath: [1, 2], targetRole: "AXButton"),
-      FuzzAction(kind: .increment, target: "Font A Size"),
+      FuzzAction(kind: .increment, target: "Font A Size field stepper"),
       FuzzAction(kind: .showMenu, targetPath: [0, 1], targetRole: "AXToolbar"),
       FuzzAction(kind: .scroll, target: "Font A specimen", deltaX: 1, deltaY: 2),
       Self.shortcut(19, Self.command | Self.shift), Self.shortcut(18, Self.command | Self.option),
@@ -429,17 +416,17 @@ import Testing
   @Test func enablersEstablishTheirRequirementFromEveryState() {
     let modes: [WorkbenchState.Mode?] = [nil, .text, .glyph]
     let sheets: [WorkbenchState.Sheet?] = [nil, .closed, .editor, .match]
-    let popovers: [WorkbenchState.Popover?] = [nil, .closed, .fonts, .characters]
+    let popovers: [WorkbenchState.Popover?] = [nil, .closed, .fonts, .characters, .glyphCharacters]
     let requirements: [WorkbenchState.Requirement] = [
       .mode(.text), .mode(.glyph), .sheet(.editor), .sheet(.match), .sheet(nil),
-      .popover(.fonts), .popover(.characters),
+      .popover(.fonts), .popover(.glyphCharacters), .popover(.characters),
     ]
     for mode in modes {
       for sheet in sheets {
         for popover in popovers {
           for requirement in requirements {
             var state = WorkbenchState(
-              mode: mode, sheet: sheet, popover: popover, appearanceLocked: nil)
+              mode: mode, sheet: sheet, popover: popover)
             let actions = state.enable(requirement)
             #expect(state.satisfies(requirement))
             #expect((1...4).contains(actions.count))
@@ -463,10 +450,6 @@ import Testing
         if let requirement = WorkbenchState.requirement(of: action) {
           #expect(state.satisfies(requirement))
           checked += 1
-        }
-        if let locked = state.appearanceLocked {
-          #expect(
-            action.target != (locked ? "Lock appearance" : "Unlock appearance"))
         }
         state.apply(action)
       }
@@ -492,20 +475,20 @@ import Testing
   }
 
   private static let workbenchPrefix = plain([
-    FuzzAction(kind: .setValue, target: "Shared point size", value: "44"),
+    FuzzAction(kind: .setValue, target: "Font A Size field", value: "44"),
     FuzzAction(kind: .increment, target: "Font A Size"),
     FuzzAction(kind: .increment, target: "Font B Tracking"),
     glyphMode, zoomIn, press("Next character"), textMode, press("Swap fonts"),
-    press("Toggle font A inspector"), press("Toggle font A inspector"), key(124), press("Shape"),
+    press("Show Inspector"), press("Show Inspector"), key(124), press("Shape"),
   ])
 
   private static let workbenchSuffix = plain([
     FuzzAction(kind: .scroll, target: "Font A specimen", deltaX: 0, deltaY: 20),
     press("Spacing"), FuzzAction(kind: .increment, target: "Font A Tracking"),
     FuzzAction(kind: .decrement, target: "Font B Size"), glyphMode, press("Reset glyph zoom"),
-    textMode, press("Unlock appearance"), key(123),
-    FuzzAction(kind: .setValue, target: "Shared point size", value: "22"),
-    press("Swap fonts"), press("Lock appearance"),
+    textMode, press("Link A and B"), key(123),
+    FuzzAction(kind: .setValue, target: "Font A Size field", value: "22"),
+    press("Swap fonts"), press("Link A and B"),
   ])
 
   private static let axisToggle = inSheet(.match, .press, "Optical Size")
@@ -523,7 +506,8 @@ import Testing
   private static let explorations: [Exploration] = [
     Exploration(
       workbenchPrefix + [
-        (openMatch, nil), (press("Size"), .match), (press("Typography"), .match),
+        (openMatch, nil), (press("Size"), .match),
+        (press("Font B Optimize feature ot.kern"), .match),
         (press("Refine"), .match), (press("Stop"), .match), (axisToggle, .match),
         (featureToggle, .match), (matchList, .match), (escape, nil),
       ] + workbenchSuffix),
@@ -536,12 +520,12 @@ import Testing
     Exploration(
       workbenchPrefix + [
         (openEditor, nil), (editorField, .editor), (editorList, .editor), (applyEditor, .editor),
-        (press("Edit text"), nil), (editorField, .editor), (escape, nil),
+        (press("Edit Text…"), nil), (editorField, .editor), (escape, nil),
       ] + workbenchSuffix),
     Exploration(
       workbenchPrefix + [
         (press("Comparison"), nil), (press("Match fonts…"), nil), (axisToggle, .match),
-        (escape, nil), (press("Comparison"), nil), (press("Edit sample text…"), nil),
+        (escape, nil), (press("Comparison"), nil), (press("Edit Sample Text…"), nil),
         (editorField, .editor), (key(36), nil), (press("Match…"), nil), (featureToggle, .match),
         (cancelMatch, .match),
       ] + workbenchSuffix),

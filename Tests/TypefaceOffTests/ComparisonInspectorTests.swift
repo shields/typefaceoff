@@ -14,9 +14,10 @@ import Testing
       VisibilityFixture(model: model, visible: true), width: 320, height: 400)
     defer { host.window.close() }
     try await host.settle()
-    model.inspector.scroll.scrollTo(y: 80)
-    try await host.settle()
     let scroll = try #require(host.subviews.compactMap { $0 as? NSScrollView }.first)
+    scroll.contentView.scroll(to: NSPoint(x: 0, y: 80))
+    scroll.reflectScrolledClipView(scroll.contentView)
+    try await host.settle()
     let y = scroll.contentView.bounds.minY
     #expect(y > 0)
     host.setContent(VisibilityFixture(model: model, visible: false))
@@ -24,7 +25,9 @@ import Testing
     host.setContent(VisibilityFixture(model: model, visible: true))
     try await host.settle()
     let restored = try #require(host.subviews.compactMap { $0 as? NSScrollView }.first)
-    #expect(abs(restored.contentView.bounds.minY - y) < 1)
+    #expect(
+      abs(restored.contentView.bounds.minY - y) < 1,
+      "Scroll offset \(y) restored as \(restored.contentView.bounds.minY)")
     #expect(model.inspector.selectedFeature == "ot.kern")
     #expect(model.inspector.collapsedGroups.contains(.numbers))
   }
@@ -85,12 +88,16 @@ import Testing
 
   @Test func typographyIsPairedAndRemembersItsSelectionAndDisclosures() async throws {
     let model = WorkbenchModel()
-    model.inspector.section = .typography
+    model.inspector.reveal(.typography)
     let host = WorkbenchTestHost(
       ComparisonInspector(model: model, state: model.inspector).preferredColorScheme(.light),
-      width: 320, height: 850)
+      width: 320, height: 400)
     defer { host.window.close() }
-    try await host.settle()
+    try await host.settle {
+      host.subviews.compactMap { $0 as? NSScrollView }.contains {
+        $0.contentView.bounds.minY > 100
+      }
+    }
     try await host.press("Font B feature ot.kern")
     #expect(model.comparison.b?.features["ot.kern"] == 0)
     #expect(model.comparison.a.features["ot.kern"] == nil)
@@ -121,9 +128,7 @@ import Testing
     #expect(!model.inspector.collapsedGroups.contains(.common))
     try await host.press("Automatic shaping")
     #expect(!model.inspector.collapsedGroups.contains(.automatic))
-    model.inspector.section = .appearance
-    try await host.settle()
-    model.inspector.section = nil
+    model.inspector.reveal(.appearance)
     try await host.settle()
   }
 

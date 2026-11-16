@@ -635,14 +635,17 @@ the Match band and its "was", the relation labels and the picker's distances.
 
 ## Narrow widths
 
+Controls stay reachable when the window narrows; a compact presentation keeps a
+direct route to the same controls.
+
 Content width is the window less the inspector. Minimum content 960 x 600;
 opening the inspector in a window narrower than 1280 widens the window.
 
 | Content width                     | What changes                                                                                                                                                                                                                                                                                                                                |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1240 and up                       | Everything as drawn at 1440. The text columns and the family column take the extra width                                                                                                                                                                                                                                                    |
-| Under 1240, or the inspector open | The header's columns close up to the 1120 positions. The Typography cell stays unless the inspector is open, which shows the same thing. The Differences block then stands on Tracking (x 840 at 1120)                                                                                                                                      |
-| Under 1120                        | The Typography cell leaves. Family, style, Size, Weight, Leading, Tracking and Match… remain at every width                                                                                                                                                                                                                                 |
+| Under 1240, or the inspector open | The header's columns close up to the 1120 positions. The Typography cells stay unless the inspector is open; then a compact Typography button above Match opens its Typography section. The Differences block then stands on Tracking (x 840 at 1120)                                                                                       |
+| Under 1120                        | The per-font Typography summaries become one compact Typography button above Match, opening the inspector at Typography. Family, style, Size, Weight, Leading, Tracking and Match… remain at every width                                                                                                                                    |
 | Any                               | The family name truncates in the middle when it is longer than its column (304 at 1440, 240 at 1120)                                                                                                                                                                                                                                        |
 | Any                               | The index line shows as many cells as fit before its block: 22 at 1440, 16 at 1120, 12 at 960. The block keeps its left edge on the last header column and its right edge on the margin                                                                                                                                                     |
 | Any                               | Text columns are (content − 192) / 2 each; the gutter stays 64                                                                                                                                                                                                                                                                              |
@@ -876,6 +879,10 @@ design and was not discussed on its own; **Open** awaits a ruling.
 18. Decided. **The Languages list** shows speakers in whole millions and no
     language code, and the detail's facts line omits the language's own name
     when it repeats the title.
+19. Decided. **Compact Typography keeps the controls reachable.** Below 1120
+    points, or with the inspector open, a shared Typography button above Match
+    replaces the per-font summaries and opens the inspector at Typography.
+    Narrowing the window must preserve access to its controls.
 
 ## Notes on the mockups
 

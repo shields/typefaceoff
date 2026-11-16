@@ -5,8 +5,15 @@ import TypefaceCore
   enum Section: String { case appearance, typography }
   @Published var collapsedGroups: Set<FontFeature.Group> = [.automatic]
   @Published var selectedFeature: String?
-  @Published var scroll = ScrollPosition(y: 0)
-  @Published var section: Section?
+  @Published var scroll = ScrollPosition(idType: Section.self)
+  var scrollOffset: CGFloat = 0
+
+  func reveal(_ section: Section) { scroll.scrollTo(id: section, anchor: .top) }
+
+  func preserveScroll() {
+    // Restoring a section identity loses the position within that section.
+    scroll = ScrollPosition(idType: Section.self, y: scrollOffset)
+  }
 }
 
 struct ComparisonInspector: View {
@@ -24,29 +31,22 @@ struct ComparisonInspector: View {
   var body: some View {
     VStack(spacing: 0) {
       facts
-      ScrollViewReader { proxy in
-        ScrollView {
-          VStack(alignment: .leading, spacing: 12) {
-            appearance.id(ComparisonInspectorState.Section.appearance)
-            Rectangle().fill(WorkbenchStyle.hairline).frame(height: 1)
-            ComparisonTypography(model: model, state: state)
-              .id(ComparisonInspectorState.Section.typography)
-          }.padding(.horizontal, 24).padding(.vertical, 12)
-            .scrollTargetLayout().scrollAreaIdentifier("Comparison inspector scroll area")
-        }.scrollPosition($state.scroll)
-          .onAppear {
-            if let section = state.section {
-              proxy.scrollTo(section, anchor: .top)
-              state.section = nil
-            }
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: 12) {
+          appearance.id(ComparisonInspectorState.Section.appearance)
+          Rectangle().fill(WorkbenchStyle.hairline).frame(height: 1)
+          ComparisonTypography(model: model, state: state)
+            .id(ComparisonInspectorState.Section.typography)
+        }.scrollTargetLayout()
+          .onGeometryChange(for: CGFloat.self) {
+            -$0.frame(in: .scrollView).minY
+          } action: {
+            state.scrollOffset = $0
           }
-          .onChange(of: state.section) { _, section in
-            if let section {
-              proxy.scrollTo(section, anchor: .top)
-              state.section = nil
-            }
-          }
-      }
+          .padding(.horizontal, 24).padding(.vertical, 12)
+          .scrollAreaIdentifier("Comparison inspector scroll area")
+      }.scrollPosition($state.scroll)
+        .onDisappear { state.preserveScroll() }
     }.frame(width: 320).background(WorkbenchStyle.paper)
       .font(.system(size: 13)).foregroundStyle(WorkbenchStyle.ink)
       .tint(WorkbenchStyle.ink)

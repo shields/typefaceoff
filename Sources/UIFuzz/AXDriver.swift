@@ -93,7 +93,7 @@ struct AXDriver {
 
   /// One attempt: the caller polls and has already checked availability.
   var hasWorkbenchControls: Bool {
-    let request = ResolutionRequest(target: "Shared point size", excludesMenuBar: true)
+    let request = ResolutionRequest(target: "Font A Size field", excludesMenuBar: true)
     return try! resolve(request, retry: .once, idle: { _ in true }, checkpoint: {})
       .resolution.node != nil
   }
@@ -198,14 +198,9 @@ struct AXDriver {
     case .pause:
       break
     case .showInspector:
-      guard let target = action.target else {
+      let target = "Comparison inspector scroll area"
+      guard action.target == target else {
         throw DriverError.actionFailed("identify inspector", .illegalArgument)
-      }
-      let code: UInt16
-      switch target {
-      case "Font A family": code = 18
-      case "Font B family": code = 19
-      default: throw DriverError.actionFailed("identify inspector", .illegalArgument)
       }
       let dismissed = QuitPreparation.run(
         clock: SystemClock(), openOverlay: openOverlay, dismiss: dismissOverlay)
@@ -216,7 +211,7 @@ struct AXDriver {
       let request = ResolutionRequest(target: target, excludesMenuBar: true)
       let visible = try resolve(request, retry: .once, idle: idle).resolution
       if visible.node == nil {
-        try postKey(code: code, modifiers: UInt64((1 << 20) | (1 << 19)))
+        try postKey(code: 34, modifiers: UInt64((1 << 20) | (1 << 18)))
       }
       _ = try requireRevealed(target, idle: idle)
     case .selectFont:

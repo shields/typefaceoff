@@ -112,8 +112,7 @@ import Testing
       [view] + view.subviews.flatMap(descendants)
     }
     return descendants(root).compactMap { $0 as? NSTextField }.first {
-      $0.placeholderString == "Size" && $0.convert($0.bounds, to: root).minX > 246
-        && $0.convert($0.bounds, to: root).maxX < root.bounds.width - 246
+      $0.accessibilityIdentifier() == "Font A Size field"
     }
   }
 

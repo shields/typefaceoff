@@ -56,18 +56,20 @@ import TypefaceCore
     }
   }
 
-  @Test func bothInspectorsCarryTheirOwnIdentifiers() async throws {
+  @Test func pairedInspectorControlsCarryTheirOwnIdentifiers() async throws {
     let supported = try await Self.supportedClasses()
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
+    try await host.press("Show Inspector")
+    try await host.settle()
     for side in ["A", "B"] {
       for (identifier, kind) in [
-        ("Font \(side) Reset appearance", "Button"), ("Font \(side) Size field", "TextField"),
-        ("Font \(side) Tracking field", "TextField"), ("Font \(side) Size", "Slider"),
-        ("Font \(side) Leading field", "TextField"), ("Font \(side) Reset leading", "Button"),
+        ("Font \(side) Inspector Size field", "TextField"),
+        ("Font \(side) Inspector Tracking field", "TextField"), ("Font \(side) Size", "Slider"),
+        ("Font \(side) Inspector Leading field", "TextField"),
         ("Font \(side) Auto leading", "Toggle"),
       ] {
         try await expectPresent(identifier, kind: kind, supported: supported, in: host)
@@ -99,7 +101,7 @@ import TypefaceCore
     defer { host.window.close() }
     try await Self.waitForRankedStrip(in: host)
     let elements = Self.allElements(in: host)
-    var reserved = Set(["Font A inspector", "Font B inspector"])
+    var reserved = Set(["Comparison inspector"])
     func collect(_ menu: NSMenu?) {
       for item in menu?.items ?? [] {
         reserved.insert(item.title)
@@ -114,7 +116,7 @@ import TypefaceCore
       let own = [element, (element as? NSTextField)?.cell as AnyObject?].compactMap { $0 }.map(
         Self.identifier)
       for text in [
-        element.accessibilityLabel?(), element.accessibilityTitle?(),
+        Self.text(element, "accessibilityLabel"), Self.text(element, "accessibilityTitle"),
       ].compactMap({ $0 }) where !own.contains(text) && identifiers.contains(text) {
         Issue.record("\(text) names one element by label or title and another by identifier")
       }
@@ -153,7 +155,9 @@ import TypefaceCore
     }
     for element in elements {
       let own = Self.identifier(of: element)
-      for label in [element.accessibilityLabel?(), element.accessibilityTitle?()].compactMap({ $0 })
+      for label in [
+        Self.text(element, "accessibilityLabel"), Self.text(element, "accessibilityTitle"),
+      ].compactMap({ $0 })
       where label != own {
         #expect(!identifiers.contains(label), "\(label) aliases another element")
       }
@@ -175,8 +179,10 @@ import TypefaceCore
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
+    try await host.settle()
+    try await host.press("Show Inspector")
     let expected = [
-      "Font A inspector scroll area", "Font B inspector scroll area",
+      "Comparison inspector scroll area",
       "Differences strip scroll area", "Font A specimen scroll area",
       "Font B specimen scroll area",
     ]
@@ -228,14 +234,22 @@ import TypefaceCore
     #expect(texts.allSatisfy { $0.accessibilityLabel() == "Font A specimen" })
   }
 
-  @Test func legacyNamesStillResolve() async throws {
-    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel()))
+  @Test func redesignedControlNamesResolve() async throws {
+    let model = WorkbenchModel()
+    model.comparison.a.size = 24
+    model.comparison.a.features["ot.kern"] = 0
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
     for label in [
-      "Reset appearance", "Unlock appearance", "Reset size", "Reset tracking",
-      "Reset typography", "Kerning", "Common", "Font A family",
-      "Swap fonts",
+      "Link A and B", "Font A family", "Font B family", "Swap fonts", "Sample selector",
+    ] {
+      _ = try await host.element(label)
+    }
+    try await host.press("Show Inspector")
+    for label in [
+      "Reset appearance section", "Reset paired size", "Reset typography section",
+      "Inspector appearance link",
     ] {
       _ = try await host.element(label)
     }
@@ -249,21 +263,23 @@ import TypefaceCore
     func names() -> [String] {
       host.subviews.compactMap { ($0 as? NSScrollView)?.accessibilityIdentifier() }
     }
-    #expect(names() == ["Font A inspector scroll area"])
+    #expect(names() == ["Comparison inspector scroll area"])
     host.setContent(RecreatedInspector(model: model, present: false))
     try await host.settle { names().isEmpty }
     host.setContent(RecreatedInspector(model: model, present: true))
-    try await host.settle { names() == ["Font A inspector scroll area"] }
+    try await host.settle { names() == ["Comparison inspector scroll area"] }
   }
 
-  @Test func collapsedInspectorKeepsItsScrollAreaName() async throws {
+  @Test func reopeningTheInspectorKeepsItsScrollAreaName() async throws {
     let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel()))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Toggle font A inspector")
-    try await host.settle()
+    for _ in 0..<3 {
+      try await host.press("Show Inspector")
+      try await host.settle()
+    }
     let names = host.subviews.compactMap { ($0 as? NSScrollView)?.accessibilityIdentifier() }
-    #expect(names.contains("Font A inspector scroll area"))
+    #expect(names.filter { $0 == "Comparison inspector scroll area" }.count == 1)
   }
 
   @Test func anchorNamesTheEnclosingScrollViewWhenItsNameChanges() {
@@ -315,6 +331,14 @@ import TypefaceCore
     }
   }
 
+  private static func text(_ element: AnyObject, _ attribute: String) -> String? {
+    guard let object = element as? NSObject else { return nil }
+    let selector = NSSelectorFromString(attribute)
+    guard object.responds(to: selector), let value = object.perform(selector)?.takeUnretainedValue()
+    else { return nil }
+    return (value as? String) ?? (value as? NSAttributedString)?.string
+  }
+
   private static func identifier(of element: AnyObject) -> String {
     element.accessibilityIdentifier?() ?? ""
   }
@@ -341,7 +365,7 @@ private struct RecreatedInspector: View {
 
   var body: some View {
     if present {
-      FontInspector(model: model, side: .a)
+      ComparisonInspector(model: model, state: model.inspector)
     } else {
       Color.clear
     }

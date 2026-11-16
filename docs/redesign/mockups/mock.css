@@ -462,6 +462,13 @@ b {
 .sp-fill {
   flex: 1 1 auto;
 }
+.sp-compact-typo {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  height: 24px;
+}
 /* a focused field: the ring round the whole cell (column less its 10 pt gap, 24 high), the stepper at its end */
 .sp-focus {
   position: absolute;

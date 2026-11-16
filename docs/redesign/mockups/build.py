@@ -272,6 +272,8 @@ def spec_row(
     for (cls, style, inner), w in zip(cells, widths):
         out.append(f'<span class="sp-c {cls}" style="width:{w}px;{style}">{inner}</span>')
     out.append('<span class="sp-fill"></span>')
+    if f.key == "A" and not g.typo:
+        out.append(f'<span class="sp-compact-typo{" dim" if locked else ""}">Typography{DOWN}</span>')
     if match_button:
         out.append('<span class="c-btn">Match…</span>')
     out.append("</div>")

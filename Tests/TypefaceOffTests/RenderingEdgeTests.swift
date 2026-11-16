@@ -190,7 +190,7 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(comparison: comparison)))
     defer { host.window.close() }
     try await host.settle()
-    #expect(try await host.element("Match…").isAccessibilityEnabled?() == false)
+    #expect(!(host.elements + host.hitElements).contains { $0.accessibilityLabel?() == "Match…" })
     #expect(host.window.title.hasSuffix(" vs. TypefaceOff-Does-Not-Exist (unavailable)"))
     let bitmap = try #require(host.view.bitmapImageRepForCachingDisplay(in: host.view.bounds))
     host.view.cacheDisplay(in: host.view.bounds, to: bitmap)

@@ -74,7 +74,7 @@ public struct ActionExplorer {
       case "Character":
         let glyphs = ["a", "@", "Á", "e\u{301}", "🦄", "👩‍🚀", " "]
         action.value = glyphs[Int(random.next() % UInt64(glyphs.count))]
-      case "Search Unicode characters":
+      case "Find Character", "Search Unicode characters":
         let queries = [
           "", "arrow", "letter a", "left-arrow", "letf arrow", "U+2192", "u+1f984", "2192", "é",
           "e\u{301}", "→", "-", "👩‍🚀", "A", "U+E000", "zzzz",
@@ -82,7 +82,7 @@ public struct ActionExplorer {
         action.value = queries[Int(random.next() % UInt64(queries.count))]
       case "Custom specimen text":
         action.value = mutator.text(using: &random)
-      case "Language search field", "Search languages", "Language query":
+      case "Search Languages", "Language search field", "Search languages", "Language query":
         let queries = [
           "", "English", "eng", "Latin", "العربية", "Japanese", "Ancient Greek", "zzzz",
         ]
@@ -111,7 +111,7 @@ public struct ActionExplorer {
       (18, command), (19, command), (20, command), (18, command | shift), (19, command | shift),
       (18, command | option), (19, command | option), (6, command), (6, command | shift),
       (1, command | option), (14, command | shift), (45, command), (46, command | shift),
-      (3, command),
+      (3, command), (34, command | UInt64(1 << 18)),
     ]
   }()
 

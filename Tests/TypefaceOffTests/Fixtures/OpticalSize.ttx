@@ -184,6 +184,12 @@
     <namerecord nameID="256" platformID="3" platEncID="1" langID="0x409">
       Optical Size
     </namerecord>
+    <namerecord nameID="257" platformID="1" platEncID="0" langID="0x0" unicode="True">
+      Width
+    </namerecord>
+    <namerecord nameID="257" platformID="3" platEncID="1" langID="0x409">
+      Width
+    </namerecord>
   </name>
   <post>
     <formatType value="2.0" />
@@ -208,6 +214,14 @@
       <DefaultValue>12.0</DefaultValue>
       <MaxValue>72.0</MaxValue>
       <AxisNameID>256</AxisNameID>
+    </Axis>
+    <Axis>
+      <AxisTag>wdth</AxisTag>
+      <Flags>0x0</Flags>
+      <MinValue>50.0</MinValue>
+      <DefaultValue>100.0</DefaultValue>
+      <MaxValue>200.0</MaxValue>
+      <AxisNameID>257</AxisNameID>
     </Axis>
   </fvar>
   <gvar>

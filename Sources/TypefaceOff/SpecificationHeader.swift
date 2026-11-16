@@ -208,49 +208,11 @@ struct SpecificationHeader: View {
   }
 
   private func heading(_ title: String, setting: SpecificationSetting) -> some View {
-    let relation = relation(setting)
-    return HStack(spacing: 4) {
+    HStack(spacing: 4) {
       Text(verbatim: title).foregroundStyle(WorkbenchStyle.secondaryInk)
-      if let relation {
-        Menu(relation) {
-          Button("Make B Equal to A") { equalize(setting, source: .a) }
-          Button("Make A Equal to B") { equalize(setting, source: .b) }
-        }.menuStyle(.borderlessButton).fixedSize().disabled(matching)
-      }
+      SpecificationRelationMenu(model: model, setting: setting, identifier: "Header")
+        .disabled(matching)
     }.font(.system(size: 11)).frame(height: 20)
-  }
-
-  private func relation(_ setting: SpecificationSetting) -> String? {
-    guard canCompare, comparison.appearanceLocked, let link = comparison.link else { return nil }
-    let value: Double
-    let suffix: String
-    switch setting {
-    case .size:
-      guard abs(link.sizeRatio - 1) >= 0.0005 else { return nil }
-      return "×" + SpecificationNumber.format(link.sizeRatio, precision: 3, locale: locale)
-    case .leading:
-      value = link.leadingOffset
-      suffix = " pt"
-    case .tracking:
-      value = link.trackingOffset
-      suffix = " em"
-    case .axis(let id):
-      value = link.axisOffsets[id] ?? 0
-      suffix = ""
-    }
-    guard abs(value) >= 0.0005 else { return nil }
-    let digits = setting == .axis(tagNumber("wght")) ? SpecificationNumber.precision([value]) : 3
-    return (value < 0 ? "−" : "+")
-      + SpecificationNumber.format(abs(value), precision: digits, locale: locale) + suffix
-  }
-
-  private func equalize(_ setting: SpecificationSetting, source: Side) {
-    let config = comparison[source]!
-    let entry: SpecificationValue.Entry =
-      setting == .leading && config.leading == nil ? .automatic : .number(setting.value(in: config))
-    edit("Equalize appearance") {
-      setting.apply(entry, to: &$0, side: source, both: true, catalog: model.catalog)
-    }
   }
 
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {

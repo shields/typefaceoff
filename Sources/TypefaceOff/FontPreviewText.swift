@@ -7,22 +7,25 @@ import TypefaceCore
 struct FontPreviewText: NSViewRepresentable {
   let config: FontConfiguration
   let text: String
+  var size: CGFloat = 21
 
   func makeNSView(context: Context) -> FontPreviewDrawingView { FontPreviewDrawingView() }
 
   func updateNSView(_ label: FontPreviewDrawingView, context: Context) {
-    label.content = Self.content(config: config, text: text)
+    label.content = Self.content(config: config, text: text, size: size)
     label.toolTip =
       FontRenderer.supports(text, config: config) ? nil : "Unavailable: \(unicodeDescription(text))"
   }
 
-  static func content(config: FontConfiguration, text: String) -> NSAttributedString {
+  static func content(config: FontConfiguration, text: String, size: CGFloat = 21)
+    -> NSAttributedString
+  {
     guard FontRenderer.supports(text, config: config) else {
       return NSAttributedString(
         string: "Unavailable",
         attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.systemOrange])
     }
-    var attributes = FontRenderer.attributes(config, size: 21)
+    var attributes = FontRenderer.attributes(config, size: size)
     attributes[.foregroundColor] = NSColor.labelColor
     return NSAttributedString(string: text, attributes: attributes)
   }

@@ -794,11 +794,20 @@ import TypefaceCore
     let scanDeadline = min(deadline ?? .now + .seconds(1), .now + .seconds(1))
     let coarseDeadline = min(scanDeadline, .now + .milliseconds(500))
     let roots = roots ?? contentRoots
-    return hitElements(in: roots, until: coarseDeadline, matching: matches).first(where: matches)
-      ?? roots.lazy.compactMap {
-        self.sampledHits(in: $0, rowStep: 4, until: scanDeadline, matching: matches).first(
-          where: matches)
-      }.first
+    if let result = hitElements(in: roots, until: coarseDeadline, matching: matches).first(
+      where: matches)
+    {
+      return result
+    }
+    // Deadline-bound searches must run once; lazy compactMap can evaluate its transform twice.
+    for root in roots {
+      if let result = sampledHits(in: root, rowStep: 4, until: scanDeadline, matching: matches)
+        .first(where: matches)
+      {
+        return result
+      }
+    }
+    return nil
   }
 
   func isEnabled(_ label: String) -> Bool {

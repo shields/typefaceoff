@@ -12,8 +12,10 @@ struct SpecificationField: NSViewRepresentable {
   let rules: SpecificationValue
   let numberWidth: CGFloat
   var enabled = true
+  var showsAutomaticLabel = true
   let commit: (SpecificationValue.Entry, Bool) -> Bool
   @Environment(\.locale) private var locale
+  @Environment(\.isEnabled) private var environmentEnabled
 
   func makeNSView(context: Context) -> SpecificationFieldView {
     SpecificationFieldView(commit: commit)
@@ -22,8 +24,9 @@ struct SpecificationField: NSViewRepresentable {
   func updateNSView(_ view: SpecificationFieldView, context: Context) {
     view.configure(
       label: label, identifier: identifier, value: value, precision: precision, unit: unit,
-      automatic: automatic, rules: rules, numberWidth: numberWidth, enabled: enabled,
-      locale: locale, commit: commit)
+      automatic: automatic, rules: rules, numberWidth: numberWidth,
+      enabled: enabled && environmentEnabled,
+      locale: locale, showsAutomaticLabel: showsAutomaticLabel, commit: commit)
   }
 }
 
@@ -38,6 +41,7 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
   private var value = 0.0
   private var precision = 0
   private var automatic = false
+  private var showsAutomaticLabel = true
   private var unit = ""
   private var numberWidth = 0.0
   private var locale = Locale.current
@@ -76,12 +80,14 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
   func configure(
     label: String, identifier: String, value: Double, precision: Int, unit: String,
     automatic: Bool, rules: SpecificationValue, numberWidth: CGFloat, enabled: Bool,
-    locale: Locale, commit: @escaping (SpecificationValue.Entry, Bool) -> Bool
+    locale: Locale, showsAutomaticLabel: Bool = true,
+    commit: @escaping (SpecificationValue.Entry, Bool) -> Bool
   ) {
     self.value = value
     self.precision = precision
     self.unit = unit
     self.automatic = automatic
+    self.showsAutomaticLabel = showsAutomaticLabel
     self.rules = rules
     self.numberWidth = numberWidth
     self.locale = locale
@@ -244,7 +250,7 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
   }
 
   private func updateAppearance() {
-    unitLabel.stringValue = automatic ? "auto" : unit
+    unitLabel.stringValue = automatic && showsAutomaticLabel ? "auto" : unit
     field.textColor = NSColor(automatic ? WorkbenchStyle.secondaryInk : WorkbenchStyle.ink)
     stepper.isHidden = !field.isEnabled || !(editing || hovering)
     needsDisplay = true

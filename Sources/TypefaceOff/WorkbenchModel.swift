@@ -23,6 +23,7 @@ final class WorkbenchModel: ObservableObject {
   private let fuzzWindow: UUID
   let familySimilarity = FamilySimilarityModel()
   let languages = LanguageBrowserModel()
+  let inspector = ComparisonInspectorState()
   private var continuousEdit: (name: String, initial: Comparison)?
 
   init(comparison: Comparison = Comparison()) {

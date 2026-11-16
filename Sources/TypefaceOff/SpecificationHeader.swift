@@ -243,6 +243,7 @@ struct SpecificationHeader: View {
         openInspector(.appearance)
       } label: {
         Text(verbatim: "+\(changes) \(changes == 1 ? "axis" : "axes")")
+          .frame(minHeight: 20).contentShape(Rectangle())
       }.buttonStyle(.plain).font(.system(size: 11)).frame(height: 12)
         .disabled(matching).accessibilityLabel("\(side.fontName) other axes")
         .accessibilityValue(
@@ -302,13 +303,16 @@ private struct SpecificationStylePicker: NSViewRepresentable {
     button.isBordered = false
     button.controlSize = .small
     button.font = .systemFont(ofSize: 13)
+    button.isEnabled = enabled
     button.target = context.coordinator
     button.action = #selector(Coordinator.choose(_:))
     return button
   }
 
   func updateNSView(_ button: NSPopUpButton, context: Context) {
-    context.coordinator.select = select
+    let coordinator = context.coordinator
+    coordinator.select = select
+    coordinator.enabled = enabled
     button.removeAllItems()
     for face in faces {
       let item = NSMenuItem(title: face.style, action: nil, keyEquivalent: "")
@@ -316,13 +320,17 @@ private struct SpecificationStylePicker: NSViewRepresentable {
       button.menu!.addItem(item)
       if face.id == selected { button.select(item) }
     }
-    button.isEnabled = enabled
+    if button.isEnabled != enabled {
+      // Disabling a pop-up recalculates the key-view loop, which requires a settled SwiftUI graph.
+      Task { @MainActor in button.isEnabled = coordinator.enabled }
+    }
     button.setAccessibilityIdentifier(identifier)
     button.setAccessibilityLabel(identifier)
   }
 
   @MainActor final class Coordinator: NSObject {
     var select: (String) -> Void
+    var enabled = true
     init(select: @escaping (String) -> Void) { self.select = select }
 
     @objc func choose(_ sender: NSPopUpButton) {

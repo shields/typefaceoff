@@ -23,8 +23,8 @@ import TypefaceCore
     }
   }
 
-  @Test(arguments: [(960.0, 12), (1120.0, 16), (1440.0, 22)])
-  func cellsFitTheGridAndExposeTheirRank(layout: (Double, Int)) async throws {
+  @Test(arguments: [(960.0, 12, 12), (1120.0, 16, 15), (1440.0, 22, 22)])
+  func cellsFitTheGridAndExposeTheirRank(layout: (Double, Int, Int)) async throws {
     let model = WorkbenchModel()
     let ranking = RankingModel()
     ranking.scores = (33...90).map {
@@ -38,7 +38,9 @@ import TypefaceCore
     defer { host.window.close() }
     try await host.settle()
     let strip = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
-    #expect(Int(strip.contentSize.width / 48) == layout.1)
+    let expected =
+      NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor ? layout.2 : layout.1
+    #expect(Int(strip.contentSize.width / 48) == expected)
     let first = Differences.ranked(ranking.scores, shape: true, spacing: false, frequency: true)[0]
     let label = "Inspect \(unicodeDescription(first.glyph))"
     let element = try #require(try await host.element(label) as? NSObject)

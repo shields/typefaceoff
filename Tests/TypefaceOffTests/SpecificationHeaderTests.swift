@@ -68,6 +68,8 @@ import TypefaceCore
       try await host.settle()
       for side in [Side.a, .b] {
         let button = try await host.element("\(side.fontName) other axes")
+        let frame = try #require(button.accessibilityFrame?())
+        #expect(frame.width >= 20 && frame.height >= 20)
         let description: String? = button.accessibilityValue?()
         #expect(description == "\(count) changed \(count == 1 ? "axis" : "axes"), opens Appearance")
         try await host.press("\(side.fontName) other axes")
@@ -250,6 +252,12 @@ import TypefaceCore
     search.currentEditor()?.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     try await host.settle()
     try await host.press("Font A family")
+    let reopened = try #require(
+      host.subviews.compactMap { $0 as? NSSearchField }.first {
+        $0.placeholderString == "Search installed fonts"
+      })
+    host.enter("Arial", in: reopened)
+    try await host.settle()
     try await host.press("Arial")
     try await host.settle()
     #expect(model.comparison.a.face.family == "Arial")

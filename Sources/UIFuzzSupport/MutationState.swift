@@ -55,8 +55,7 @@ struct WorkbenchState: Equatable, Sendable {
     }
     guard let target = action.target else { return nil }
     switch target {
-    case "Glyph canvas", "Character", "Previous character", "Next character",
-      "Search characters", "Zoom in", "Zoom out", "Reset glyph zoom", "Glyph zoom":
+    case "Glyph canvas", "Search characters", "Zoom in", "Zoom out", "Reset glyph zoom":
       return .mode(.glyph)
     case "Font A specimen", "Font B specimen": return .mode(.text)
     case let name where name.hasPrefix("Language ") || name.hasPrefix("Inspect language "):
@@ -323,8 +322,8 @@ struct WorkbenchState: Equatable, Sendable {
     guard let target = action.target else { return }
     switch target {
     case "Glyph canvas":
-      // Pressing the canvas returns to text; a mouse click does too unless the glyph is zoomed.
-      mode = action.kind == .press ? .text : nil
+      // A canvas press returns to text only at 100% zoom.
+      mode = nil
     case "Glyph": mode = .glyph
     case "Text": mode = .text
     case "Languages", "Languages view": if operation == .closed { mode = .languages }

@@ -71,9 +71,6 @@ public struct ActionExplorer {
       case "Search installed fonts":
         let queries = ["", "no-such-font", "a"] + mutator.installedFontFamilies
         action.value = queries[Int(random.next() % UInt64(queries.count))]
-      case "Character":
-        let glyphs = ["a", "@", "Á", "e\u{301}", "🦄", "👩‍🚀", " "]
-        action.value = glyphs[Int(random.next() % UInt64(glyphs.count))]
       case "Find Character", "Search Unicode characters":
         let queries = [
           "", "arrow", "letter a", "left-arrow", "letf arrow", "U+2192", "u+1f984", "2192", "é",

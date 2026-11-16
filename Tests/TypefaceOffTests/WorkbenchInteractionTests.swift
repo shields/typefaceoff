@@ -424,7 +424,7 @@ import TypefaceCore
     #expect(host.window.title == "Helvetica Neue vs. Skia")
   }
 
-  @Test func glyphButtonsAndCharacterEntrySelectTheRequestedGlyph() async throws {
+  @Test func glyphArrowKeysSelectTheRequestedGlyph() async throws {
     var comparison = Comparison(b: nil)
     comparison.mode = .glyph
     comparison.sample = .custom
@@ -434,30 +434,22 @@ import TypefaceCore
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Next character")
+    try stepGlyph(host, direction: 1)
     try await host.settle { model.comparison.selectedGlyph == "b" }
     #expect(model.comparison.selectedGlyph == "b")
-    try await host.press("Previous character")
+    try stepGlyph(host, direction: -1)
     try await host.settle { model.comparison.selectedGlyph == "a" }
     #expect(model.comparison.selectedGlyph == "a")
-    let field = try #require(characterField(host))
-    try await host.submit("@", to: field)
-    try await host.settle { model.comparison.selectedGlyph == "@" }
-    #expect(model.comparison.selectedGlyph == "@")
-    try await host.submit("", to: field)
-    try await host.settle { model.comparison.selectedGlyph == "@" && field.stringValue == "@" }
-    #expect(model.comparison.selectedGlyph == "@")
-    #expect(field.stringValue == "@")
     model.updatePresentation {
       $0.customText = ""
       $0.selectedGlyph = "🦄"
     }
-    try await host.settle { fieldScalars(host) == ["🦄"] }
-    try await host.press("Next character")
+    try await host.settle { glyphCanvasLabel(host)?.hasPrefix("U+1F984") == true }
+    try stepGlyph(host, direction: 1)
     #expect(model.comparison.selectedGlyph == "!")
     model.updatePresentation { $0.selectedGlyph = "🦄" }
     try await host.settle()
-    try await host.press("Previous character")
+    try stepGlyph(host, direction: -1)
     #expect(model.comparison.selectedGlyph == "~")
   }
 
@@ -479,25 +471,19 @@ import TypefaceCore
     let model = WorkbenchModel(comparison: comparison)
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
-    try await host.settle { characterField(host) != nil }
-    let field = try #require(characterField(host))
+    try await host.settle { glyphCanvasLabel(host) != nil }
     model.updatePresentation { $0.selectedGlyph = "\u{37E}" }
     try await host.settle { glyphCanvasLabel(host)?.hasPrefix("U+037E") == true }
     #expect(model.comparison.selectedScalars == ["\u{37E}"])
     let canvas = try await host.element("Glyph canvas")
     #expect(canvas.accessibilityLabel?()?.hasPrefix("U+037E GREEK QUESTION MARK.") == true)
-    field.window?.makeFirstResponder(field)
-    let editor = try #require(field.currentEditor())
-    editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
-    try await host.settle()
-    #expect(model.comparison.selectedScalars == ["\u{37E}"])
     model.updatePresentation {
       $0.sample = .custom
       $0.customText = "\u{E9}"
       $0.selectedGlyph = "e\u{301}"
     }
     try await host.settle { glyphCanvasLabel(host)?.hasPrefix("U+0065") == true }
-    try await host.press("Next character")
+    try stepGlyph(host, direction: 1)
     #expect(model.comparison.selectedGlyph == "!")
   }
 
@@ -670,12 +656,15 @@ import TypefaceCore
     #expect(model.comparison.mode == .glyph)
   }
 
-  private func characterField<Content>(_ host: WorkbenchTestHost<Content>) -> NSTextField? {
-    host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Character" }
-  }
-
-  private func fieldScalars<Content>(_ host: WorkbenchTestHost<Content>) -> [Unicode.Scalar]? {
-    characterField(host).map { Array($0.stringValue.unicodeScalars) }
+  private func stepGlyph<Content>(_ host: WorkbenchTestHost<Content>, direction: Int) throws {
+    let canvas = try #require(host.subviews.compactMap { $0 as? GlyphDrawingView }.first)
+    let text = direction > 0 ? "\u{F703}" : "\u{F702}"
+    let event = try #require(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+        windowNumber: host.window.windowNumber, context: nil, characters: text,
+        charactersIgnoringModifiers: text, isARepeat: false, keyCode: direction > 0 ? 124 : 123))
+    canvas.keyDown(with: event)
   }
 
   private func glyphCanvasLabel<Content>(_ host: WorkbenchTestHost<Content>) -> String? {

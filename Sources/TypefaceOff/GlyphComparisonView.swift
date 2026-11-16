@@ -1,5 +1,4 @@
 import AppKit
-import CoreText
 import SwiftUI
 import TypefaceCore
 
@@ -11,10 +10,9 @@ struct GlyphComparisonView: View {
   let navigate: (Int) -> Void
   let showText: () -> Void
   let focusChanged: (Bool) -> Void
-  @State private var input: String
-  @State private var inspected: [Unicode.Scalar]
   @Binding private var zoom: Double
   @State private var appeared: Bool
+  @Environment(\.locale) private var locale
 
   init(
     comparison: Comparison, focusRequest: UUID, searching: Binding<Bool>,
@@ -29,132 +27,178 @@ struct GlyphComparisonView: View {
     self.navigate = navigate
     self.showText = showText
     self.focusChanged = focusChanged
-    _input = State(initialValue: "")
-    _inspected = State(initialValue: [])
     _zoom = zoom
     _appeared = State(initialValue: false)
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      HStack(spacing: 8) {
-        Button("Previous character", systemImage: "chevron.left") { navigate(-1) }.labelStyle(
-          .iconOnly
-        )
-        .help("Inspect the previous character (Left Arrow when the glyph view has focus)")
-        TextField("Character", text: $input).frame(width: 40).multilineTextAlignment(.center)
-          .accessibilityIdentifier("Character")
-          .onSubmit {
-            // A submit action can run with an older `comparison`, so read the inspected scalars
-            // from state. String equality is canonical: text equal to them keeps their spelling.
-            let current = String(String.UnicodeScalarView(inspected))
-            select(input == current ? current : input)
-            input = current
-          }
-        Button("Next character", systemImage: "chevron.right") { navigate(1) }.labelStyle(.iconOnly)
-          .help("Inspect the next character (Right Arrow when the glyph view has focus)")
-        searchButton
-        Spacer(minLength: 8)
-        zoomControls
-      }.frame(height: 32).padding(16)
-      GlyphCanvas(
-        comparison: comparison, focusRequest: focusRequest, navigate: navigate, showText: showText,
-        focusChanged: focusChanged, zoom: $zoom
-      )
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      HStack(alignment: .top, spacing: 0) {
-        metrics(comparison.a)
-        if let b = comparison.b {
-          Color.clear.frame(maxWidth: .infinity).frame(height: 85)
-          metrics(b)
-        }
-      }.frame(height: 85, alignment: .top).padding(.bottom, 16)
-    }
-    .background(.white).foregroundStyle(Color(white: 0.18)).environment(\.colorScheme, .light)
-    .task { appeared = true }
-    .onChange(of: comparison.selectedScalars, initial: true) { _, scalars in
-      inspected = scalars
-      input = String(String.UnicodeScalarView(scalars))
-    }
+    GeometryReader { geometry in
+      let layout = GlyphRendering.layout(
+        comparison, width: geometry.size.width, height: geometry.size.height)
+      ZStack(alignment: .topLeading) {
+        GlyphSolos(comparison: comparison, layout: layout)
+          .frame(width: layout.stageX, height: geometry.size.height)
+        GlyphCanvas(
+          comparison: comparison, focusRequest: focusRequest, navigate: navigate,
+          showText: showText,
+          focusChanged: focusChanged, zoom: $zoom
+        ).frame(width: layout.stageWidth, height: geometry.size.height).offset(x: layout.stageX)
+        searchButton.frame(width: layout.stageX - 128, alignment: .leading).offset(x: 64, y: 11)
+        metrics(layout).offset(y: layout.baseline + 66)
+        HStack(spacing: 12) {
+          caption
+          Spacer(minLength: 0)
+          zoomControls
+        }.frame(width: layout.stageWidth - 24, height: 24)
+          .offset(x: layout.stageX, y: layout.baseline + 117)
+      }
+    }.background(WorkbenchStyle.paper).foregroundStyle(WorkbenchStyle.ink)
+      .environment(\.colorScheme, .light).task { appeared = true }
   }
 
   private var searchButton: some View {
     let description = unicodeDescription(comparison.selectedGlyph)
+    let code = comparison.selectedScalars.map { String(format: "U+%04X", $0.value) }.joined(
+      separator: " · ")
+    let name = comparison.selectedScalars.map { $0.properties.name ?? "UNNAMED CHARACTER" }.joined(
+      separator: " · ")
     return Button {
       searching = true
     } label: {
-      HStack(spacing: 6) {
-        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-        Text(verbatim: description).foregroundStyle(.primary).lineLimit(1)
-          .truncationMode(.middle)
+      VStack(alignment: .leading, spacing: 9) {
+        Text(verbatim: code).font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk)
+          .lineLimit(1).truncationMode(.middle)
+        (Text(verbatim: name) + Text(" ") + Text(Image(systemName: "magnifyingglass")))
+          .font(.system(size: 20)).lineSpacing(1).lineLimit(2).multilineTextAlignment(.leading)
+      }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+    }.buttonStyle(.plain).accessibilityLabel("Search characters")
+      .accessibilityValue(Text(verbatim: description))
+      .help("\(description)\nFind a character by name, code point, or the character itself (⌘F)")
+      .popover(
+        isPresented: Binding(get: { searching && appeared }, set: { searching = $0 }),
+        arrowEdge: .bottom
+      ) {
+        CharacterSearchPicker(comparison: comparison) { glyph in
+          searching = false
+          select(glyph)
+        }
       }
-      .font(.system(size: 14)).padding(.horizontal, 8)
-      .frame(maxWidth: 480, minHeight: 26, alignment: .leading)
-      .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.94)))
-      .contentShape(Rectangle())
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel("Search characters")
-    .accessibilityValue(Text(verbatim: description))
-    .help("\(description)\nFind a character by name, code point, or the character itself (⌘F)")
-    // A popover requested with the view, as by Find Character in text view, opens only once
-    // its anchor is onscreen.
-    .popover(
-      isPresented: Binding(get: { searching && appeared }, set: { searching = $0 }),
-      arrowEdge: .bottom
-    ) {
-      CharacterSearchPicker(comparison: comparison) { glyph in
-        searching = false
-        select(glyph)
-      }
-    }
   }
 
   private var zoomControls: some View {
-    HStack(spacing: 6) {
-      Button("Zoom out", systemImage: "minus.magnifyingglass") { zoom = max(1, zoom / 1.25) }
-        .labelStyle(.iconOnly).disabled(zoom <= 1)
-      Slider(
-        value: Binding(get: { log2(zoom) }, set: { zoom = pow(2, $0) }), in: 0...3
-      ).frame(width: 100)
-        .accessibilityLabel("Glyph zoom")
-        .accessibilityValue("\(Int((zoom * 100).rounded())) percent")
-        .help("Magnify the glyph view. Scroll the mouse wheel or pinch to zoom.")
-      Button("Zoom in", systemImage: "plus.magnifyingglass") { zoom = min(8, zoom * 1.25) }
-        .labelStyle(.iconOnly).disabled(zoom >= 8)
+    HStack(spacing: 4) {
+      Button {
+        zoom = max(1, zoom / 1.25)
+      } label: {
+        Image(systemName: "minus").frame(width: 24, height: 24).contentShape(Rectangle())
+      }.accessibilityLabel("Zoom out").disabled(zoom <= 1)
       Button {
         zoom = 1
       } label: {
         Text(verbatim: "\(Int((zoom * 100).rounded()))%")
-          .monospacedDigit().frame(width: 42)
-      }
-      .accessibilityLabel("Reset glyph zoom")
-      .help("Reset zoom to 100% and fit the glyph view")
-    }.controlSize(.small)
+          .monospacedDigit().frame(width: 44, height: 24).contentShape(Rectangle())
+      }.accessibilityLabel("Reset glyph zoom").help("Reset the overlay's zoom and pan to 100%")
+      Button {
+        zoom = min(8, zoom * 1.25)
+      } label: {
+        Image(systemName: "plus").frame(width: 24, height: 24).contentShape(Rectangle())
+      }.accessibilityLabel("Zoom in").disabled(zoom >= 8)
+    }.font(.system(size: 13)).buttonStyle(.plain)
   }
 
-  private func metrics(_ config: FontConfiguration) -> some View {
-    let metric = FontRenderer.nativeMetrics(comparison.selectedGlyph, config: config)
-    return VStack(spacing: 7) {
-      if FontRenderer.supports(comparison.selectedGlyph, config: config) {
-        metricRow("Advance", value: metric.advance, em: config.face.unitsPerEm)
-        metricRow("LSB", value: metric.leftBearing, em: config.face.unitsPerEm)
-        metricRow("RSB", value: metric.rightBearing, em: config.face.unitsPerEm)
+  @ViewBuilder private var caption: some View {
+    let installedA = FontRenderer.isAvailable(comparison.a)
+    let installedB = comparison.b.map { FontRenderer.isAvailable($0) } != false
+    let a = FontRenderer.supports(comparison.selectedGlyph, config: comparison.a)
+    let b = comparison.b.map { FontRenderer.supports(comparison.selectedGlyph, config: $0) } == true
+    if !installedA || !installedB {
+      Text("\(!installedA ? "A" : "B") is not installed. Choose an installed font above.")
+        .font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk)
+    } else if comparison.b != nil && a && b {
+      (Text("A over B").fontWeight(.semibold)
+        + Text(
+          comparison.spacing && !comparison.shape
+            ? "  Spacing alone aligns advance origins" : "  Shape aligns left ink edges"
+        )
+        .foregroundColor(WorkbenchStyle.secondaryInk)).font(.system(size: 11))
+    } else if comparison.b != nil && a != b {
+      let missing = a ? "B" : "A"
+      let present = a ? "A" : "B"
+      (Text("Character unavailable in \(missing)").fontWeight(.semibold)
+        + Text("  \(present)’s ink alone").foregroundColor(WorkbenchStyle.secondaryInk))
+        .font(.system(size: 11))
+    } else if !a && !b {
+      Text("Character unavailable").font(.system(size: 11)).foregroundStyle(
+        WorkbenchStyle.secondaryInk)
+    }
+  }
+
+  private func metrics(_ layout: GlyphLayout) -> some View {
+    ZStack(alignment: .topLeading) {
+      ForEach(Array(["Advance", "LSB", "RSB", "x-height", "Units/em"].enumerated()), id: \.offset) {
+        index, title in
+        Text(verbatim: title).font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk)
+          .offset(x: 64, y: index < 3 ? Double(22 + index * 20) : Double(28 + index * 20))
+      }
+      Rectangle().fill(WorkbenchStyle.hairline).frame(
+        width: (comparison.b == nil ? layout.columnA : layout.columnB) + layout.columnWidth - 64,
+        height: 1
+      ).offset(x: 64, y: 85)
+      metricColumn(.a, width: layout.columnWidth).offset(x: layout.columnA)
+      if comparison.b != nil {
+        metricColumn(.b, width: layout.columnWidth).offset(x: layout.columnB)
+      }
+    }.frame(height: 130, alignment: .topLeading)
+  }
+
+  private func metricColumn(_ side: Side, width: Double) -> some View {
+    let config = comparison[side]!
+    let installed = FontRenderer.isAvailable(config)
+    let supported = FontRenderer.supports(comparison.selectedGlyph, config: config)
+    let metric =
+      supported ? FontRenderer.nativeMetrics(comparison.selectedGlyph, config: config) : nil
+    let xHeight = installed ? FontRenderer.xHeight(config: config) : nil
+    return VStack(alignment: .leading, spacing: 0) {
+      HStack(spacing: 8) {
+        Text(side == .a ? "A" : "B").font(.system(size: 13, weight: .bold))
+          .foregroundStyle(
+            installed
+              ? Color(nsColor: side == .a ? WorkbenchStyle.red : WorkbenchStyle.blue)
+              : WorkbenchStyle.secondaryInk)
+        Text(verbatim: installed ? config.face.family : config.postScriptName)
+          .font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk).lineLimit(1)
+      }.frame(height: 16, alignment: .top).padding(.bottom, 6)
+      metricValue(metric?.advance, em: config.face.unitsPerEm, width: width)
+      metricValue(metric?.leftBearing, em: config.face.unitsPerEm, width: width)
+      metricValue(metric?.rightBearing, em: config.face.unitsPerEm, width: width)
+      Color.clear.frame(height: 6)
+      metricValue(xHeight, em: config.face.unitsPerEm, width: width)
+      HStack {
+        (Text(verbatim: installed ? String(config.face.unitsPerEm) : "—")
+          + Text(installed ? " u" : "").foregroundColor(.clear))
+          .accessibilityLabel(installed ? String(config.face.unitsPerEm) : "Unavailable")
+          .frame(width: width * 0.45, alignment: .trailing)
+        Spacer(minLength: 0)
+      }.frame(height: 20)
+    }.frame(width: width).font(.system(size: 13)).monospacedDigit()
+  }
+
+  private func metricValue(_ value: Double?, em: Int, width: Double) -> some View {
+    HStack(spacing: 0) {
+      if let value {
+        (Text(verbatim: number(value, digits: 0))
+          + Text(" u").foregroundColor(WorkbenchStyle.secondaryInk))
+          .frame(width: width * 0.45, alignment: .trailing)
+        (Text(
+          verbatim: SpecificationNumber.format(value / Double(em), precision: 3, locale: locale))
+          + Text(" em").foregroundColor(WorkbenchStyle.secondaryInk))
+          .frame(width: width * 0.55, alignment: .trailing)
       } else {
-        Text(FontRenderer.isAvailable(config) ? "Character unavailable" : "Font unavailable")
-          .font(.caption).foregroundStyle(.secondary)
+        Text("—").foregroundStyle(WorkbenchStyle.secondaryInk)
+          .frame(width: width * 0.45, alignment: .trailing)
+        Spacer(minLength: 0)
       }
-    }.padding(.horizontal, 12).frame(maxWidth: .infinity)
-  }
-
-  private func metricRow(_ title: String, value: Double, em: Int) -> some View {
-    HStack(spacing: 4) {
-      Text(verbatim: title)
-      Spacer(minLength: 2)
-      Text(verbatim: "\(number(value, digits: 0)) u").frame(minWidth: 45, alignment: .trailing)
-      Text(verbatim: "\(number(value / Double(em), digits: 3)) em").frame(
-        minWidth: 65, alignment: .trailing)
-    }.font(.system(size: 11)).monospacedDigit().foregroundStyle(Color(white: 0.35))
+    }.frame(height: 20)
   }
 }
 
@@ -175,344 +219,6 @@ struct GlyphCanvas: NSViewRepresentable {
     view.requestFocus(focusRequest)
     scroll.zoomChanged = { zoom = $0 }
     scroll.setZoom(zoom)
-  }
-}
-
-final class GlyphDrawingView: NSView {
-  var navigate: (Int) -> Void = { _ in }
-  var showText: () -> Void = {}
-  var focusChanged: (Bool) -> Void = { _ in }
-  private var focusRequest: UUID?
-  private var comparison = Comparison()
-  private var envelope = GlyphMeasurementPlaceholder.defaultBounds
-  private var envelopeKey: EnvelopeKey?
-  private var renderGeneration: UInt64 = 0
-  private var overlayCache: (key: OverlayKey, outline: GlyphOverlayOutline?)?
-  private var dragLocation: NSPoint?
-  private let red = NSColor(calibratedRed: 0.76, green: 0.32, blue: 0.31, alpha: 1)
-  private let blue = NSColor(calibratedRed: 0.25, green: 0.48, blue: 0.68, alpha: 1)
-
-  override var acceptsFirstResponder: Bool { true }
-
-  var hasKeyboardFocus: Bool {
-    window?.isKeyWindow == true && window?.firstResponder === self
-  }
-
-  override func becomeFirstResponder() -> Bool {
-    let accepted = super.becomeFirstResponder()
-    updateFocusState()
-    return accepted
-  }
-
-  override func resignFirstResponder() -> Bool {
-    let accepted = super.resignFirstResponder()
-    updateFocusState()
-    return accepted
-  }
-
-  func requestFocus(_ request: UUID) {
-    guard focusRequest != request else { return }
-    focusRequest = request
-    window?.makeFirstResponder(self)
-  }
-
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
-    NotificationCenter.default.removeObserver(self)
-    if let window {
-      for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
-        NotificationCenter.default.addObserver(
-          self, selector: #selector(updateFocusState), name: name, object: window)
-      }
-    }
-    if focusRequest != nil { window?.makeFirstResponder(self) }
-    updateFocusState()
-  }
-
-  deinit { NotificationCenter.default.removeObserver(self) }
-
-  @objc private func updateFocusState() {
-    // WorkbenchView indicates keyboard focus on the ranked character; the canvas stays borderless.
-    // First-responder callbacks run before the window finishes changing responders.
-    // Defer the SwiftUI state update until both AppKit and view updates finish.
-    Task { @MainActor [weak self] in
-      guard let self else { return }
-      focusChanged(hasKeyboardFocus)
-    }
-  }
-
-  override func mouseDown(with event: NSEvent) {
-    if let scroll = enclosingScrollView, scroll.magnification > 1 {
-      window?.makeFirstResponder(self)
-      dragLocation = event.locationInWindow
-      NSCursor.closedHand.set()
-    } else {
-      showText()
-    }
-  }
-
-  override func mouseDragged(with event: NSEvent) {
-    guard let previous = dragLocation, let scroll = enclosingScrollView as? GlyphScrollView else {
-      return
-    }
-    let current = event.locationInWindow
-    scroll.pan(by: NSSize(width: previous.x - current.x, height: previous.y - current.y))
-    dragLocation = current
-  }
-
-  override func mouseUp(with event: NSEvent) {
-    dragLocation = nil
-    window?.invalidateCursorRects(for: self)
-  }
-
-  override func resetCursorRects() {
-    if let scroll = enclosingScrollView, scroll.magnification > 1 {
-      addCursorRect(visibleRect, cursor: .openHand)
-    }
-  }
-
-  override func accessibilityPerformPress() -> Bool {
-    showText()
-    return true
-  }
-
-  override func keyDown(with event: NSEvent) {
-    guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
-      [123, 124].contains(event.keyCode)
-    else {
-      super.keyDown(with: event)
-      return
-    }
-    navigate(event.keyCode == 123 ? -1 : 1)
-  }
-
-  func update(_ value: Comparison) {
-    renderGeneration = FuzzDiagnostics.shared.nextGeneration()
-    comparison = value
-    let key = EnvelopeKey(a: value.a, b: value.b, text: value.text)
-    if envelopeKey != key {
-      let measured = FuzzDiagnostics.shared.measure(
-        "glyph-envelope", text: value.text, generation: renderGeneration
-      ) {
-        FontRenderer.envelope(a: value.a, b: value.b, sample: value.text)
-      }
-      envelope = measured.bounds.union(CGRect(x: 0, y: 0, width: measured.advance, height: 1))
-      envelopeKey = key
-    }
-    setAccessibilityElement(true)
-    setAccessibilityRole(.button)
-    setAccessibilityIdentifier("Glyph canvas")
-    setAccessibilityLabel(
-      value.b == nil
-        ? "\(unicodeDescription(value.selectedGlyph)). Font A."
-        : "\(unicodeDescription(value.selectedGlyph)). Font A in red, font B in blue, shared ink in black."
-    )
-    setAccessibilityHelp(
-      "Scroll the mouse wheel or pinch to zoom. When zoomed, drag or use two fingers to pan. "
-        + "At 100%, click to return to text. Use Left Arrow and Right Arrow to inspect characters."
-    )
-    needsDisplay = true
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    FuzzDiagnostics.shared.measure(
-      "glyph-drawing", text: comparison.selectedGlyph, generation: renderGeneration
-    ) {
-      drawGlyph(dirtyRect)
-    }
-  }
-
-  private func drawGlyph(_ dirtyRect: NSRect) {
-    guard let context = NSGraphicsContext.current?.cgContext, bounds.width > 0, bounds.height > 0
-    else { return }
-    NSColor.white.setFill()
-    bounds.fill()
-    let count = comparison.b == nil ? 1 : 3
-    let width = bounds.width / Double(count)
-    let baseline = max(38, (bounds.height - 48) * 0.25)
-    FuzzDiagnostics.shared.glyphGeometry(
-      view: String(ObjectIdentifier(self).hashValue),
-      context:
-        "\(comparison.a.hashValue):\(comparison.b?.hashValue ?? 0):\(comparison.text.hashValue):\(bounds.width):\(bounds.height)",
-      glyph: comparison.selectedScalars, baseline: baseline)
-    let scale = max(
-      0.01,
-      min(
-        (width - 28) / max(1, envelope.width),
-        (bounds.height - baseline - 60) / max(1, envelope.maxY),
-        (baseline - 20) / max(1, -envelope.minY), 3.4))
-    let configs = [comparison.a, comparison.b].compactMap { $0 }
-    let sizes = configs.map { 100 * $0.size / comparison.a.size * scale }
-    let xHeights = zip(configs, sizes).map { FontRenderer.xHeight(config: $0, size: $1) }
-    let metrics = zip(configs, sizes).map {
-      FontRenderer.measure(comparison.selectedGlyph, config: $0, size: $1)
-    }
-    let advances = zip(metrics, zip(configs, sizes)).map { $0.advance + $1.0.tracking * $1.1 }
-    let supported = configs.map { FontRenderer.supports(comparison.selectedGlyph, config: $0) }
-    let spacingOnly = comparison.spacing && !comparison.shape
-    for column in 0..<count {
-      let overlay = count == 3 && column == 1
-      let indexes = overlay ? [0, 1] : [column == 2 ? 1 : 0]
-      let start = Double(column) * width
-      if column > 0 {
-        stroke(
-          context, from: CGPoint(x: start, y: 4), to: CGPoint(x: start, y: bounds.height - 5),
-          color: .init(gray: 0.86, alpha: 1))
-      }
-      // Only the outer columns need headings to identify the compared fonts.
-      if !overlay {
-        let config = configs[indexes[0]]
-        let available = FontRenderer.isAvailable(config)
-        let title = available ? config.face.family : "Font unavailable"
-        label(title, x: start, y: bounds.height - 23, width: width, size: 12, centered: true)
-        label(
-          available ? "\(config.face.unitsPerEm) units/em" : config.postScriptName, x: start,
-          y: bounds.height - 40,
-          width: width, size: 10, centered: true)
-      }
-      stroke(
-        context, from: CGPoint(x: start + 8, y: baseline),
-        to: CGPoint(x: start + width - 8, y: baseline), color: .init(gray: 0.75, alpha: 1))
-      label("baseline", x: start + 10, y: baseline - 16, width: width - 20, size: 9)
-      let maxInk =
-        overlay
-        ? max(metrics[0].bounds.width, metrics[1].bounds.width) : metrics[indexes[0]].bounds.width
-      let maxAdvance = overlay ? max(advances[0], advances[1]) : advances[indexes[0]]
-      let origins = indexes.map { index in
-        CGPoint(
-          x: start
-            + (spacingOnly
-              ? (width - maxAdvance) / 2 : (width - maxInk) / 2 - metrics[index].bounds.minX),
-          y: baseline)
-      }
-      let outline =
-        overlay && supported.allSatisfy { $0 }
-        ? cachedOverlay(configs: configs, sizes: sizes, origins: origins) : nil
-      var masks: [[UInt8]] = []
-      let rasterRect = CGRect(x: start, y: 0, width: width, height: bounds.height)
-        .intersection(visibleRect).intersection(dirtyRect)
-      let pixelScale = (window?.backingScaleFactor ?? 2) * (enclosingScrollView?.magnification ?? 1)
-      let bitmapWidth = max(1, Int(ceil(rasterRect.width * pixelScale)))
-      let bitmapHeight = max(1, Int(ceil(rasterRect.height * pixelScale)))
-      for index in indexes {
-        let metric = metrics[index]
-        let originX =
-          spacingOnly ? (width - maxAdvance) / 2 : (width - maxInk) / 2 - metric.bounds.minX
-        let color = index == 0 ? red : blue
-        if let xHeight = xHeights[index] {
-          stroke(
-            context, from: CGPoint(x: start + 8, y: baseline + xHeight),
-            to: CGPoint(x: start + width - 8, y: baseline + xHeight),
-            color: color.withAlphaComponent(0.35).cgColor, dashed: true)
-          if index == indexes.first(where: { xHeights[$0] != nil }) {
-            label("x-height", x: start + 10, y: baseline + xHeight + 4, width: width - 20, size: 9)
-          }
-        } else if !overlay {
-          label(
-            "x-height unavailable", x: start, y: bounds.height - 55, width: width, size: 9,
-            centered: true)
-        }
-        for offset in [0, advances[index]] {
-          stroke(
-            context, from: CGPoint(x: start + originX + offset, y: 10),
-            to: CGPoint(x: start + originX + offset, y: bounds.height - 48),
-            color: color.withAlphaComponent(0.5).cgColor, dashed: true)
-        }
-        if supported[index] {
-          if overlay, outline == nil, !rasterRect.isEmpty {
-            // Bitmap fonts need masks; only rasterize the changed portion of the viewport.
-            masks.append(
-              FontRenderer.mask(
-                comparison.selectedGlyph, config: configs[index], size: sizes[index] * pixelScale,
-                width: bitmapWidth, height: bitmapHeight,
-                origin: CGPoint(
-                  x: (start + originX - rasterRect.minX) * pixelScale,
-                  y: (baseline - rasterRect.minY) * pixelScale)))
-          } else if !overlay {
-            context.saveGState()
-            context.clip(
-              to: CGRect(x: start + 1, y: 0, width: width - 2, height: bounds.height - 45))
-            context.textPosition = CGPoint(x: start + originX, y: baseline)
-            CTLineDraw(
-              FontRenderer.line(
-                comparison.selectedGlyph, config: configs[index], size: sizes[index]), context)
-            context.restoreGState()
-          }
-        }
-      }
-      if let outline, !rasterRect.isEmpty {
-        context.saveGState()
-        context.clip(to: rasterRect)
-        outline.draw(in: context, red: red.cgColor, blue: blue.cgColor)
-        context.restoreGState()
-      } else if overlay, masks.count == 2 {
-        GlyphOverlay.draw(
-          masks[0], masks[1], width: bitmapWidth, height: bitmapHeight, context: context,
-          rect: rasterRect)
-      } else if indexes.contains(where: { !supported[$0] }) {
-        label(
-          "Character unavailable", x: start + 8, y: baseline + 25, width: width - 16, size: 12,
-          centered: true)
-      }
-    }
-  }
-
-  private func cachedOverlay(configs: [FontConfiguration], sizes: [Double], origins: [CGPoint])
-    -> GlyphOverlayOutline?
-  {
-    let key = OverlayKey(
-      configs: configs, glyph: comparison.selectedScalars, sizes: sizes, origins: origins)
-    if overlayCache?.key != key {
-      let glyph = comparison.selectedGlyph
-      overlayCache = (
-        key,
-        GlyphOverlayOutline(
-          a: FontRenderer.line(glyph, config: configs[0], size: sizes[0]),
-          b: FontRenderer.line(glyph, config: configs[1], size: sizes[1]),
-          origins: origins)
-      )
-    }
-    return overlayCache?.outline
-  }
-
-  private func stroke(
-    _ context: CGContext, from: CGPoint, to: CGPoint, color: CGColor, dashed: Bool = false
-  ) {
-    context.saveGState()
-    context.setStrokeColor(color)
-    context.setLineWidth(0.75)
-    context.setLineDash(phase: 0, lengths: dashed ? [3, 4] : [])
-    context.move(to: from)
-    context.addLine(to: to)
-    context.strokePath()
-    context.restoreGState()
-  }
-
-  private func label(
-    _ text: String, x: Double, y: Double, width: Double, size: Double, centered: Bool = false
-  ) {
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.alignment = centered ? .center : .left
-    (text as NSString).draw(
-      in: CGRect(x: x, y: y, width: width, height: 18),
-      withAttributes: [
-        .font: NSFont.systemFont(ofSize: size), .foregroundColor: NSColor.darkGray,
-        .paragraphStyle: paragraph,
-      ])
-  }
-
-  private struct EnvelopeKey: Equatable {
-    let a: FontConfiguration
-    let b: FontConfiguration?
-    let text: String
-  }
-  private struct OverlayKey: Equatable {
-    let configs: [FontConfiguration]
-    let glyph: [Unicode.Scalar]
-    let sizes: [Double]
-    let origins: [CGPoint]
-  }
-  private enum GlyphMeasurementPlaceholder {
-    static let defaultBounds = CGRect(x: 0, y: -25, width: 100, height: 125)
+    scroll.annotations.needsDisplay = true
   }
 }

@@ -180,7 +180,7 @@ import Testing
       (
         [press("Search characters"), canvasPress, characterSearch],
         [
-          glyphMode, press("Search characters"), canvasPress, glyphMode, findCharacter,
+          glyphMode, press("Search characters"), canvasPress, escape, glyphMode, findCharacter,
           characterSearch,
         ]
       ),
@@ -550,7 +550,7 @@ import Testing
     FuzzAction(kind: .setValue, target: "Font A Size field", value: "44"),
     FuzzAction(kind: .increment, target: "Font A Size"),
     FuzzAction(kind: .increment, target: "Font B Tracking"),
-    glyphMode, zoomIn, press("Next character"), textMode, press("Swap fonts"),
+    glyphMode, zoomIn, key(124), textMode, press("Swap fonts"),
     press("Show Inspector"), press("Show Inspector"), key(124), press("Shape"),
   ])
 

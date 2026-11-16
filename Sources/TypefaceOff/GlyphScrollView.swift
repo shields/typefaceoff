@@ -3,12 +3,13 @@ import AppKit
 /// Keep the fitted document geometry independent of the viewport's magnification.
 final class GlyphScrollView: NSScrollView {
   let canvas = GlyphDrawingView()
+  private(set) lazy var annotations = GlyphGuideView(canvas: canvas)
   var zoomChanged: (Double) -> Void = { _ in }
 
   convenience init() {
     self.init(frame: .zero)
     borderType = .noBorder
-    backgroundColor = .white
+    backgroundColor = NSColor(WorkbenchStyle.paper)
     hasHorizontalScroller = true
     hasVerticalScroller = true
     autohidesScrollers = true
@@ -20,6 +21,7 @@ final class GlyphScrollView: NSScrollView {
     minMagnification = 1
     maxMagnification = 8
     documentView = canvas
+    addSubview(annotations)
     setAccessibilityIdentifier("Glyph canvas scroll area")
   }
 
@@ -30,6 +32,13 @@ final class GlyphScrollView: NSScrollView {
     if canvas.frame.size != contentSize {
       canvas.setFrameSize(contentSize)
     }
+    annotations.frame = bounds
+    annotations.needsDisplay = true
+  }
+
+  override func reflectScrolledClipView(_ clipView: NSClipView) {
+    super.reflectScrolledClipView(clipView)
+    annotations.needsDisplay = true
   }
 
   func setZoom(_ value: Double, at point: NSPoint? = nil) {
@@ -44,6 +53,7 @@ final class GlyphScrollView: NSScrollView {
       reflectScrolledClipView(contentView)
     }
     canvas.needsDisplay = true
+    annotations.needsDisplay = true
     window?.invalidateCursorRects(for: canvas)
   }
 

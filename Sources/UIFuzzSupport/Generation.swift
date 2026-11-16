@@ -89,7 +89,9 @@ public struct TraceMutator: Sendable {
       ],
       [
         FuzzAction(kind: .shortcut, keyCode: 19, modifiers: command),
-        FuzzAction(kind: .setValue, target: "Character", value: "👩‍🚀"),
+        FuzzAction(kind: .setValue, target: "Find Character", value: "👩‍🚀"),
+        FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400),
+        FuzzAction(kind: .shortcut, keyCode: 19, modifiers: command, delayMilliseconds: 50),
         FuzzAction(kind: .press, target: "Zoom in"),
         FuzzAction(kind: .key, keyCode: 124),
       ],
@@ -173,7 +175,7 @@ public struct TraceMutator: Sendable {
       let targets = [
         "Swap fonts", "Match…", "Apply", "Cancel", "Font B Optimize size",
         "Font B Optimize tracking",
-        "Previous character", "Next character", "Search characters", "Zoom in", "Zoom out",
+        "Search characters", "Zoom in", "Zoom out",
         "Reset glyph zoom",
         "Toggle comparison inspector", "Header appearance link", "Sample selector",
       ]
@@ -182,7 +184,7 @@ public struct TraceMutator: Sendable {
         delayMilliseconds: delay)
     case 1:
       let targets = [
-        "Font A Size", "Font B Size", "Font A Tracking", "Font B Tracking", "Glyph zoom",
+        "Font A Size", "Font B Size", "Font A Tracking", "Font B Tracking",
       ]
       return FuzzAction(
         kind: random.next().isMultiple(of: 2) ? .increment : .decrement,
@@ -195,7 +197,7 @@ public struct TraceMutator: Sendable {
     case 3:
       let glyphs = ["a", "@", "Á", "e\u{301}", "🦄", "👩‍🚀", " ", "\u{0000}"]
       return FuzzAction(
-        kind: .setValue, target: "Character",
+        kind: .setValue, target: "Find Character",
         value: glyphs[Int(random.next() % UInt64(glyphs.count))], delayMilliseconds: delay)
     case 4:
       return FuzzAction(

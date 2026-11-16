@@ -19,7 +19,10 @@ struct GlyphOverlayOutline {
 
   func draw(in context: CGContext, red: CGColor, blue: CGColor) {
     context.saveGState()
-    for (path, color) in [(a, red), (b, blue), (shared, CGColor(gray: 0.14, alpha: 1))] {
+    for (path, color) in [
+      (a, red), (b, blue),
+      (shared, CGColor(red: 27 / 255, green: 28 / 255, blue: 31 / 255, alpha: 1)),
+    ] {
       context.setFillColor(color)
       context.addPath(path)
       context.fillPath()

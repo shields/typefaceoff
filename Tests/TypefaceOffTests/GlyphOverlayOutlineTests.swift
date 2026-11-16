@@ -56,14 +56,28 @@ import TypefaceCore
     let vector = FontRenderer.line("@", config: .init("HelveticaNeue"), size: 128)
     #expect(GlyphOverlayOutline(a: bitmap, b: vector, origins: [.zero, .zero]) == nil)
     #expect(GlyphOverlayOutline(a: vector, b: bitmap, origins: [.zero, .zero]) == nil)
-    var comparison = Comparison(a: config, b: config)
-    comparison.sample = .custom
-    comparison.customText = "🦄"
-    comparison.selectedGlyph = "🦄"
-    let view = GlyphDrawingView(frame: NSRect(x: 0, y: 0, width: 640, height: 400))
-    view.update(comparison)
-    let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
-    view.cacheDisplay(in: view.bounds, to: image)
-    #expect(image.pixelsWide > 0)
+    for (a, b) in [
+      (config, Optional(config)), (config, nil),
+      (FontConfiguration("TypefaceOff-Does-Not-Exist"), config),
+      (config, FontConfiguration("HelveticaNeue")),
+    ] {
+      var comparison = Comparison(a: a, b: b)
+      comparison.sample = .custom
+      comparison.customText = "🦄"
+      comparison.selectedGlyph = "🦄"
+      let view = GlyphDrawingView(frame: NSRect(x: 0, y: 0, width: 640, height: 400))
+      view.update(comparison)
+      let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+      view.cacheDisplay(in: view.bounds, to: image)
+      let pixels = try #require(image.bitmapData)
+      #expect(
+        Data(bytes: pixels, count: image.bytesPerRow * image.pixelsHigh).contains { $0 < 200 })
+      NSGraphicsContext.saveGraphicsState()
+      NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: image)
+      view.draw(.zero)
+      NSGraphicsContext.restoreGraphicsState()
+      #expect(
+        Data(bytes: pixels, count: image.bytesPerRow * image.pixelsHigh).allSatisfy { $0 >= 200 })
+    }
   }
 }

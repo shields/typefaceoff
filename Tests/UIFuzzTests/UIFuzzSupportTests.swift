@@ -120,7 +120,7 @@ import Testing
     var right = SplitMix64(seed: 7)
     let edits = [
       "Search installed fonts", "Find Character", "Search Unicode characters", "Search Languages",
-      "Character", "Custom specimen text",
+      "Custom specimen text",
       "Size",
     ].map {
       FuzzAction(

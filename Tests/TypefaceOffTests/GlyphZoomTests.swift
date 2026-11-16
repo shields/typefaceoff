@@ -87,6 +87,8 @@ import TypefaceCore
     var returnedToText = false
     canvas.showText = { returnedToText = true }
     scroll.setZoom(2)
+    #expect(canvas.accessibilityPerformPress())
+    #expect(!returnedToText)
     canvas.resetCursorRects()
     let original = scroll.contentView.bounds.origin
     canvas.mouseDown(with: try mouseEvent(.leftMouseDown, x: 200, y: 150))
@@ -124,7 +126,7 @@ import TypefaceCore
     try await host.press("Zoom out")
     try await host.settle()
     #expect(scroll.magnification == 1)
-    try await host.incrementSlider("Glyph zoom", between: "Zoom out", and: "Zoom in")
+    try await host.press("Zoom in")
     try await host.settle()
     #expect(scroll.magnification > 1)
     scroll.magnify(with: GlyphMagnifyEvent())
@@ -132,7 +134,12 @@ import TypefaceCore
     let zoom = scroll.magnification
     let bounds = scroll.contentView.bounds
     let frame = scroll.canvas.frame
-    try await host.press("Next character")
+    let right = try #require(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+        windowNumber: host.window.windowNumber, context: nil, characters: "\u{F703}",
+        charactersIgnoringModifiers: "\u{F703}", isARepeat: false, keyCode: 124))
+    scroll.canvas.keyDown(with: right)
     try await host.settle()
     #expect(model.comparison.selectedGlyph != comparison.selectedGlyph)
     #expect(scroll.magnification == zoom)

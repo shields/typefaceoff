@@ -16,11 +16,13 @@ import TypefaceCore
     window.isReleasedWhenClosed = false
     defer { window.close() }
     let view = NSHostingView(
-      rootView:
+      rootView: VStack {
+        TextField("Focus probe", text: .constant(""))
         GlyphComparisonView(
           comparison: comparison, focusRequest: UUID(), searching: .constant(false),
           select: { _ in }, navigate: { _ in },
-          showText: {}, focusChanged: { focused = $0 }))
+          showText: {}, focusChanged: { focused = $0 })
+      })
     window.contentView = view
     window.orderFront(nil)
     try await waitUntil {
@@ -34,7 +36,7 @@ import TypefaceCore
     #expect(focused)
     let bitmap = try #require(canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds))
     canvas.cacheDisplay(in: canvas.bounds, to: bitmap)
-    let field = try #require(textFields(in: view).first { $0.isEditable })
+    let field = try #require(textFields(in: view).first { $0.placeholderString == "Focus probe" })
     window.makeFirstResponder(field)
     try await waitUntil { !focused && !canvas.hasKeyboardFocus }
     #expect(!canvas.hasKeyboardFocus)
@@ -97,6 +99,8 @@ import TypefaceCore
       return descendant(SpecimenNSTextView.self, in: host) != nil
     }
     let specimen = try #require(descendant(SpecimenNSTextView.self, in: host))
+    specimen.select("")
+    #expect(model.comparison.mode == .text)
     specimen.select("a")
     try await waitUntil {
       host.layoutSubtreeIfNeeded()
@@ -114,14 +118,13 @@ import TypefaceCore
     try await waitUntil {
       host.layoutSubtreeIfNeeded()
       return model.comparison.selectedGlyph != "a"
-        && textFields(in: host).contains {
-          $0.isEditable && $0.stringValue == model.comparison.selectedGlyph
-        }
     }
     #expect(model.comparison.selectedGlyph != "a")
     let current = model.comparison.selectedGlyph
+    let frame = try #require(host.superview)
     let field = try #require(
-      textFields(in: host).first { $0.isEditable && $0.stringValue == current })
+      textFields(in: frame).first { $0.placeholderString == "Find Character" })
+    field.stringValue = current
     window.makeFirstResponder(field)
     let editor = try #require(field.currentEditor())
     editor.selectedRange = NSRange(location: 0, length: 0)

@@ -210,22 +210,4 @@ public enum FontRenderer {
     return pixels
   }
 
-  /// A shared envelope that is independent of the glyph currently being inspected.
-  public static func envelope(a: FontConfiguration, b: FontConfiguration?, sample: String)
-    -> GlyphMeasurement
-  {
-    var bounds = CGRect(x: 0, y: -25, width: 100, height: 125)
-    var advance = 100.0
-    let candidates = Set(
-      (String((33...126).compactMap(UnicodeScalar.init).map(Character.init)) + "ÁÅÉgj" + sample)
-        .map(String.init))
-    for config in [a, b].compactMap({ $0 }) {
-      for glyph in candidates where supports(glyph, config: config) {
-        let metric = measure(glyph, config: config, size: 100 * config.size / a.size)
-        bounds = bounds.union(metric.bounds)
-        advance = max(advance, metric.advance + config.tracking * 100 * config.size / a.size)
-      }
-    }
-    return GlyphMeasurement(bounds: bounds, advance: advance)
-  }
 }

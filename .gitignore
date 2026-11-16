@@ -9,3 +9,4 @@ node_modules/
 __pycache__/
 .hyperglot-cache
 .venv/
+docs/redesign/mockups/**/*.html

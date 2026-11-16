@@ -1,0 +1,2032 @@
+{
+  "upm": {
+    "a": 1000,
+    "b": 2048
+  },
+  "xheight": {
+    "a": 517,
+    "b": 1062
+  },
+  "capheight": {
+    "a": 714,
+    "b": 1467
+  },
+  "hhea": {
+    "a": [952, -213, 28],
+    "b": [1854, -434, 67]
+  },
+  "glyphs": {
+    "@": {
+      "a": {
+        "advance": 800,
+        "lsb": 42,
+        "rsb": 47,
+        "xmin": 42,
+        "ymin": -16,
+        "xmax": 753,
+        "ymax": 731
+      },
+      "b": {
+        "advance": 2079,
+        "lsb": 111,
+        "rsb": 74,
+        "xmin": 111,
+        "ymin": -431,
+        "xmax": 2005,
+        "ymax": 1493
+      }
+    },
+    "Ƙ": {
+      "a": null,
+      "b": {
+        "advance": 1366,
+        "lsb": 150,
+        "rsb": 4,
+        "xmin": 150,
+        "ymin": 0,
+        "xmax": 1362,
+        "ymax": 1491
+      }
+    },
+    "ƙ": {
+      "a": null,
+      "b": {
+        "advance": 1024,
+        "lsb": 136,
+        "rsb": 8,
+        "xmin": 136,
+        "ymin": 0,
+        "xmax": 1016,
+        "ymax": 1491
+      }
+    },
+    "฿": {
+      "a": {
+        "advance": 682,
+        "lsb": 74,
+        "rsb": 55,
+        "xmin": 74,
+        "ymin": -118,
+        "xmax": 627,
+        "ymax": 857
+      },
+      "b": null
+    }
+  },
+  "scores": {
+    "!": {
+      "shape": 0.16038075266496032,
+      "spacing": 0.01325911458333333,
+      "frequency": 0.000623,
+      "weight": 0.7893034904268447
+    },
+    "\"": {
+      "shape": 0.5295971647589631,
+      "spacing": 0.06541536458333334,
+      "frequency": 0.000463,
+      "weight": 0.68044103344816
+    },
+    "#": {
+      "shape": 0.4500509358791901,
+      "spacing": 0.015067708333333343,
+      "frequency": 4.51e-5,
+      "weight": 0.212367605815953
+    },
+    "$": {
+      "shape": 0.2621625741893221,
+      "spacing": 0.008890625000000008,
+      "frequency": 5.75e-5,
+      "weight": 0.23979157616563598
+    },
+    "%": {
+      "shape": 0.5774913154480392,
+      "spacing": 0.05840364583333334,
+      "frequency": 0.000169,
+      "weight": 0.4110960958218893
+    },
+    "&": {
+      "shape": 0.18280653420974802,
+      "spacing": 0.028303385416666653,
+      "frequency": 6.44e-5,
+      "weight": 0.2537715508089904
+    },
+    "'": {
+      "shape": 0.38720617068493746,
+      "spacing": 0.06875390625,
+      "frequency": 0.000504,
+      "weight": 0.7099295739719539
+    },
+    "(": {
+      "shape": 0.10902240067342317,
+      "spacing": 0.0445625,
+      "frequency": 0.000854,
+      "weight": 0.9241212041718337
+    },
+    ")": {
+      "shape": 0.16761998825684077,
+      "spacing": 0.05147395833333333,
+      "frequency": 0.000869,
+      "weight": 0.9322016949137134
+    },
+    "*": {
+      "shape": 0.31262116039367094,
+      "spacing": 0.018522135416666658,
+      "frequency": 8.1e-5,
+      "weight": 0.28460498941515416
+    },
+    "+": {
+      "shape": 0.772242689573039,
+      "spacing": 0.010447916666666668,
+      "frequency": 6.18e-5,
+      "weight": 0.24859605789312106
+    },
+    ",": {
+      "shape": 0.21377454215476,
+      "spacing": 0.0016809895833333293,
+      "frequency": 0.0118,
+      "weight": 1.0
+    },
+    "-": {
+      "shape": 0.4775321059721599,
+      "spacing": 0.031001302083333335,
+      "frequency": 0.00235,
+      "weight": 1.0
+    },
+    ".": {
+      "shape": 0.22663090636585947,
+      "spacing": 0.003634114583333329,
+      "frequency": 0.00822,
+      "weight": 1.0
+    },
+    "/": {
+      "shape": 0.7504400075107968,
+      "spacing": 0.03005598958333333,
+      "frequency": 0.0005,
+      "weight": 0.7071067811865476
+    },
+    "0": {
+      "shape": 0.10302708443972386,
+      "spacing": 0.002166666666666675,
+      "frequency": 0.00291,
+      "weight": 1.0
+    },
+    "1": {
+      "shape": 0.18960762199111436,
+      "spacing": 0.01281510416666667,
+      "frequency": 0.00263,
+      "weight": 1.0
+    },
+    "2": {
+      "shape": 0.22216708491577797,
+      "spacing": 0.005204427083333341,
+      "frequency": 0.00228,
+      "weight": 1.0
+    },
+    "3": {
+      "shape": 0.21578275066116082,
+      "spacing": 0.004263839285714295,
+      "frequency": 0.00112,
+      "weight": 1.0
+    },
+    "4": {
+      "shape": 0.1184486709535153,
+      "spacing": 0.007598958333333342,
+      "frequency": 0.00086,
+      "weight": 0.9273618495495703
+    },
+    "5": {
+      "shape": 0.12853883220055928,
+      "spacing": 0.00453906250000001,
+      "frequency": 0.00103,
+      "weight": 1.0
+    },
+    "6": {
+      "shape": 0.10979660410805414,
+      "spacing": 0.0031510416666666752,
+      "frequency": 0.000732,
+      "weight": 0.8555699854482975
+    },
+    "7": {
+      "shape": 0.12744140472955512,
+      "spacing": 0.0014596354166666757,
+      "frequency": 0.000672,
+      "weight": 0.8197560612767678
+    },
+    "8": {
+      "shape": 0.10576619742065663,
+      "spacing": 0.0015416666666666758,
+      "frequency": 0.000771,
+      "weight": 0.8780660567406077
+    },
+    "9": {
+      "shape": 0.10792079910190666,
+      "spacing": 0.0032369791666666753,
+      "frequency": 0.000837,
+      "weight": 0.9148770409186143
+    },
+    ":": {
+      "shape": 0.2639260708401977,
+      "spacing": 0.003634114583333329,
+      "frequency": 0.00133,
+      "weight": 1.0
+    },
+    ";": {
+      "shape": 0.24998729432691702,
+      "spacing": 0.0016931107954545393,
+      "frequency": 0.000149,
+      "weight": 0.38600518131237566
+    },
+    "<": {
+      "shape": 0.9532932833243649,
+      "spacing": 0.011292968750000002,
+      "frequency": 1.46e-5,
+      "weight": 0.12083045973594572
+    },
+    "=": {
+      "shape": 1.0,
+      "spacing": 0.010447916666666668,
+      "frequency": 4.15e-5,
+      "weight": 0.20371548787463362
+    },
+    ">": {
+      "shape": 0.9398338460938059,
+      "spacing": 0.011292968750000002,
+      "frequency": 4.98e-5,
+      "weight": 0.22315913604421397
+    },
+    "?": {
+      "shape": 0.3095722281034966,
+      "spacing": 0.008951152146464655,
+      "frequency": 0.000603,
+      "weight": 0.776530746332687
+    },
+    "@": {
+      "shape": 0.8156276693216912,
+      "spacing": 0.07940104166666667,
+      "frequency": 3.9e-5,
+      "weight": 0.19748417658131498
+    },
+    "A": {
+      "shape": 0.08409797182955392,
+      "spacing": 0.01002083333333334,
+      "frequency": 0.00193,
+      "weight": 1.0
+    },
+    "B": {
+      "shape": 0.16526072049821905,
+      "spacing": 0.010329427083333351,
+      "frequency": 0.00106,
+      "weight": 1.0
+    },
+    "C": {
+      "shape": 0.13921871487896575,
+      "spacing": 0.0024739583333333406,
+      "frequency": 0.00148,
+      "weight": 1.0
+    },
+    "D": {
+      "shape": 0.05257687596479166,
+      "spacing": 0.01141406249999999,
+      "frequency": 0.00107,
+      "weight": 1.0
+    },
+    "E": {
+      "shape": 0.08826713165802558,
+      "spacing": 0.0246015625,
+      "frequency": 0.00117,
+      "weight": 1.0
+    },
+    "F": {
+      "shape": 0.057123030800915964,
+      "spacing": 0.019923177083333337,
+      "frequency": 0.000688,
+      "weight": 0.8294576541331089
+    },
+    "G": {
+      "shape": 0.16690996371965494,
+      "spacing": 0.009851562499999985,
+      "frequency": 0.000671,
+      "weight": 0.8191458966508958
+    },
+    "H": {
+      "shape": 0.0938014205268759,
+      "spacing": 0.001604166666666672,
+      "frequency": 0.000692,
+      "weight": 0.8318653737234168
+    },
+    "I": {
+      "shape": 0.021408860110290417,
+      "spacing": 0.012645833333333332,
+      "frequency": 0.00145,
+      "weight": 1.0
+    },
+    "J": {
+      "shape": 0.38549699106071966,
+      "spacing": 0.008699506064162749,
+      "frequency": 0.000402,
+      "weight": 0.6340346993658943
+    },
+    "K": {
+      "shape": 0.04637531684182583,
+      "spacing": 0.0032395833333333226,
+      "frequency": 0.000538,
+      "weight": 0.7334848328356899
+    },
+    "L": {
+      "shape": 0.04753172370999481,
+      "spacing": 0.01185156250000001,
+      "frequency": 0.00092,
+      "weight": 0.9591663046625439
+    },
+    "M": {
+      "shape": 0.2566256175367798,
+      "spacing": 0.016029947916666662,
+      "frequency": 0.0013,
+      "weight": 1.0
+    },
+    "N": {
+      "shape": 0.07476516447586767,
+      "spacing": 0.0023424479166666754,
+      "frequency": 0.000883,
+      "weight": 0.9396807968666807
+    },
+    "O": {
+      "shape": 0.06425604336030766,
+      "spacing": 0.011697916666666638,
+      "frequency": 0.00078,
+      "weight": 0.8831760866327847
+    },
+    "P": {
+      "shape": 0.07276104776546599,
+      "spacing": 0.008433593750000006,
+      "frequency": 0.00138,
+      "weight": 1.0
+    },
+    "Q": {
+      "shape": 0.09278394607192708,
+      "spacing": 0.008059895833333306,
+      "frequency": 0.000127,
+      "weight": 0.3563705936241092
+    },
+    "R": {
+      "shape": 0.22403887213861462,
+      "spacing": 0.018028645833333315,
+      "frequency": 0.00086,
+      "weight": 0.9273618495495703
+    },
+    "S": {
+      "shape": 0.10220323837183054,
+      "spacing": 0.014053385416666671,
+      "frequency": 0.00185,
+      "weight": 1.0
+    },
+    "T": {
+      "shape": 0.04898659045944165,
+      "spacing": 0.025765625,
+      "frequency": 0.00153,
+      "weight": 1.0
+    },
+    "U": {
+      "shape": 0.15072527283228798,
+      "spacing": 0.003782552083333341,
+      "frequency": 0.000479,
+      "weight": 0.692098258919931
+    },
+    "V": {
+      "shape": 0.3456099448675196,
+      "spacing": 0.02339973958333334,
+      "frequency": 0.000451,
+      "weight": 0.6715653356152326
+    },
+    "W": {
+      "shape": 0.21594910896136643,
+      "spacing": 0.006274739583333331,
+      "frequency": 0.000612,
+      "weight": 0.7823042886243179
+    },
+    "X": {
+      "shape": 0.36971119205243874,
+      "spacing": 0.022578125000000004,
+      "frequency": 0.00015,
+      "weight": 0.3872983346207417
+    },
+    "Y": {
+      "shape": 0.07979438678845896,
+      "spacing": 0.008578125000000006,
+      "frequency": 0.000254,
+      "weight": 0.5039841267341661
+    },
+    "Z": {
+      "shape": 0.08936209053108413,
+      "spacing": 0.002014322916666663,
+      "frequency": 0.000105,
+      "weight": 0.324037034920393
+    },
+    "[": {
+      "shape": 0.1333575620466525,
+      "spacing": 0.01302473958333333,
+      "frequency": 0.000101,
+      "weight": 0.3178049716414141
+    },
+    "\\": {
+      "shape": 0.7317273668629656,
+      "spacing": 0.03005598958333333,
+      "frequency": 1.32e-5,
+      "weight": 0.11489125293076058
+    },
+    "]": {
+      "shape": 0.11519520562817565,
+      "spacing": 0.01497786458333333,
+      "frequency": 0.000101,
+      "weight": 0.3178049716414141
+    },
+    "^": {
+      "shape": 0.6953888144603428,
+      "spacing": 0.05934244791666668,
+      "frequency": 1.13e-5,
+      "weight": 0.1063014581273465
+    },
+    "_": {
+      "shape": 1.0,
+      "spacing": 0.027506510416666668,
+      "frequency": 9.59e-5,
+      "weight": 0.30967725134404045
+    },
+    "`": {
+      "shape": 0.7135338036992533,
+      "spacing": 0.08080729166666666,
+      "frequency": null,
+      "weight": 0.1
+    },
+    "a": {
+      "shape": 0.1435977370780206,
+      "spacing": 0.015588541666666669,
+      "frequency": 0.0473,
+      "weight": 1.0
+    },
+    "b": {
+      "shape": 0.265136063576104,
+      "spacing": 0.014477864583333352,
+      "frequency": 0.00658,
+      "weight": 1.0
+    },
+    "c": {
+      "shape": 0.13121749851479914,
+      "spacing": 0.02059505208333333,
+      "frequency": 0.0139,
+      "weight": 1.0
+    },
+    "d": {
+      "shape": 0.3740696566191305,
+      "spacing": 0.014644531250000013,
+      "frequency": 0.0173,
+      "weight": 1.0
+    },
+    "e": {
+      "shape": 0.0919561977249449,
+      "spacing": 0.012532447916666684,
+      "frequency": 0.0511,
+      "weight": 1.0
+    },
+    "f": {
+      "shape": 0.21007054171499484,
+      "spacing": 0.018186197916666667,
+      "frequency": 0.00616,
+      "weight": 1.0
+    },
+    "g": {
+      "shape": 0.16771516696577415,
+      "spacing": 0.008171874999999997,
+      "frequency": 0.00984,
+      "weight": 1.0
+    },
+    "h": {
+      "shape": 0.11411704129249955,
+      "spacing": 0.0019804687500000074,
+      "frequency": 0.013,
+      "weight": 1.0
+    },
+    "i": {
+      "shape": 0.07074482702955132,
+      "spacing": 0.0009635416666666661,
+      "frequency": 0.0342,
+      "weight": 1.0
+    },
+    "j": {
+      "shape": 0.4895777881376997,
+      "spacing": 0.011304687499999994,
+      "frequency": 0.00146,
+      "weight": 1.0
+    },
+    "k": {
+      "shape": 0.20054995087491123,
+      "spacing": 0.008499999999999995,
+      "frequency": 0.00594,
+      "weight": 1.0
+    },
+    "l": {
+      "shape": 0.04385025659300301,
+      "spacing": 0.0025052083333333298,
+      "frequency": 0.0193,
+      "weight": 1.0
+    },
+    "m": {
+      "shape": 0.24216877498084766,
+      "spacing": 0.00745442708333335,
+      "frequency": 0.0133,
+      "weight": 1.0
+    },
+    "n": {
+      "shape": 0.14009211265584653,
+      "spacing": 0.0023059895833333404,
+      "frequency": 0.0345,
+      "weight": 1.0
+    },
+    "o": {
+      "shape": 0.10854551023692627,
+      "spacing": 0.007251302083333331,
+      "frequency": 0.0315,
+      "weight": 1.0
+    },
+    "p": {
+      "shape": 0.26364939719778424,
+      "spacing": 0.013989583333333352,
+      "frequency": 0.0105,
+      "weight": 1.0
+    },
+    "q": {
+      "shape": 0.36825096328268825,
+      "spacing": 0.014156250000000013,
+      "frequency": 0.00143,
+      "weight": 1.0
+    },
+    "r": {
+      "shape": 0.19017480219419092,
+      "spacing": 0.005873697916666667,
+      "frequency": 0.0274,
+      "weight": 1.0
+    },
+    "s": {
+      "shape": 0.10239738779251284,
+      "spacing": 0.0029375000000000004,
+      "frequency": 0.0279,
+      "weight": 1.0
+    },
+    "t": {
+      "shape": 0.3245649030940354,
+      "spacing": 0.022807291666666674,
+      "frequency": 0.0302,
+      "weight": 1.0
+    },
+    "u": {
+      "shape": 0.1192632867324096,
+      "spacing": 0.002654947916666675,
+      "frequency": 0.0166,
+      "weight": 1.0
+    },
+    "v": {
+      "shape": 0.12293803643074086,
+      "spacing": 0.0011953125000000006,
+      "frequency": 0.00458,
+      "weight": 1.0
+    },
+    "w": {
+      "shape": 0.24059537172291845,
+      "spacing": 0.019696614583333334,
+      "frequency": 0.00487,
+      "weight": 1.0
+    },
+    "x": {
+      "shape": 0.10564395345305022,
+      "spacing": 0.007117187500000005,
+      "frequency": 0.00122,
+      "weight": 1.0
+    },
+    "y": {
+      "shape": 0.11410614668865782,
+      "spacing": 0.0029674479166666664,
+      "frequency": 0.00669,
+      "weight": 1.0
+    },
+    "z": {
+      "shape": 0.12170266023497012,
+      "spacing": 0.0076614583333333396,
+      "frequency": 0.00164,
+      "weight": 1.0
+    },
+    "{": {
+      "shape": 0.3499298689000089,
+      "spacing": 0.0072382812500000025,
+      "frequency": null,
+      "weight": 0.1
+    },
+    "|": {
+      "shape": 0.16247484909456744,
+      "spacing": 0.022290364583333326,
+      "frequency": 0.000532,
+      "weight": 0.7293833011524188
+    },
+    "}": {
+      "shape": 0.21812882929057464,
+      "spacing": 0.0072382812500000025,
+      "frequency": null,
+      "weight": 0.1
+    },
+    "~": {
+      "shape": 0.3103533901917309,
+      "spacing": 0.01018098958333334,
+      "frequency": 0.000103,
+      "weight": 0.3209361307176242
+    },
+    "—": {
+      "shape": 0.5202453012622683,
+      "spacing": 0.08666666666666667,
+      "frequency": 0.000152,
+      "weight": 0.38987177379235854
+    },
+    "‘": {
+      "shape": 0.40080065169323864,
+      "spacing": 0.034238281249999995,
+      "frequency": 0.000163,
+      "weight": 0.403732584763727
+    },
+    "’": {
+      "shape": 0.35687762504772813,
+      "spacing": 0.034238281249999995,
+      "frequency": 0.000769,
+      "weight": 0.8769264507357502
+    },
+    "“": {
+      "shape": 0.5884318550130199,
+      "spacing": 0.04846744791666667,
+      "frequency": 0.000803,
+      "weight": 0.8961026726887941
+    },
+    "”": {
+      "shape": 0.6237966237194493,
+      "spacing": 0.04846744791666667,
+      "frequency": 0.000804,
+      "weight": 0.8966604708583958
+    }
+  },
+  "ranked": {
+    "shape_freq": [
+      "”",
+      "/",
+      "“",
+      "j",
+      "-",
+      "d",
+      "q",
+      "\"",
+      "t",
+      "’",
+      "_",
+      "'",
+      "b",
+      ":",
+      "p",
+      "M",
+      "J",
+      "m",
+      "w",
+      "?",
+      "%",
+      "V",
+      ".",
+      "2",
+      "3",
+      ",",
+      "f",
+      ">",
+      "R",
+      "=",
+      "—",
+      "k",
+      "+",
+      "r",
+      "1",
+      "W",
+      "g",
+      "B",
+      "‘",
+      "@",
+      ")",
+      "a",
+      "X",
+      "n",
+      "C",
+      "G",
+      "c",
+      "5",
+      "!",
+      "v",
+      "z",
+      "u",
+      "|",
+      "<",
+      "h",
+      "y",
+      "4",
+      "o",
+      "x",
+      "7",
+      "U",
+      "0",
+      "s",
+      "S",
+      "(",
+      "~",
+      "9",
+      ";",
+      "#",
+      "6",
+      "8",
+      "e",
+      "*",
+      "E",
+      "A",
+      "\\",
+      "H",
+      "^",
+      "P",
+      "`",
+      "i",
+      "N",
+      "$",
+      "O",
+      "D",
+      "T",
+      "F",
+      "&",
+      "L",
+      "l",
+      "[",
+      "Y",
+      "]",
+      "{",
+      "K",
+      "Q",
+      "Z",
+      "}",
+      "I"
+    ],
+    "shape": [
+      "=",
+      "_",
+      "<",
+      ">",
+      "@",
+      "+",
+      "/",
+      "\\",
+      "`",
+      "^",
+      "”",
+      "“",
+      "%",
+      "\"",
+      "—",
+      "j",
+      "-",
+      "#",
+      "‘",
+      "'",
+      "J",
+      "d",
+      "X",
+      "q",
+      "’",
+      "{",
+      "V",
+      "t",
+      "*",
+      "~",
+      "?",
+      "b",
+      ":",
+      "p",
+      "$",
+      "M",
+      ";",
+      "m",
+      "w",
+      ".",
+      "R",
+      "2",
+      "}",
+      "W",
+      "3",
+      ",",
+      "f",
+      "k",
+      "r",
+      "1",
+      "&",
+      "g",
+      ")",
+      "G",
+      "B",
+      "|",
+      "!",
+      "U",
+      "a",
+      "n",
+      "C",
+      "[",
+      "c",
+      "5",
+      "7",
+      "v",
+      "z",
+      "u",
+      "4",
+      "]",
+      "h",
+      "y",
+      "6",
+      "(",
+      "o",
+      "9",
+      "8",
+      "x",
+      "0",
+      "s",
+      "S",
+      "H",
+      "Q",
+      "e",
+      "Z",
+      "E",
+      "A",
+      "Y",
+      "N",
+      "P",
+      "i",
+      "O",
+      "F",
+      "D",
+      "T",
+      "L",
+      "K",
+      "l",
+      "I"
+    ],
+    "both_freq": [
+      "-",
+      "”",
+      "“",
+      "t",
+      "d",
+      "’",
+      "q",
+      "j",
+      "w",
+      "M",
+      "b",
+      ")",
+      "p",
+      "/",
+      "'",
+      "f",
+      "\"",
+      "R",
+      "c",
+      "a",
+      "1",
+      "(",
+      "V",
+      "m",
+      "E",
+      "B",
+      "k",
+      ":",
+      "|",
+      "?",
+      "T",
+      "g",
+      "2",
+      "!",
+      ".",
+      "S",
+      "3",
+      "r",
+      "J",
+      "%",
+      "G",
+      "—",
+      "e",
+      "‘",
+      "z",
+      "F",
+      "W",
+      "5",
+      "X",
+      "4",
+      ",",
+      "D",
+      "A",
+      "I",
+      "_",
+      "o",
+      "L",
+      "O",
+      "C",
+      "n",
+      "x",
+      "P",
+      "u",
+      "U",
+      "y",
+      "*",
+      "@",
+      "9",
+      "6",
+      "~",
+      "h",
+      "+",
+      "s",
+      "v",
+      "&",
+      ">",
+      "#",
+      "[",
+      "]",
+      "=",
+      "7",
+      "0",
+      ";",
+      "Y",
+      "$",
+      "8",
+      "\\",
+      "N",
+      "^",
+      "`",
+      "Q",
+      "<",
+      "H",
+      "K",
+      "l",
+      "{",
+      "}",
+      "i",
+      "Z"
+    ],
+    "both": [
+      "@",
+      "`",
+      "^",
+      "—",
+      "\"",
+      "_",
+      "%",
+      "”",
+      "“",
+      "/",
+      "\\",
+      "'",
+      "-",
+      "‘",
+      "’",
+      "X",
+      "V",
+      "t",
+      "#",
+      "<",
+      "=",
+      ">",
+      "*",
+      "d",
+      "+",
+      ")",
+      "q",
+      "j",
+      "w",
+      "M",
+      "&",
+      "b",
+      "R",
+      "p",
+      "f",
+      "J",
+      "|",
+      "~",
+      "(",
+      "?",
+      "c",
+      "a",
+      "1",
+      "$",
+      "{",
+      "!",
+      "[",
+      "]",
+      "m",
+      "E",
+      "B",
+      "k",
+      "G",
+      ":",
+      "}",
+      "T",
+      "g",
+      "2",
+      "W",
+      ".",
+      "F",
+      "S",
+      "3",
+      "r",
+      "e",
+      ";",
+      "z",
+      "U",
+      "4",
+      "O",
+      "5",
+      ",",
+      "D",
+      "L",
+      "A",
+      "I",
+      "o",
+      "Q",
+      "C",
+      "Y",
+      "n",
+      "x",
+      "P",
+      "u",
+      "6",
+      "y",
+      "9",
+      "7",
+      "h",
+      "s",
+      "v",
+      "0",
+      "8",
+      "Z",
+      "N",
+      "H",
+      "K",
+      "l",
+      "i"
+    ]
+  },
+  "languages": {
+    "count": 108,
+    "rows": [
+      {
+        "id": "cmn",
+        "name": "Mandarin Chinese",
+        "speakers": 920000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "spa",
+        "name": "Spanish",
+        "speakers": 483000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "eng",
+        "name": "English",
+        "speakers": 400000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "hin",
+        "name": "Hindi",
+        "speakers": 322000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "arb",
+        "name": "Standard Arabic",
+        "speakers": 270000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "ben",
+        "name": "Bengali",
+        "speakers": 230000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "por",
+        "name": "Portuguese",
+        "speakers": 223000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "rus",
+        "name": "Russian",
+        "speakers": 150000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "swh",
+        "name": "Swahili",
+        "speakers": 150000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "jpn",
+        "name": "Japanese",
+        "speakers": 128000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "pan",
+        "name": "Panjabi",
+        "speakers": 125000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "deu",
+        "name": "German",
+        "speakers": 90000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ita",
+        "name": "Italian",
+        "speakers": 90000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "yue",
+        "name": "Yue",
+        "speakers": 84000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "mar",
+        "name": "Marathi",
+        "speakers": 83000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "jav",
+        "name": "Javanese",
+        "speakers": 82000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tel",
+        "name": "Telugu",
+        "speakers": 82000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "wuu",
+        "name": "Wu Chinese",
+        "speakers": 80000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "kor",
+        "name": "Korean",
+        "speakers": 77200000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "zlm",
+        "name": "Malaysian",
+        "speakers": 77000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "fra",
+        "name": "French",
+        "speakers": 76800000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "vie",
+        "name": "Vietnamese",
+        "speakers": 76000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tur",
+        "name": "Turkish",
+        "speakers": 75700000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "pnb",
+        "name": "Western Panjabi",
+        "speakers": 75500000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "tam",
+        "name": "Tamil",
+        "speakers": 75000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "urd",
+        "name": "Urdu",
+        "speakers": 68620000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "arz",
+        "name": "Egyptian Arabic",
+        "speakers": 64422000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "guj",
+        "name": "Gujarati",
+        "speakers": 56000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "pes",
+        "name": "Iranian Persian",
+        "speakers": 55600000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "bho",
+        "name": "Bhojpuri",
+        "speakers": 51000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "hak",
+        "name": "Hakka Chinese",
+        "speakers": 47800000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "fil",
+        "name": "Filipino",
+        "speakers": 45000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "mal",
+        "name": "Malayalam",
+        "speakers": 45000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "pol",
+        "name": "Polish",
+        "speakers": 45000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "kan",
+        "name": "Kannada",
+        "speakers": 44000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "ind",
+        "name": "Indonesian",
+        "speakers": 43000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "hau",
+        "name": "Hausa",
+        "speakers": 40000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "yor",
+        "name": "Yoruba",
+        "speakers": 40000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tha",
+        "name": "Thai",
+        "speakers": 36000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "ori",
+        "name": "Oriya",
+        "speakers": 35000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "ukr",
+        "name": "Ukrainian",
+        "speakers": 35000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "mai",
+        "name": "Maithili",
+        "speakers": 33900000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "mya",
+        "name": "Burmese",
+        "speakers": 33000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "zsm",
+        "name": "Standard Malay",
+        "speakers": 32772100,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "snd",
+        "name": "Sindhi",
+        "speakers": 32000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "sun",
+        "name": "Sundanese",
+        "speakers": 32000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ary",
+        "name": "Moroccan Arabic",
+        "speakers": 30551000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "lao",
+        "name": "Lao",
+        "speakers": 30000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "arq",
+        "name": "Algerian Arabic",
+        "speakers": 27000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "ibo",
+        "name": "Igbo",
+        "speakers": 27000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "uzn",
+        "name": "Northern Uzbek",
+        "speakers": 27000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ron",
+        "name": "Romanian",
+        "speakers": 26000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "skr",
+        "name": "Saraiki",
+        "speakers": 26000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "gaz",
+        "name": "West Central Oromo",
+        "speakers": 26000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "amc",
+        "name": "Amahuaca",
+        "speakers": 25700000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "mlg",
+        "name": "Malagasy",
+        "speakers": 25000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "nld",
+        "name": "Dutch",
+        "speakers": 24000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tgl",
+        "name": "Tagalog",
+        "speakers": 23800000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "azj",
+        "name": "North Azerbaijani",
+        "speakers": 23000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "aec",
+        "name": "Saidi Arabic",
+        "speakers": 22400000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "amh",
+        "name": "Amharic",
+        "speakers": 22000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "gan",
+        "name": "Gan",
+        "speakers": 22000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "pbu",
+        "name": "Northern Pashto",
+        "speakers": 21000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "mag",
+        "name": "Magahi",
+        "speakers": 20700000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "npi",
+        "name": "Nepali (individual language)",
+        "speakers": 19000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "fuv",
+        "name": "Nigerian Fulfulde",
+        "speakers": 17000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "sin",
+        "name": "Sinhala",
+        "speakers": 17000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "ceb",
+        "name": "Cebuano",
+        "speakers": 16000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ctg",
+        "name": "Chittagonian",
+        "speakers": 16000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "som",
+        "name": "Somali",
+        "speakers": 16000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "acm",
+        "name": "Iraqi Arabic",
+        "speakers": 15700000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "lin",
+        "name": "Lingala",
+        "speakers": 15000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "men",
+        "name": "Mende (Sierra Leone)",
+        "speakers": 15000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "kmr",
+        "name": "Northern Kurdish",
+        "speakers": 15000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "rkt",
+        "name": "Rangpuri",
+        "speakers": 15000000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "asm",
+        "name": "Assamese",
+        "speakers": 14800000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "azb",
+        "name": "South Azerbaijani",
+        "speakers": 13823350,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ell",
+        "name": "Modern Greek",
+        "speakers": 13400000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "hat",
+        "name": "Haitian",
+        "speakers": 13000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "hun",
+        "name": "Hungarian",
+        "speakers": 13000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "prs",
+        "name": "Dari",
+        "speakers": 12500000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "nya",
+        "name": "Nyanja",
+        "speakers": 12000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "zul",
+        "name": "Zulu",
+        "speakers": 12000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "kaz",
+        "name": "Kazakh",
+        "speakers": 11700000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "aeb",
+        "name": "Tunisian Arabic",
+        "speakers": 11200000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "ayn",
+        "name": "Sanaani Arabic",
+        "speakers": 11100000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "sna",
+        "name": "Shona",
+        "speakers": 10800000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tir",
+        "name": "Tigrinya",
+        "speakers": 10800000,
+        "a": false,
+        "b": false
+      },
+      {
+        "id": "ces",
+        "name": "Czech",
+        "speakers": 10700000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "acq",
+        "name": "Ta’izzi-Adeni Arabic",
+        "speakers": 10480000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "uig",
+        "name": "Uighur",
+        "speakers": 10400000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "kik",
+        "name": "Kikuyu",
+        "speakers": 10000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "que",
+        "name": "Quechua",
+        "speakers": 10000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "swe",
+        "name": "Swedish",
+        "speakers": 10000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "kin",
+        "name": "Kinyarwanda",
+        "speakers": 9800000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "srp",
+        "name": "Serbian",
+        "speakers": 9500000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "umb",
+        "name": "Umbundu",
+        "speakers": 9500000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "hil",
+        "name": "Hiligaynon",
+        "speakers": 9300000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ilo",
+        "name": "Iloko",
+        "speakers": 9100000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "bul",
+        "name": "Bulgarian",
+        "speakers": 9000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "heb",
+        "name": "Hebrew",
+        "speakers": 9000000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "twi",
+        "name": "Twi",
+        "speakers": 9000000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "run",
+        "name": "Rundi",
+        "speakers": 8800000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "ayp",
+        "name": "North Mesopotamian Arabic",
+        "speakers": 8700000,
+        "a": false,
+        "b": true
+      },
+      {
+        "id": "kau",
+        "name": "Kanuri",
+        "speakers": 8600000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "kln",
+        "name": "Kalenjin",
+        "speakers": 8561574,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "gaa",
+        "name": "Ga",
+        "speakers": 8500000,
+        "a": true,
+        "b": true
+      },
+      {
+        "id": "tgk",
+        "name": "Tajik",
+        "speakers": 8400000,
+        "a": true,
+        "b": true
+      }
+    ],
+    "english": {
+      "script": "Latin (Latn)",
+      "categories": {
+        "base": {
+          "tokens": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L",
+            "M",
+            "N",
+            "O",
+            "P",
+            "Q",
+            "R",
+            "S",
+            "T",
+            "U",
+            "V",
+            "W",
+            "X",
+            "Y",
+            "Z",
+            "Æ",
+            "Œ",
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "j",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "q",
+            "r",
+            "s",
+            "t",
+            "u",
+            "v",
+            "w",
+            "x",
+            "y",
+            "z",
+            "æ",
+            "œ"
+          ],
+          "a": [56, 56],
+          "b": [56, 56],
+          "missing_a": [],
+          "missing_b": []
+        },
+        "auxiliary": {
+          "tokens": [
+            "À",
+            "Á",
+            "Ç",
+            "È",
+            "É",
+            "Ê",
+            "Ë",
+            "Ï",
+            "Ñ",
+            "Ô",
+            "Ö",
+            "à",
+            "á",
+            "ç",
+            "è",
+            "é",
+            "ê",
+            "ë",
+            "ï",
+            "ñ",
+            "ô",
+            "ö"
+          ],
+          "a": [22, 22],
+          "b": [22, 22],
+          "missing_a": [],
+          "missing_b": []
+        },
+        "numerals": {
+          "tokens": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "+",
+            "−",
+            "±",
+            "÷",
+            "×",
+            "=",
+            "≈",
+            "≠",
+            "%",
+            "‰"
+          ],
+          "a": [20, 20],
+          "b": [20, 20],
+          "missing_a": [],
+          "missing_b": []
+        },
+        "punctuation": {
+          "tokens": [
+            ".",
+            ",",
+            ":",
+            ";",
+            "!",
+            "?",
+            "-",
+            "‐",
+            "–",
+            "—",
+            "_",
+            "~",
+            "(",
+            ")",
+            "[",
+            "]",
+            "{",
+            "}",
+            "/",
+            "|",
+            "¦",
+            "\\",
+            "'",
+            "\"",
+            "^",
+            "§",
+            "•",
+            "¶",
+            "#",
+            "&",
+            "@",
+            "©",
+            "®",
+            "™",
+            "′",
+            "″",
+            "°",
+            "…",
+            "*",
+            "·",
+            "‘",
+            "’",
+            "“",
+            "”"
+          ],
+          "a": [44, 44],
+          "b": [43, 44],
+          "missing_a": [],
+          "missing_b": ["‐"]
+        },
+        "currency": {
+          "tokens": ["¤", "€", "$", "¢", "£"],
+          "a": [5, 5],
+          "b": [5, 5],
+          "missing_a": [],
+          "missing_b": []
+        }
+      }
+    },
+    "hausa": {
+      "a": false,
+      "b": true,
+      "base": "A B C D E F G H I J K L M N O R S T U W Y Z Ƙ Ƴ Ɓ Ɗ R̃ a b c d e f g h i j k l m n o r s t u w y z ƙ ƴ ɓ ɗ r̃ ʼ"
+    },
+    "version": "0.8.1"
+  },
+  "sample": "\n“Well, this *is* grand!” said Alice. “I never expected I should be a Queen so soon—and I’ll tell you what it is, your majesty,” she went on in a severe tone (she was always rather fond of scolding herself), “it’ll never do for you to be lolling about on the grass like that! Queens have to be dignified, you know!”\n\nSo she got up and walked about—rather stiffly just at first, as she was afraid that the crown might come off: but she comforted herself with the thought that there was nobody to see her, “and if I really am a Queen,” she said as she sat down again, “I shall be able to manage it quite well in time.”\n\nEverything was happening so oddly that she didn’t feel a bit surprised at finding the Red Queen and the White Queen sitting close to her, one on each side: she would have liked very much to ask them how they came there, but she feared it would not be quite civil. However, there would be no harm, she thought, in asking if the game was over. “Please, would you tell me—” she began, looking timidly at the Red Queen.\n\n“Speak when you’re spoken to!” The Queen sharply interrupted her.\n\n“But if everybody obeyed that rule,” said Alice, who was always ready for a little argument, “and if you only spoke when you were spoken to, and the other person always waited for *you* to begin, you see nobody would ever say anything, so that—”\n\n“Ridiculous!” cried the Queen. “Why, don’t you see, child—” here she broke off with a frown, and, after thinking for a minute, suddenly changed the subject of the conversation. “What do you mean by ‘If you really are a Queen’? What right have you to call yourself so? You can’t be a Queen, you know, till you’ve passed the proper examination. And the sooner we begin it, the better.”\n\n“I only said ‘if’!” poor Alice pleaded in a piteous tone.\n\nThe two Queens looked at each other, and the Red Queen remarked, with a little shudder, “She *says* she only said ‘if’—”\n\n“But she said a great deal more than that!” the White Queen moaned, wringing her hands. “Oh, ever so much more than that!”\n\n“So you did, you know,” the Red Queen said to Alice. “Always speak the truth—think before you speak—and write it down afterwards.”\n\n“I’m sure I didn’t mean—” Alice was beginning, but the Red Queen interrupted her impatiently.\n\n“That’s just what I complain of! You *should* have meant! What do you suppose is the use of child without any meaning? Even a joke should have some meaning—and a child’s more important than a joke, I hope. You couldn’t deny that, even if you tried with both hands.”\n\n“I don’t deny things with my *hands*,” Alice objected.\n\n“Nobody said you did,” said the Red Queen. “I said you couldn’t if you tried.”\n\n“She’s in that state of mind,” said the White Queen, “that she wants to deny *something*—only she doesn’t know what to deny!”\n\n“A nasty, vicious temper,” the Red Queen remarked; and then there was an uncomfortable silence for a minute or two.\n\nThe Red Queen broke the silence by saying to the White Queen, “I invite you to Alice’s dinner-party this afternoon.”\n\nThe White Queen smiled feebly, and said “And I invite *you*.”\n\n“I didn’t know I was to have a party at all,” said Alice; “but if there is to be one, I think *I* ought to invite the guests.”\n\n“We gave you the opportunity of doing it,” the Red Queen remarked: “but I daresay you’ve not had many lessons in manners yet?”\n\n“Manners are not taught in lessons,” said Alice. “Lessons teach you to do sums, and things of that sort.”\n\n“And you do Addition?” the White Queen asked. “What’s one and one and one and one and one and one and one and one and one and one?”\n\n“I don’t know,” said Alice. “I lost count.”\n\n“She can’t do Addition,” the Red Queen interrupted. “Can you do Subtraction? Take nine from eight.”\n\n“Nine from eight I can’t, you know,” Alice replied very readily: “but—”\n\n“She can’t do Subtraction,” said the White Queen. “Can you do Division? Divide a loaf by a knife—what’s the answer to that?”\n\n“I suppose—” Alice was beginning, but the Red Queen answered for her. “Bread-and-butter, of course. Try another Subtraction sum. Take a bone from a dog: what remains?”\n\nAlice considered. “The bone wouldn’t remain, of course, if I took it—and the dog wouldn’t remain; it would come to bite me—and I’m sure *I* shouldn’t remain!”\n\n“Then you think nothing would remain?” said the Red Queen.\n\n“I think that’s the answer.”\n\n“Wrong, as usual,” said the Red Queen: “the dog’s temper would remain.”\n\n“But I don’t see how—”\n\n“Why, look here!” the Red Queen cried. “The dog would lose its temper, wouldn’t it?”\n\n“Perhaps it would,” Alice replied cautiously.\n\n“Then if the dog went away, its temper would remain!” the Queen exclaimed triumphantly.\n\nAlice said, as gravely as she could, “They might go different ways.” But she couldn’t help thinking to herself, “What dreadful nonsense we *are* talking!”\n\n“She can’t do sums a *bit*!” the Queens said together, with great emphasis.\n\n“Can *you* do sums?” Alice said, turning suddenly on the White Queen, for she didn’t like being found fault with so much.\n\nThe Queen gasped and shut her eyes. “I can do Addition, if you give me time—but I can’t do Subtraction, under *any* circumstances!”\n\n“Of course you know your A B C?” said the Red Queen.\n\n“To be sure I do.” said Alice.\n\n“So do I,” the White Queen whispered: “we’ll often say it over together, dear. And I’ll tell you a secret—I can read words of one letter! Isn’t *that* grand! However, don’t be discouraged. You’ll come to it in time.”\n\nHere the Red Queen began again. “Can you answer useful questions?” she said. “How is bread made?”\n\n“I know *that*!” Alice cried eagerly. “You take some flour—”\n\n“Where do you pick the flower?” the White Queen asked. “In a garden, or in the hedges?”\n\n“Well, it isn’t *picked* at all,” Alice explained: “it’s *ground*—”\n\n“How many acres of ground?” said the White Queen. “You mustn’t leave out so many things.”\n\n“Fan her head!” the Red Queen anxiously interrupted. “She’ll be feverish after so much thinking.” So they set to work and fanned her with bunches of leaves, till she had to beg them to leave off, it blew her hair about so.\n\n“She’s all right again now,” said the Red Queen. “Do you know Languages? What’s the French for fiddle-de-dee?”\n\n“Fiddle-de-dee’s not English,” Alice replied gravely.\n\n“Who ever said it was?” said the Red Queen.\n\nAlice thought she saw a way out of the difficulty this time. “If you’ll tell me what language ‘fiddle-de-dee’ is, I’ll tell you the French for it!” she exclaimed triumphantly.\n\nBut the Red Queen drew herself up rather stiffly, and said “Queens never make bargains.”\n\n“I wish Queens never asked questions,” Alice thought to herself.\n\n“Don’t let us quarrel,” the White Queen said in an anxious tone. “What is the cause of lightning?”\n\n“The cause of lightning,” Alice said very decidedly, for she felt quite certain about this, “is the thunder—no, no!” she hastily corrected herself. “I meant the other way.”\n\n“It’s too late to correct it,” said the Red Queen: “when you’ve once said a thing, that fixes it, and you must take the consequences.”\n\n“Which reminds me—” the White Queen said, looking down and nervously clasping and unclasping her hands, “we had *such* a thunderstorm last Tuesday—I mean one of the last set of Tuesdays, you know.”\n\nAlice was puzzled. “In *our* country,” she remarked, “there’s only one day at a time.”\n\nThe Red Queen said, “That’s a poor thin way of doing things. Now *here*, we mostly have days and nights two or three at a time, and sometimes in the winter we take as many as five nights together—for warmth, you know.”\n\n“Are five nights warmer than one night, then?” Alice ventured to ask.\n\n“Five times as warm, of course.”\n\n“But they should be five times as *cold*, by the same rule—”\n\n“Just so!” cried the Red Queen. “Five times as warm, *and* five times as cold—just as I’m five times as rich as you are, *and* five times as clever!”\n\nAlice sighed and gave it up. “It’s exactly like a riddle with no answer!” she thought.\n\n“Humpty Dumpty saw it too,” the White Queen went on in a low voice, more as if she were talking to herself. “He came to the door with a corkscrew in his hand—”\n\n“What did he want?” said the Red Queen.\n\n“He said he *would* come in,” the White Queen went on, “because he was looking for a hippopotamus. Now, as it happened, there wasn’t such a thing in the house, that morning.”\n\n“Is there generally?” Alice asked in an astonished tone.\n\n“Well, only on Thursdays,” said the Queen.\n\n“I know what he came for,” said Alice: “he wanted to punish the fish, because—”\n\nHere the White Queen began again. “It was *such* a thunderstorm, you can’t think!” (“She *never* could, you know,” said the Red Queen.) “And part of the roof came off, and ever so much thunder got in—and it went rolling round the room in great lumps—and knocking over the tables and things—till I was so frightened, I couldn’t remember my own name!”\n\nAlice thought to herself, “I never should *try* to remember my name in the middle of an accident! Where would be the use of it?” but she did not say this aloud, for fear of hurting the poor Queen’s feeling.\n\n“Your Majesty must excuse her,” the Red Queen said to Alice, taking one of the White Queen’s hands in her own, and gently stroking it: “she means well, but she can’t help saying foolish things, as a general rule.”\n\nThe White Queen looked timidly at Alice, who felt she *ought* to say something kind, but really couldn’t think of anything at the moment.\n\n“She never was really well brought up,” the Red Queen went on: “but it’s amazing how good-tempered she is! Pat her on the head, and see how pleased she’ll be!” But this was more than Alice had courage to do.\n\n“A little kindness—and putting her hair in papers—would do wonders with her—”\n\nThe White Queen gave a deep sigh, and laid her head on Alice’s shoulder. “I *am* so sleepy!” she moaned.\n\n“She’s tired, poor thing!” said the Red Queen. “Smooth her hair—lend her your nightcap—and sing her a soothing lullaby.”\n\n“I haven’t got a nightcap with me,” said Alice, as she tried to obey the first direction: “and I don’t know any soothing lullabies.”\n\n“I must do it myself, then,” said the Red Queen, and she began:\n\n“Hush-a-by lady, in Alice’s lap!\nTill the feast’s ready, we’ve time for a nap:\nWhen the feast’s over, we’ll go to the ball—\nRed Queen, and White Queen, and Alice, and all!\n\n“And now you know the words,” she added, as she put her head down on Alice’s other shoulder, “just sing it through to *me*. I’m getting sleepy, too.” In another moment both Queens were fast asleep, and snoring loud.\n\n“What *am* I to do?” exclaimed Alice, looking about in great perplexity, as first one round head, and then the other, rolled down from her shoulder, and lay like a heavy lump in her lap. “I don’t think it *ever* happened before, that any one had to take care of two Queens asleep at once! No, not in all the History of England—it couldn’t, you know, because there never was more than one Queen at a time. Do wake up, you heavy things!” she went on in an impatient tone; but there was no answer but a gentle snoring.\n\nThe snoring got more distinct every minute, and sounded more like a tune: at last she could even make out the words, and she listened so eagerly that, when the two great heads vanished from her lap, she hardly missed them.\n\nShe was standing before an arched doorway over which were the words QUEEN ALICE in large letters, and on each side of the arch there was a bell-handle; one was marked “Visitors’ Bell,” and the other “Servants’ Bell.”\n\n“I’ll wait till the song’s over,” thought Alice, “and then I’ll ring—the—*which* bell must I ring?” she went on, very much puzzled by the names. “I’m not a visitor, and I’m not a servant. There *ought* to be one marked ‘Queen,’ you know—”\n\nJust then the door opened a little way, and a creature with a long beak put its head out for a moment and said “No admittance till the week after next!” and shut the door again with a bang.\n\nAlice knocked and rang in vain for a long time, but at last, a very old Frog, who was sitting under a tree, got up and hobbled slowly towards her: he was dressed in bright yellow, and had enormous boots on.\n\n“What is it, now?” the Frog said in a deep hoarse whisper.\n\nAlice turned round, ready to find fault with anybody. “Where’s the servant whose business it is to answer the door?” she began angrily.\n\n“Which door?” said the Frog.\n\nAlice almost stamped with irritation at the slow drawl in which he spoke. “*This* door, of course!”\n\nThe Frog looked at the door with his large dull eyes for a minute: then he went nearer and rubbed it with his thumb, as if he were trying whether the paint would come off; then he looked at Alice.\n\n“To answer the door?” he said. “What’s it been asking of?” He was so hoarse that Alice could scarcely hear him.\n\n“I don’t know what you mean,” she said.\n\n“I talks English, doesn’t I?” the Frog went on. “Or are you deaf? What did it ask you?”\n\n“Nothing!” Alice said impatiently. “I’ve been knocking at it!”\n\n“Shouldn’t do that—shouldn’t do that—” the Frog muttered. “Vexes it, you know.” Then he went up and gave the door a kick with one of his great feet. “You let *it* alone,” he panted out, as he hobbled back to his tree, “and it’ll let *you* alone, you know.”\n\nAt this moment the door was flung open, and a shrill voice was heard singing:\n\n“To the Looking-Glass world it was Alice that said,\n‘I’ve a sceptre in hand, I’ve a crown on my head;\nLet the Looking-Glass creatures, whatever they be,\nCome and dine with the Red Queen, the White Queen, and me.’”\n\nAnd hundreds of voices joined in the chorus:\n\n“Then fill up the glasses as quick as you can,\nAnd sprinkle the table with buttons and bran:\nPut cats in the coffee, and mice in the tea—\nAnd welcome Queen Alice with thirty-times-three!”\n\nThen followed a confused noise of cheering, and Alice thought to herself, “Thirty times three makes ninety. I wonder if any one’s counting?” In a minute there was silence again, and the same shrill voice sang another verse;\n\n“‘O Looking-Glass creatures,’ quoth Alice, ‘draw near!\n’Tis an honour to see me, a favour to hear:\n’Tis a privilege high to have dinner and tea\nAlong with the Red Queen, the White Queen, and me!’”\n\nThen came the chorus again:—\n\n“Then fill up the glasses with treacle and ink,\nOr anything else that is pleasant to drink:\nMix sand with the cider, and wool with the wine—\nAnd welcome Queen Alice with ninety-times-nine!”\n\n“Ninety times nine!” Alice repeated in despair, “Oh, that’ll never be done! I’d better go in at once—” and there was a dead silence the moment she appeared.\n\nAlice glanced nervously along the table, as she walked up the large hall, and noticed that there were about fifty guests, of all kinds: some were animals, some birds, and there were even a few flowers among them. “I’m glad they’ve come without waiting to be asked,” she thought: “I should never have known who were the right people to invite!”\n\nThere were three chairs at the head of the table; the Red and White Queens had already taken two of them, but the middle one was empty. Alice sat down in it, rather uncomfortable in the silence, and longing for some one to speak.\n\nAt last the Red Queen began. “You’ve missed the soup and fish,” she said. “Put on the joint!” And the waiters set a leg of mutton before Alice, who looked at it rather anxiously, as she had never had to carve a joint before.\n\n“You look a little shy; let me introduce you to that leg of mutton,” said the Red Queen. “Alice—Mutton; Mutton—Alice.” The leg of mutton got up in the dish and made a little bow to Alice; and Alice returned the bow, not knowing whether to be frightened or amused.\n\n“May I give you a slice?” she said, taking up the knife and fork, and looking from one Queen to the other.\n\n“Certainly not,” the Red Queen said, very decidedly: “it isn’t etiquette to cut any one you’ve been introduced to. Remove the joint!” And the waiters carried it off, and brought a large plum-pudding in its place.\n\n“I won’t be introduced to the pudding, please,” Alice said rather hastily, “or we shall get no dinner at all. May I give you some?”\n\nBut the Red Queen looked sulky, and growled “Pudding—Alice; Alice—Pudding. Remove the pudding!” and the waiters took it away so quickly that Alice couldn’t return its bow.\n\nHowever, she didn’t see why the Red Queen should be the only one to give orders, so, as an experiment, she called out “Waiter! Bring back the pudding!” and there it was again in a moment like a conjuring-trick. It was so large that she couldn’t help feeling a *little* shy with it, as she had been with the mutton; however, she conquered her shyness by a great effort and cut a slice and handed it to the Red Queen.\n\n“What impertinence!” said the Pudding. “I wonder how you’d like it, if I were to cut a slice out of *you*, you creature!”\n\nIt spoke in a thick, suety sort of voice, and Alice hadn’t a word to say in reply: she could only sit and look at it and gasp.\n\n“Make a remark,” said the Red Queen: “it’s ridiculous to leave all the conversation to the pudding!”\n\n“Do you know, I’ve had such a quantity of poetry repeated to me to-day,” Alice began, a little frightened at finding that, the moment she opened her lips, there was dead silence, and all eyes were fixed upon her; “and it’s a very curious thing, I think—every poem was about fishes in some way. Do you know why they’re so fond of fishes, all about here?”\n\nShe spoke to the Red Queen, whose answer was a little wide of the mark. “As to fishes,” she said, very slowly and solemnly, putting her mouth close to Alice’s ear, “her White Majesty knows a lovely riddle—all in poetry—all about fishes. Shall she repeat it?”\n\n“Her Red Majesty’s very kind to mention it,” the White Queen murmured into Alice’s other ear, in a voice like the cooing of a pigeon. “It would be *such* a treat! May I?”\n\n“Please do,” Alice said very politely.\n\nThe White Queen laughed with delight, and stroked Alice’s cheek. Then she began:\n\n“‘First, the fish must be caught.’\nThat is easy: a baby, I think, could have caught it.\n‘Next, the fish must be bought.’\nThat is easy: a penny, I think, would have bought it.\n\n‘Now cook me the fish!’\nThat is easy, and will not take more than a minute.\n‘Let it lie in a dish!’\nThat is easy, because it already is in it.\n\n‘Bring it here! Let me sup!’\nIt is easy to set such a dish on the table.\n‘Take the dish-cover up!’\nAh, that is so hard that I fear I’m unable!\n\nFor it holds it like glue—\nHolds the lid to the dish, while it lies in the middle:\nWhich is easiest to do,\nUn-dish-cover the fish, or dishcover the riddle?”\n\n“Take a minute to think about it, and then guess,” said the Red Queen. “Meanwhile, we’ll drink your health—Queen Alice’s health!” she screamed at the top of her voice, and all the guests began drinking it directly, and very queerly they managed it: some of them put their glasses upon their heads like extinguishers, and drank all that trickled down their faces—others upset the decanters, and drank the wine as it ran off the edges of the table—and three of them (who looked like kangaroos) scrambled into the dish of roast mutton, and began eagerly lapping up the gravy, “just like pigs in a trough!” thought Alice.\n\n“You ought to return thanks in a neat speech,” the Red Queen said, frowning at Alice as she spoke.\n\n“We must support you, you know,” the White Queen whispered, as Alice got up to do it, very obediently, but a little frightened.\n\n“Thank you very much,” she whispered in reply, “but I can do quite well without.”\n\n“That wouldn’t be at all the thing,” the Red Queen said very decidedly: so Alice tried to submit to it with a good grace.\n\n(“And they *did* push so!” she said afterwards, when she was telling her sister the history of the feast. “You would have thought they wanted to squeeze me flat!”)\n\nIn fact it was rather difficult for her to keep in her place while she made her speech: the two Queens pushed her so, one on each side, that they nearly lifted her up into the air: “I rise to return thanks—” Alice began: and she really *did* rise as she spoke, several inches; but she got hold of the edge of the table, and managed to pull herself down again.\n\n“Take care of yourself!” screamed the White Queen, seizing Alice’s hair with both her hands. “Something’s going to happen!”\n\nAnd then (as Alice afterwards described it) all sorts of things happened in a moment. The candles all grew up to the ceiling, looking something like a bed of rushes with fireworks at the top. As to the bottles, they each took a pair of plates, which they hastily fitted on as wings, and so, with forks for legs, went fluttering about in all directions: “and very like birds they look,” Alice thought to herself, as well as she could in the dreadful confusion that was beginning.\n\nAt this moment she heard a hoarse laugh at her side, and turned to see what was the matter with the White Queen; but, instead of the Queen, there was the leg of mutton sitting in the chair. “Here I am!” cried a voice from the soup tureen, and Alice turned again, just in time to see the Queen’s broad good-natured face grinning at her for a moment over the edge of the tureen, before she disappeared into the soup.\n\nThere was not a moment to be lost. Already several of the guests were lying down in the dishes, and the soup ladle was walking up the table towards Alice’s chair, and beckoning to her impatiently to get out of its way.\n\n“I can’t stand this any longer!” she cried as she jumped up and seized the table-cloth with both hands: one good pull, and plates, dishes, guests, and candles came crashing down together in a heap on the floor.\n\n“And as for *you*,” she went on, turning fiercely upon the Red Queen, whom she considered as the cause of all the mischief—but the Queen was no longer at her side—she had suddenly dwindled down to the size of a little doll, and was now on the table, merrily running round and round after her own shawl, which was trailing behind her.\n\nAt any other time, Alice would have felt surprised at this, but she was far too much excited to be surprised at anything *now*. “As for *you*,” she repeated, catching hold of the little creature in the very act of jumping over a bottle which had just lighted upon the table, “I’ll shake you into a kitten, that I will!”\n"
+}

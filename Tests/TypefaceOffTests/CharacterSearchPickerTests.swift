@@ -288,6 +288,16 @@ import TypefaceCore
 
 private struct FindCharacterProbe: View {
   let model: WorkbenchModel
+
+  var body: some View {
+    VStack {
+      FindCharacterActions()
+      WorkbenchView(model: model)
+    }
+  }
+}
+
+private struct FindCharacterActions: View {
   @FocusedValue(\.workbenchActions) private var actions
 
   var body: some View {
@@ -296,7 +306,6 @@ private struct FindCharacterProbe: View {
         .disabled(actions == nil)
       Button("Probe focus Font A") { actions?.focusFont(.a) }
         .disabled(actions == nil)
-      WorkbenchView(model: model)
     }
   }
 }

@@ -20,7 +20,7 @@ struct FontFamilyTable: NSViewRepresentable {
     scroll.autohidesScrollers = true
     scroll.drawsBackground = true
     scroll.backgroundColor = NSColor(WorkbenchStyle.paper)
-    let table = FontFamilyTableView()
+    let table = PickerTableView()
     table.addTableColumn(NSTableColumn(identifier: .init("Family")))
     table.autoresizingMask = [.width]
     table.headerView = nil
@@ -36,24 +36,32 @@ struct FontFamilyTable: NSViewRepresentable {
   }
 
   func updateNSView(_ scroll: NSScrollView, context: Context) {
-    let table = scroll.documentView as! FontFamilyTableView
+    let table = scroll.documentView as! PickerTableView
     let coordinator = context.coordinator
+    let oldSelection = coordinator.selection
     coordinator.parent = self
+    coordinator.selection = selection
     coordinator.updating = true
     defer { coordinator.updating = false }
     table.confirm = confirm
     table.cancel = cancel
+    let origin = scroll.contentView.bounds.origin
     table.reloadData()
     if let selection, let row = choices.firstIndex(of: selection) {
       table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-      table.scrollRowToVisible(row)
+      if oldSelection != selection {
+        table.scrollRowToVisible(row)
+        return
+      }
     } else {
       table.deselectAll(nil)
     }
+    scroll.contentView.scroll(to: origin)
   }
 
   @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     var parent: FontFamilyTable
+    var selection: FontFamilyPicker.Choice?
     var updating = false
     private var fonts: [String: NSFont] = [:]
 
@@ -69,7 +77,7 @@ struct FontFamilyTable: NSViewRepresentable {
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-      FontFamilySelectionRow()
+      PickerSelectionRow()
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
@@ -112,26 +120,6 @@ struct FontFamilyTable: NSViewRepresentable {
       fonts[choice.title] = font
       return font
     }
-  }
-}
-
-final class FontFamilyTableView: NSTableView {
-  var confirm: (() -> Void)?
-  var cancel: (() -> Void)?
-
-  override func keyDown(with event: NSEvent) {
-    switch event.keyCode {
-    case 36: confirm!()
-    case 53: cancel!()
-    default: super.keyDown(with: event)
-    }
-  }
-}
-
-private final class FontFamilySelectionRow: NSTableRowView {
-  override func drawSelection(in dirtyRect: NSRect) {
-    NSColor.unemphasizedSelectedContentBackgroundColor.setFill()
-    NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 1), xRadius: 4, yRadius: 4).fill()
   }
 }
 

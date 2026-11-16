@@ -39,8 +39,9 @@ struct CharacterSearchPicker: View {
       content
     }
     .frame(width: 440, height: 460)
-    .background(WorkbenchStyle.sheet)
-    .environment(\.colorScheme, .light)
+    .background(WorkbenchStyle.paper)
+    .foregroundStyle(WorkbenchStyle.ink).tint(WorkbenchStyle.ink)
+    .preferredColorScheme(.light)
     .task(id: request) { await search.update(request) }
     .onChange(of: search.answer) { _, answer in
       guard let answer, answer.request == request else { return }
@@ -59,13 +60,13 @@ struct CharacterSearchPicker: View {
         verbatim:
           "Search by name, such as “left arrow”; by character, such as é; or by code point, such as U+2192."
       )
-      .multilineTextAlignment(.center).foregroundStyle(.secondary).padding()
+      .multilineTextAlignment(.center).foregroundStyle(WorkbenchStyle.secondaryInk).padding()
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .accessibilityIdentifier("Character search hint")
     } else if let answer = search.answer, !answer.results.isEmpty {
       list(answer)
     } else if isAnswered {
-      Text("No matching characters").foregroundStyle(.secondary)
+      Text("No matching characters").foregroundStyle(WorkbenchStyle.secondaryInk)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("No matching characters")
     } else {
@@ -75,27 +76,10 @@ struct CharacterSearchPicker: View {
   }
 
   private func list(_ answer: CharacterSearchModel.Answer) -> some View {
-    let names = CharacterSearchRow.names(of: answer.request.fonts)
-    return ScrollViewReader { proxy in
-      List(answer.results, selection: $selection) { result in
-        Button {
-          choose(result.glyph)
-        } label: {
-          CharacterSearchRow(
-            result: result, fonts: answer.request.fonts, names: names,
-            spacingOnly: comparison.spacing && !comparison.shape)
-        }.buttonStyle(.plain)
-          .accessibilityLabel(Text(verbatim: CharacterSearchRow.label(result, names: names)))
-          .tag(result.id).id(result.id)
-      }
-      .onKeyPress(.return) {
-        confirm()
-        return .handled
-      }
-      .onChange(of: selection) { _, id in
-        if let id { proxy.scrollTo(id) }
-      }
-    }
+    CharacterSearchTable(
+      results: answer.results, fonts: answer.request.fonts, selection: $selection,
+      spacingOnly: comparison.spacing && !comparison.shape, choose: choose, confirm: confirm,
+      cancel: { dismiss() })
   }
 
   private func move(_ offset: Int) {

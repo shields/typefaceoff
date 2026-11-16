@@ -5,6 +5,29 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct FontFamilyPickerTests {
+  @Test func refreshingRowsPreservesBrowsingAwayFromTheSelectedFont() async throws {
+    let choices = (0..<80).map { FontFamilyPicker.Choice.family("Family \($0)") }
+    let catalog = FontCatalog()
+    func content(current: String?) -> FontFamilyTable {
+      FontFamilyTable(
+        choices: choices, currentFamily: current, selection: .constant(choices[0]),
+        similarity: nil, catalog: catalog, choose: { _ in }, confirm: {}, cancel: {})
+    }
+    let host = WorkbenchTestHost(content(current: nil), width: 300, height: 400)
+    defer { host.window.close() }
+    try await host.settle()
+    let table = try #require(host.subviews.compactMap { $0 as? PickerTableView }.first)
+    let scroll = try #require(table.enclosingScrollView)
+    table.scrollRowToVisible(40)
+    try await host.settle()
+    let origin = scroll.contentView.bounds.origin
+    #expect(origin.y > 0 && table.selectedRow == 0)
+    host.setContent(content(current: choices[1].family))
+    try await host.settle()
+    #expect(scroll.contentView.bounds.origin == origin)
+    #expect(table.selectedRow == 0)
+  }
+
   @Test func rowsUseTheirOwnFaceAndExposeCurrentFontAndDistances() async throws {
     let ranking = FamilySimilarityModel { _, _, _ in
       AsyncThrowingStream {

@@ -7,19 +7,6 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite @MainActor struct WorkbenchTests {
-  @Test(arguments: ["en_US", "de_DE", "fr_FR"])
-  func sharedSizeUsesTheDisplayLocale(identifier: String) throws {
-    let locale = Locale(identifier: identifier)
-    let text = SharedSizeFormat.style(locale: locale).format(22.5)
-    #expect(text == (identifier == "en_US" ? "22.5" : "22,5"))
-    #expect(SharedSizeFormat.parse(text, locale: locale) == 22.5)
-    #expect(SharedSizeFormat.parse("44", locale: locale) == 44)
-    #expect(SharedSizeFormat.parse("invalid", locale: locale) == nil)
-    #expect(SharedSizeFormat.parse("22garbage", locale: locale) == nil)
-    #expect(SharedSizeFormat.parse("NaN", locale: locale) == nil)
-    #expect(SharedSizeFormat.parse("∞", locale: locale) == nil)
-  }
-
   @Test func interactiveSpecimenPreservesLigaturesAndMissingCharacterIdentity() {
     let config = FontConfiguration("HelveticaNeue")
     let sample = SpecimenText.makeContent(config: config, text: "fi")

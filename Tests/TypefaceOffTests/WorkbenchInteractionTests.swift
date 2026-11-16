@@ -88,7 +88,16 @@ import TypefaceCore
       try await host.element("Font B Optimize tracking").accessibilityFrame?())
     #expect(size.minY > spacing.minY && spacing.minY > tracking.minY)
     try await host.press("Font B Optimize leading")
-    try await host.settle { !fit.running && fit.result?.improved == true }
+    let (states, continuation) = AsyncStream<Bool>.makeStream()
+    let subscription = fit.$running.sink { continuation.yield($0) }
+    defer {
+      subscription.cancel()
+      continuation.finish()
+    }
+    for await running in states {
+      if !running { break }
+    }
+    try await host.settle { host.isEnabled("Apply") }
     var expected = try #require(comparison.b)
     expected.leading = FontRenderer.leading(comparison.a)
     #expect(fit.result?.proposed == expected)
@@ -137,13 +146,17 @@ import TypefaceCore
 
   @Test func inspectorAppearanceAndTypographyActionsRespectUndoAndIsolation() async throws {
     let model = WorkbenchModel()
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: 900)
     defer { host.window.close() }
     try await host.settle()
-    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
-      #expect(try await host.element(name).isAccessibilityEnabled?() == false)
+    for name in [
+      "Reset appearance section", "Reset paired size", "Reset paired tracking",
+      "Reset typography section",
+    ] {
+      #expect(!host.isEnabled(name))
     }
-    try await host.press("Unlock appearance")
+    try await host.press("Inspector appearance link")
     try await host.settle { !model.comparison.appearanceLocked }
     #expect(!model.comparison.appearanceLocked)
     model.edit("Configure sample", undoManager: nil) {
@@ -153,37 +166,43 @@ import TypefaceCore
     }
     try await host.settle {
       host.subviews.compactMap { $0 as? NSTextField }.contains {
-        $0.placeholderString == "Size" && $0.stringValue == "48"
+        $0.accessibilityIdentifier() == "Font A Inspector Size field" && $0.stringValue == "48"
       }
     }
-    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
-      #expect(try await host.element(name).isAccessibilityEnabled?() == true)
+    for name in [
+      "Reset appearance section", "Reset paired size", "Reset paired tracking",
+      "Reset typography section",
+    ] {
+      #expect(host.isEnabled(name))
     }
-    try await host.press("Reset size")
+    try await host.press("Reset paired size")
     try await host.settle { model.comparison.a.size == 22 }
     #expect(model.comparison.a.size == 22)
-    try await host.press("Reset tracking")
+    try await host.press("Reset paired tracking")
     try await host.settle { model.comparison.a.tracking == 0 }
     #expect(model.comparison.a.tracking == 0)
-    try await host.press("Reset typography")
+    try await host.press("Reset typography section")
     try await host.settle { model.comparison.a.features.isEmpty }
     #expect(model.comparison.a.features.isEmpty)
-    for name in ["Reset appearance", "Reset size", "Reset tracking", "Reset typography"] {
-      #expect(try await host.element(name).isAccessibilityEnabled?() == false)
+    for name in [
+      "Reset appearance section", "Reset paired size", "Reset paired tracking",
+      "Reset typography section",
+    ] {
+      #expect(!host.isEnabled(name))
     }
-    try await host.press("Lock appearance")
+    try await host.press("Inspector appearance link")
     try await host.settle { model.comparison.appearanceLocked }
     #expect(model.comparison.appearanceLocked)
     model.edit("Resize B", undoManager: nil) { $0.b?.size = 33 }
-    try await host.settle { host.isEnabled("Reset appearance") }
-    #expect(host.isEnabled("Reset appearance"))
+    try await host.settle { host.isEnabled("Reset appearance section") }
+    #expect(host.isEnabled("Reset appearance section"))
     model.edit("Resize", undoManager: nil) { $0.a.size = 44 }
     try await host.settle()
-    try await host.press("Reset appearance")
+    try await host.press("Reset appearance section")
     try await host.settle { model.comparison.a.size == 22 && model.comparison.b?.size == 22 }
     #expect(model.comparison.a.size == 22)
     #expect(model.comparison.b?.size == 22)
-    #expect(try await host.element("Reset appearance").isAccessibilityEnabled?() == false)
+    #expect(!host.isEnabled("Reset appearance section"))
   }
 
   @Test(arguments: [Side.a, .b])
@@ -195,18 +214,19 @@ import TypefaceCore
     #expect(comparison.b == FontConfiguration("ArialMT"))
     #expect(comparison.link?.weightOffset == -300)
     let model = WorkbenchModel(comparison: comparison)
-    let host = WorkbenchTestHost(FontInspector(model: model, side: side), width: 246)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: 900)
     defer { host.window.close() }
-    try await host.settle { host.isEnabled("Reset appearance") }
-    try await host.press("Reset appearance")
+    try await host.settle { host.isEnabled("Reset appearance section") }
+    try await host.press("Reset appearance section")
     try await host.settle { model.comparison.link?.weightOffset == 0 }
     #expect(model.comparison.a == comparison.a)
     #expect(model.comparison.b == comparison.b)
-    #expect(try await host.element("Reset appearance").isAccessibilityEnabled?() == false)
+    #expect(!host.isEnabled("Reset appearance section"))
     host.window.undoManager?.undo()
-    try await host.settle { host.isEnabled("Reset appearance") }
+    try await host.settle { host.isEnabled("Reset appearance section") }
     #expect(model.comparison == comparison)
-    try await host.press("Reset appearance")
+    try await host.press("Reset appearance section")
     try await host.settle { model.comparison.link?.weightOffset == 0 }
     model.edit("Change weight", undoManager: nil) {
       $0.set(.weight, to: 700, side: side, catalog: catalog)
@@ -217,16 +237,17 @@ import TypefaceCore
 
   @Test func leadingControlsSupportAutoLinkingAndUndo() async throws {
     let model = WorkbenchModel()
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: 900)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: 900)
     defer { host.window.close() }
     try await host.settle()
     let field = try #require(
       host.subviews.compactMap { $0 as? NSTextField }.first {
-        $0.placeholderString == "Leading"
+        $0.accessibilityIdentifier() == "Font A Inspector Leading field"
       })
     let automatic = SpecimenText.automaticLeading(model.comparison.a)
-    #expect(field.stringValue == automatic.formatted(.number.precision(.fractionLength(0...3))))
-    #expect(!field.isEnabled)
+    #expect(field.stringValue == SpecificationNumber.format(automatic, precision: 3))
+    #expect(field.isEnabled)
     try await host.press("Font A Auto leading")
     try await host.settle { model.comparison.a.leading == automatic && field.isEnabled }
     #expect(model.comparison.b?.leading == automatic)
@@ -245,33 +266,39 @@ import TypefaceCore
     try await host.settle()
     try await host.press("Font A Auto leading")
     try await host.settle {
-      model.comparison.a.leading == nil && model.comparison.b?.leading == nil && !field.isEnabled
+      model.comparison.a.leading == nil && model.comparison.b?.leading == nil && field.isEnabled
     }
     let sizeField = try #require(
-      host.subviews.compactMap { $0 as? NSTextField }.first { $0.placeholderString == "Size" })
+      host.subviews.compactMap { $0 as? NSTextField }.first {
+        $0.accessibilityIdentifier() == "Font A Inspector Size field"
+      })
     try await host.submit("40", to: sizeField)
     let resized = SpecimenText.automaticLeading(model.comparison.a)
     #expect(resized > automatic)
-    #expect(field.stringValue == resized.formatted(.number.precision(.fractionLength(0...3))))
+    try await host.settle {
+      field.stringValue == SpecificationNumber.format(resized, precision: 3)
+    }
     try await host.press("Font A Auto leading")
     try await host.settle { model.comparison.a.leading == resized }
     try await host.incrementSlider("Font A Leading", title: "Leading")
     try await host.settle { model.comparison.a.leading != resized }
     #expect(model.comparison.a.leading == model.comparison.b?.leading)
-    try await host.press("Unlock appearance")
+    try await host.press("Inspector appearance link")
     try await host.settle { !model.comparison.appearanceLocked }
     let b = model.comparison.b
-    try await host.press("Reset leading")
+    try await host.submit("", to: field)
     try await host.settle { model.comparison.a.leading == nil }
     #expect(model.comparison.b == b)
-    #expect(!field.isEnabled)
+    #expect(field.isEnabled)
     try await host.press("Font A Auto leading")
     try await host.settle { field.isEnabled }
     try await host.submit("38", to: field)
     try await host.settle { model.comparison.a.leading == 38 }
-    try await host.press("Reset appearance")
-    try await host.settle { model.comparison.a.leading == nil }
-    #expect(model.comparison.b == b)
+    try await host.press("Reset paired leading")
+    try await host.settle {
+      model.comparison.a.leading == nil && model.comparison.b?.leading == nil
+    }
+    #expect(!model.comparison.appearanceLocked)
   }
 
   @Test func customTextCanBeCancelledAppliedAndUndone() async throws {
@@ -520,13 +547,14 @@ import TypefaceCore
   func inspectorTypographyAndDisclosureControlsChangeOnlyTheirOwnSide(height: Double) async throws {
     let model = WorkbenchModel(comparison: Comparison(a: .init("ArialMT")))
     let originalB = model.comparison.b
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: height)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: height)
     defer { host.window.close() }
     try await host.settle()
-    try await host.press("Kerning")
+    try await host.press("Font A feature ot.kern")
     try await host.settle { model.comparison.a.features["ot.kern"] == 0 }
     #expect(model.comparison.a.features["ot.kern"] == 0)
-    try await host.press("Kerning")
+    try await host.press("Font A feature ot.kern")
     try await host.settle { model.comparison.a.features["ot.kern"] != 0 }
     #expect(model.comparison.a.features["ot.kern"] != 0)
     let scroll = try #require(host.subviews.compactMap { $0 as? NSScrollView }.first)
@@ -548,7 +576,8 @@ import TypefaceCore
   func inspectorSlidersAdjustAndResetVariableAxes(height: Double) async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: height)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: height)
     defer { host.window.close() }
     try await host.settle()
     try await host.incrementSlider("Font A Size", title: "Size")
@@ -851,6 +880,10 @@ import TypefaceCore
 
   func incrementSlider(_ label: String, title: String) async throws {
     let sliders = subviews.compactMap { $0 as? NSSlider }
+    if let slider = sliders.first(where: { $0.accessibilityIdentifier() == label }) {
+      _ = slider.accessibilityPerformIncrement()
+      return
+    }
     if !sliders.isEmpty {
       // Older SwiftUI omits the native sliders' AX names. The
       // labeled value field immediately above each slider identifies its setting.

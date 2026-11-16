@@ -7,42 +7,16 @@ import TypefaceCore
 
 /// The fuzzer records these names and finds controls by them, so they are a contract.
 @Suite(.serialized) @MainActor struct AccessibilityIdentifierTests {
-  private static let inspectorIdentifiers = [
-    ("Font A Reset appearance", "Button"), ("Font A Appearance lock", "Button"),
-    ("Font A Reset size", "Button"), ("Font A Size field", "TextField"),
-    ("Font A Reset tracking", "Button"), ("Font A Tracking field", "TextField"),
-    ("Font A Reset typography", "Button"), ("Font A Size", "Slider"),
-    ("Font A style", "Picker"),
-    ("Font A Reset leading", "Button"), ("Font A Leading field", "TextField"),
-    ("Font A Leading", "Slider"), ("Font A Auto leading", "Toggle"),
-  ]
-
   @Test func sideNamesPrefixEveryPerInspectorIdentifier() {
     #expect(Side.a.fontName == "Font A")
     #expect(Side.b.fontName == "Font B")
   }
 
-  @Test func inspectorControlsCarryStableIdentifiers() async throws {
-    let supported = try await Self.supportedClasses()
-    let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
-    let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: 900)
-    defer { host.window.close() }
-    try await host.settle()
-    for (identifier, kind) in Self.inspectorIdentifiers {
-      try await expectPresent(identifier, kind: kind, supported: supported, in: host)
-    }
-    let axis = try #require(model.comparison.a.face.axes.first)
-    for identifier in ["Font A \(axis.name) field", "Font A Reset \(axis.name.lowercased())"] {
-      let kind = identifier.hasSuffix("field") ? "TextField" : "Button"
-      try await expectPresent(identifier, kind: kind, supported: supported, in: host)
-    }
-  }
-
   @Test func typographyControlsCarryStableIdentifiers() async throws {
     let supported = try await Self.supportedClasses()
     let model = WorkbenchModel(comparison: Comparison(a: .init("ArialMT")))
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246, height: 900)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: 900)
     defer { host.window.close() }
     try await host.settle()
     try await expectPresent(
@@ -73,6 +47,13 @@ import TypefaceCore
         ("Font \(side) Auto leading", "Toggle"),
       ] {
         try await expectPresent(identifier, kind: kind, supported: supported, in: host)
+      }
+      for axis in model.comparison.a.face.axes {
+        try await expectPresent(
+          "Font \(side) Inspector \(axis.name) field", kind: "TextField", supported: supported,
+          in: host)
+        try await expectPresent(
+          "Font \(side) \(axis.name)", kind: "Slider", supported: supported, in: host)
       }
     }
   }

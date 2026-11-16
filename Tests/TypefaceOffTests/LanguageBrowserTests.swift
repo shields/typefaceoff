@@ -141,9 +141,11 @@ import TypefaceCore
     model.languages.selection = "eng"
     model.languages.filter.query = "English"
     model.updatePresentation { $0.mode = .languages }
+    await model.languages.update(.init(model.comparison))
+    #expect(model.languages.a.count == 705 && model.languages.b.count == 705)
     let host = WorkbenchTestHost(WorkbenchView(model: model), height: height)
     defer { host.window.close() }
-    try await host.settle { model.languages.a.count == 705 && model.languages.b.count == 705 }
+    try await host.settle()
     model.languages.selection = nil
     try await host.settle()
     try await host.press("Language row eng")

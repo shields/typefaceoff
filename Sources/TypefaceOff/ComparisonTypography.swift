@@ -76,7 +76,7 @@ struct ComparisonTypography: View {
           Group {
             if let feature = row[side] {
               if feature.isAutomatic {
-                Text("Auto").font(.system(size: 9)).foregroundStyle(WorkbenchStyle.secondaryInk)
+                Text("Auto").font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk)
               } else if binary(feature) {
                 InspectorFeatureToggle(
                   label: "\(side.fontName) \(feature.name)",
@@ -257,7 +257,7 @@ struct InspectorFeaturePreview: View {
         Text("→").font(.system(size: 11)).foregroundStyle(WorkbenchStyle.secondaryInk)
         FontPreviewText(config: preview.after, text: preview.text, size: 17)
       } else if loaded {
-        Text("No preview available").font(.system(size: 10)).foregroundStyle(
+        Text("No preview available").font(.system(size: 11)).foregroundStyle(
           WorkbenchStyle.secondaryInk
         )
         .accessibilityIdentifier("\(side.fontName) no preview for \(feature.id)")

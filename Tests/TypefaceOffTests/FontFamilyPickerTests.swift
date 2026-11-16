@@ -135,7 +135,10 @@ import TypefaceCore
   @Test func cancellingTheFontPopoverPreservesTheComparison() async throws {
     let model = WorkbenchModel()
     let initial = model.comparison
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 246)
+    let host = WorkbenchTestHost(
+      SpecificationHeader(
+        model: model, inspectorOpen: false, matching: false, openInspector: { _ in }, match: {}),
+      width: 1440, height: 106)
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Font A family")
@@ -173,7 +176,9 @@ import TypefaceCore
     let model = WorkbenchModel()
     let initial = model.comparison
     let host = WorkbenchTestHost(
-      FontInspector(model: model, side: .b), width: 246)
+      SpecificationHeader(
+        model: model, inspectorOpen: false, matching: false, openInspector: { _ in }, match: {}),
+      width: 1440, height: 106)
     defer { host.window.close() }
     try await host.press("Font B family")
     try await host.settle()
@@ -186,7 +191,10 @@ import TypefaceCore
   }
 
   @Test func typingHidesTheSearchPlaceholder() async throws {
-    let host = WorkbenchTestHost(FontInspector(model: WorkbenchModel(), side: .a), width: 246)
+    let host = WorkbenchTestHost(
+      SpecificationHeader(
+        model: WorkbenchModel(), inspectorOpen: false, matching: false,
+        openInspector: { _ in }, match: {}), width: 1440, height: 106)
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Font A family")

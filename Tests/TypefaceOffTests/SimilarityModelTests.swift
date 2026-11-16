@@ -282,28 +282,28 @@ extension SimilarityModelTests {
     let initial = try #require(model.comparison.b)
     let axis = try #require(model.comparison.b?.face.axes.first)
     try await host.press("Font B Optimize axis \(axis.id)")
-    try await host.settle { !fit.running && fit.result != nil }
+    try await host.settle { !fit.running && fit.result != nil && host.isEnabled("Apply") }
     var expected = initial
     expected.axes[axis.id] = (expected.axes[axis.id] ?? 0) + 0.1
     #expect(fit.result?.proposed == expected)
     try await host.press("Font B Optimize feature ot.kern")
-    try await host.settle { fit.result?.evaluations == 20 }
+    try await host.settle { fit.result?.evaluations == 20 && host.isEnabled("Apply") }
     expected.features["ot.kern"] = 0
     #expect(fit.result?.proposed == expected)
     try await host.press("Font B Optimize tracking")
-    try await host.settle { fit.result?.evaluations == 30 }
+    try await host.settle { fit.result?.evaluations == 30 && host.isEnabled("Apply") }
     expected.tracking = 0.025
     #expect(fit.result?.proposed == expected)
     try await host.press("Font B Optimize size")
-    try await host.settle { fit.result?.evaluations == 40 }
+    try await host.settle { fit.result?.evaluations == 40 && host.isEnabled("Apply") }
     expected.size += 2
     #expect(fit.result?.proposed == expected)
     try await host.press("Font B Optimize leading")
-    try await host.settle { fit.result?.evaluations == 50 }
+    try await host.settle { fit.result?.evaluations == 50 && host.isEnabled("Apply") }
     expected.leading = 36
     #expect(fit.result?.proposed == expected)
     try await host.press("Font B Optimize tracking")
-    try await host.settle { fit.result?.evaluations == 60 }
+    try await host.settle { fit.result?.evaluations == 60 && host.isEnabled("Apply") }
     #expect(fit.result?.proposed == expected)
     #expect(!fit.searchImproved && fit.result?.improved == true)
     #expect(host.isEnabled("Apply"))

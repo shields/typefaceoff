@@ -239,16 +239,6 @@ struct WorkbenchView: View {
   }
 }
 
-enum SharedSizeFormat {
-  static func style(locale: Locale) -> FloatingPointFormatStyle<Double> {
-    .number.precision(.fractionLength(0...3)).grouping(.never).locale(locale)
-  }
-
-  static func parse(_ text: String, locale: Locale) -> Double? {
-    SpecificationNumber.parse(text, locale: locale)
-  }
-}
-
 func number(_ value: Double, digits: Int = 1) -> String {
   value.formatted(.number.precision(.fractionLength(0...digits)).grouping(.never))
 }

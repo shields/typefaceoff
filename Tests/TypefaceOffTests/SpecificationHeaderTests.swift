@@ -16,12 +16,19 @@ import TypefaceCore
         model: model, inspectorOpen: inspectorOpen, matching: false,
         openInspector: { opened = $0 }, match: {}), width: width, height: 106)
     defer { host.window.close() }
+    try await host.settle()
     let compact = width < 1120 || inspectorOpen
     let target = compact ? "Open typography inspector" : "Font B typography"
     let button = try await host.element(target)
     let frame = try #require(button.accessibilityFrame?())
     let match = try #require(try await host.element("Match…").accessibilityFrame?())
     #expect(frame.width >= 20 && frame.height >= 20 && !frame.intersects(match))
+    let tracking = try #require(
+      host.subviews.compactMap { $0 as? SpecificationFieldView }.first {
+        $0.field.accessibilityIdentifier() == "Font A Tracking field"
+      })
+    #expect(
+      !frame.intersects(host.window.convertToScreen(tracking.convert(tracking.bounds, to: nil))))
     try await host.press(target)
     #expect(opened == .typography)
     if compact {

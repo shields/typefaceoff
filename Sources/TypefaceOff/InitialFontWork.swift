@@ -20,8 +20,6 @@ struct PreparedSearch<Input: Equatable & Sendable, Output: Sendable>: Sendable {
 struct InitialFontWork: Sendable {
   let rankingEngine: DifferenceEngine
   let ranking: PreparedSearch<Comparison, [GlyphDifference]>
-  private let a: PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>
-  private let b: PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>?
 
   init(comparison: Comparison) {
     let engine = DifferenceEngine()
@@ -34,35 +32,9 @@ struct InitialFontWork: Sendable {
       guard let b = comparison.b else { return [] }
       return try await engine.scores(a: comparison.a, b: b, sample: comparison.text)
     }
-    a = Self.preview(comparison.a)
-    b = comparison.b.map(Self.preview)
-  }
-
-  func previews(for side: Side) -> PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>?
-  {
-    side == .a ? a : b
   }
 
   func cancel() {
     ranking.cancel()
-    a.cancel()
-    b?.cancel()
-  }
-
-  private static func preview(_ config: FontConfiguration)
-    -> PreparedSearch<FontConfiguration, [String: FontFeaturePreview]>
-  {
-    var config = config
-    config.size = 21
-    config.leading = nil
-    return PreparedSearch(input: config) { config in
-      #if TYPEFACEOFF_STARTUP_BENCHMARK
-        StartupDiagnostics.markBackground("previewPreparationStarted-\(config.postScriptName)")
-        defer {
-          StartupDiagnostics.markBackground("previewPreparationFinished-\(config.postScriptName)")
-        }
-      #endif
-      return try await FontFeaturePreviewEngine.shared.previews(config: config)
-    }
   }
 }

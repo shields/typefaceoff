@@ -19,5 +19,8 @@ public struct SpecificationLayout: Equatable, Sendable {
   public var familyWidth: Double { style - 80 }
   public var styleWidth: Double { size - style - 32 }
   public var weightFieldWidth: Double { compact ? 58 : 66 }
-  public var trackingFieldWidth: Double { compact ? 90 : 122 }
+  public var trackingFieldWidth: Double {
+    let fieldWidth = compact ? 90.0 : 122
+    return showsTypography ? fieldWidth : min(fieldWidth, width - tracking - 118)
+  }
 }

@@ -177,12 +177,13 @@ import TypefaceCore
     let axis = try #require(config.face.axes.first { $0.tag == "opsz" })
     #expect(FontRenderer.isAvailable(config))
     let model = WorkbenchModel(comparison: Comparison(a: config, b: nil))
-    let host = WorkbenchTestHost(FontInspector(model: model, side: .a), width: 400, height: 800)
+    let host = WorkbenchTestHost(
+      ComparisonInspector(model: model, state: model.inspector), width: 320, height: 800)
     defer { host.window.close() }
     try await host.settle()
     let field = try #require(
       host.subviews.compactMap { $0 as? NSTextField }.first {
-        $0.placeholderString == axis.name
+        $0.accessibilityIdentifier() == "Font A Inspector \(axis.name) field"
       })
     #expect(field.doubleValue == axis.defaultValue)
   }

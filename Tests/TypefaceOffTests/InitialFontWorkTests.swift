@@ -33,66 +33,33 @@ import TypefaceCore
     await #expect(throws: CancellationError.self) { try await search.value(for: 1) }
   }
 
-  @Test func cancelledPreviewConsumersCannotPublishPreparedResults() async {
-    let (events, started) = AsyncStream<Void>.makeStream()
-    let gate = PreparedSearchGate<[String: FontFeaturePreview]>(started: started)
-    let config = FontConfiguration("HelveticaNeue")
-    let search = PreparedSearch(input: config) { _ in await gate.load() }
-    defer { search.cancel() }
-    let model = FeaturePreviewModel(preparation: search)
-    let request = Task { await model.update(config) }
-    var iterator = events.makeAsyncIterator()
-    #expect(await iterator.next() != nil)
-    request.cancel()
-    await gate.finish([:])
-    await request.value
-    #expect(model.result == nil)
-  }
-
   @Test(arguments: [false, true])
   func initialResultsMatchTheCurrentFonts(changed: Bool) async throws {
     let initial = Comparison()
     let work = InitialFontWork(comparison: initial)
     defer { work.cancel() }
     let initialScores = try #require(try await work.ranking.value(for: initial))
-    let preparedPreview = try #require(work.previews(for: .a))
-    _ = try await preparedPreview.value(for: preparedPreview.input)
     var current = initial
     if changed { current.a = .init("ArialMT") }
     let ranking = RankingModel(preparation: work)
-    let previews = FeaturePreviewModel(preparation: preparedPreview)
     #expect(ranking.scores.isEmpty)
     let changes = Mutex(0)
     let rankingChanges = ranking.objectWillChange.sink { changes.withLock { $0 += 1 } }
-    let previewChanges = previews.objectWillChange.sink { changes.withLock { $0 += 1 } }
-    defer {
-      rankingChanges.cancel()
-      previewChanges.cancel()
-    }
+    defer { rankingChanges.cancel() }
     await ranking.update(current)
-    var config = current.a
-    config.size = 21
-    await previews.update(config)
-    #expect(previews.result?.config == config)
     let expectedScores = try await DifferenceEngine().scores(
       a: current.a, b: #require(current.b), sample: current.text)
     #expect(ranking.scores == expectedScores)
     #expect(!ranking.comparing)
     if !changed { #expect(ranking.scores == initialScores) }
-    let expectedPreviews = try await FontFeaturePreviewEngine.shared.previews(config: config)
-    #expect(previews.result?.previews.mapValues(\.text) == expectedPreviews.mapValues(\.text))
     #expect(changes.withLock { $0 } > 0)
   }
 
-  @Test func singleFontPreparationHasNoSecondPreviewOrRanking() async throws {
-    var comparison = Comparison(b: nil)
-    comparison.a.leading = 32
+  @Test func singleFontPreparationHasNoRanking() async throws {
+    let comparison = Comparison(b: nil)
     let work = InitialFontWork(comparison: comparison)
     defer { work.cancel() }
     #expect(try await work.ranking.value(for: comparison) == [])
-    #expect(work.previews(for: .a)?.input.size == 21)
-    #expect(work.previews(for: .a)?.input.leading == nil)
-    #expect(work.previews(for: .b) == nil)
   }
 
   @Test func canonicallyEquivalentTextStillUsesItsOwnCharacterIdentities() async throws {

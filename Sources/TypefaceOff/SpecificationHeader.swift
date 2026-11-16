@@ -100,11 +100,12 @@ struct SpecificationHeader: View {
             HStack(spacing: 4) {
               Text("Typography")
               Image(systemName: "chevron.down").font(.system(size: 11))
-            }.frame(width: 88, height: 24, alignment: .leading).contentShape(Rectangle())
+            }.fixedSize().frame(width: 96, height: 24, alignment: .leading)
+              .contentShape(Rectangle())
           }.buttonStyle(.plain).disabled(matching)
             .accessibilityIdentifier("Open typography inspector")
             .help("Open the comparison inspector at Typography")
-            .offset(x: width - 112, y: 36)
+            .offset(x: width - 120, y: 36)
         }
         if canCompare && !matching {
           Button("Match…", action: match).buttonStyle(.bordered)

@@ -4,7 +4,7 @@ extension Comparison {
   public func hasAppearanceChanges(catalog: FontCatalog) -> Bool {
     var defaults = self
     defaults.resetAppearance(catalog: catalog)
-    return a != defaults.a || b != defaults.b
+    return a != defaults.a || b != defaults.b || link != defaults.link
   }
 
   public mutating func resetAppearance(catalog: FontCatalog) {

@@ -7,6 +7,18 @@ import Testing
   let catalog = FontCatalog()
   let locale = Locale(identifier: "en_US")
 
+  @Test func sectionResetClearsCalibrationEvenWhenBothFacesAreAtTheirDefaults() {
+    var comparison = Comparison(a: .init("Arial-BoldMT"), b: .init("ArialMT"))
+    comparison.selectFace(FontFace(postScriptName: "ArialMT"), side: .a, catalog: catalog)
+    #expect(comparison.a == FontConfiguration("ArialMT"))
+    #expect(comparison.b == FontConfiguration("ArialMT"))
+    #expect(comparison.link?.weightOffset == -300)
+    #expect(comparison.hasAppearanceChanges(catalog: catalog))
+    comparison.resetAppearance(catalog: catalog)
+    #expect(comparison.link?.weightOffset == 0)
+    #expect(!comparison.hasAppearanceChanges(catalog: catalog))
+  }
+
   @Test func sectionResetIncludesStaticStyleAndPreservesUnavailableFonts() {
     var comparison = Comparison()
     #expect(!comparison.hasAppearanceChanges(catalog: catalog))

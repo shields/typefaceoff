@@ -6,6 +6,10 @@ final class CharacterSearchModel: ObservableObject {
   struct Request: Equatable {
     let query: String
     let fonts: [FontConfiguration]
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.query.unicodeScalars.elementsEqual(rhs.query.unicodeScalars) && lhs.fonts == rhs.fonts
+    }
   }
 
   /// The latest finished search, which trails the current request while a search runs.

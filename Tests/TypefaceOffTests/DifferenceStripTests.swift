@@ -1,0 +1,63 @@
+import AppKit
+import SwiftUI
+import Testing
+
+@testable import TypefaceOff
+
+@Suite(.serialized) @MainActor struct DifferenceStripTests {
+  @Test func wheelsFollowTheirDominantAxisAndClampToTheStrip() throws {
+    let scroll = DifferenceStripView()
+    scroll.frame = NSRect(x: 0, y: 0, width: 480, height: 76)
+    scroll.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 2400, height: 76))
+    scroll.layoutSubtreeIfNeeded()
+    for (x, y, precise) in [(0, -3, false), (0, -30, true), (-50, 2, true)] {
+      let event = try #require(
+        CGEvent(
+          scrollWheelEvent2Source: nil, units: precise ? .pixel : .line, wheelCount: 2,
+          wheel1: Int32(y), wheel2: Int32(x), wheel3: 0))
+      let before = scroll.contentView.bounds.minX
+      scroll.scrollWheel(with: try #require(NSEvent(cgEvent: event)))
+      #expect(scroll.contentView.bounds.minX > before)
+      #expect(scroll.contentView.bounds.minY == 0)
+    }
+    scroll.follow(49)
+    #expect(scroll.documentView!.visibleRect.maxX == 2400)
+    scroll.follow(49)
+    scroll.follow(0)
+    #expect(scroll.contentView.bounds.minX == 0)
+    scroll.follow(nil)
+    scroll.tile()
+    #expect(scroll.contentView.bounds.minX == 0)
+  }
+
+  @Test func arrowsNavigateFromOneFocusableStripAndSelectionFollows() async throws {
+    var directions: [Int] = []
+    let host = WorkbenchTestHost(
+      DifferenceStrip(count: 50, selection: nil, navigate: { directions.append($0) }) {
+        Text("Index test").frame(width: 2400, height: 76)
+      }, width: 480, height: 76)
+    defer { host.window.close() }
+    try await host.settle()
+    let scroll = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
+    #expect(scroll.acceptsFirstResponder)
+    #expect(host.window.makeFirstResponder(scroll))
+    for (code, characters) in [(123, "\u{F702}"), (124, "\u{F703}"), (53, "\u{1b}")] {
+      let event = try #require(
+        NSEvent.keyEvent(
+          with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+          windowNumber: host.window.windowNumber, context: nil, characters: characters,
+          charactersIgnoringModifiers: characters, isARepeat: false, keyCode: UInt16(code)))
+      scroll.keyDown(with: event)
+    }
+    #expect(directions == [-1, 1])
+    host.setContent(
+      DifferenceStrip(count: 50, selection: 49, navigate: { directions.append($0) }) {
+        Text("Index test").frame(width: 2400, height: 76)
+      })
+    try await host.settle()
+    #expect(scroll.documentView!.visibleRect.maxX == 2400)
+    scroll.setFrameSize(NSSize(width: 240, height: 76))
+    scroll.tile()
+    #expect(scroll.documentView!.visibleRect.maxX == 2400)
+  }
+}

@@ -7,6 +7,7 @@ struct GlyphDifferencePreview: NSViewRepresentable {
   let a: FontConfiguration
   let b: FontConfiguration
   let spacingOnly: Bool
+  var index = false
 
   func makeNSView(context: Context) -> GlyphDifferenceDrawingView { GlyphDifferenceDrawingView() }
 
@@ -23,7 +24,7 @@ final class GlyphDifferenceDrawingView: NSView {
     guard let preview, let context = NSGraphicsContext.current?.cgContext,
       bounds.width > 0, bounds.height > 0
     else { return }
-    NSColor.white.setFill()
+    (preview.index ? NSColor(WorkbenchStyle.paper) : NSColor.white).setFill()
     bounds.fill()
     let configs = [preview.a, preview.b]
     guard configs.allSatisfy({ FontRenderer.supports(preview.glyph, config: $0) }) else {
@@ -32,7 +33,8 @@ final class GlyphDifferenceDrawingView: NSView {
         withAttributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.darkGray])
       return
     }
-    let sizes = [30.0, 30 * preview.b.size / preview.a.size]
+    let size = preview.index ? 26.0 : 30
+    let sizes = [size, size * preview.b.size / preview.a.size]
     let metrics = zip(configs, sizes).map {
       FontRenderer.measure(preview.glyph, config: $0, size: $1)
     }
@@ -47,14 +49,20 @@ final class GlyphDifferenceDrawingView: NSView {
         envelope = envelope.union(CGRect(x: min(0, advance), y: 0, width: abs(advance), height: 1))
       }
     }
-    let scale = max(
-      0.01,
-      min(
-        1, (bounds.width - 8) / max(1, envelope.width),
-        (bounds.height - 6) / max(1, envelope.height)))
-    let origin = CGPoint(
-      x: (bounds.width - envelope.width * scale) / 2 - envelope.minX * scale,
-      y: (bounds.height - envelope.height * scale) / 2 - envelope.minY * scale)
+    let scale =
+      preview.index
+      ? 1
+      : max(
+        0.01,
+        min(
+          1, (bounds.width - 8) / max(1, envelope.width),
+          (bounds.height - 6) / max(1, envelope.height)))
+    let origin =
+      preview.index
+      ? CGPoint(x: -envelope.minX, y: 14)
+      : CGPoint(
+        x: (bounds.width - envelope.width * scale) / 2 - envelope.minX * scale,
+        y: (bounds.height - envelope.height * scale) / 2 - envelope.minY * scale)
     let pixelScale = window?.backingScaleFactor ?? 2
     let width = max(1, Int(ceil(bounds.width * pixelScale)))
     let height = max(1, Int(ceil(bounds.height * pixelScale)))

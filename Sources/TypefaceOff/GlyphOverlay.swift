@@ -31,15 +31,17 @@ enum GlyphOverlay {
     var planes = [UInt8](repeating: 0, count: a.count * 4)
     channel.withUnsafeMutableBufferPointer { values in
       planes.withUnsafeMutableBufferPointer { output in
-        for (index, colors) in [
-          (0, (Float(0.76), Float(0.25))), (1, (0.32, 0.48)), (2, (0.31, 0.68)),
-        ] {
-          var (red, blue) = colors
-          var overlap: Float = 0.14 - red - blue
+        let palette: [(Float, Float, Float)] = [
+          (180 / 255, 40 / 255, 27 / 255), (59 / 255, 107 / 255, 28 / 255),
+          (67 / 255, 157 / 255, 31 / 255),
+        ]
+        for (index, colors) in palette.enumerated() {
+          var (red, blue, ink) = colors
+          var overlap: Float = ink - red - blue
           // a * red + b * blue + min(a, b) * (black - red - blue)
           vDSP_vsmsma(left, 1, &red, right, 1, &blue, values.baseAddress!, 1, count)
           vDSP_vsma(shared, 1, &overlap, values.baseAddress!, 1, values.baseAddress!, 1, count)
-          vDSP_vfixu8(values.baseAddress!, 1, output.baseAddress! + index * a.count, 1, count)
+          vDSP_vfixru8(values.baseAddress!, 1, output.baseAddress! + index * a.count, 1, count)
         }
         vDSP_vmax(left, 1, right, 1, values.baseAddress!, 1, count)
         vDSP_vfixu8(values.baseAddress!, 1, output.baseAddress! + 3 * a.count, 1, count)

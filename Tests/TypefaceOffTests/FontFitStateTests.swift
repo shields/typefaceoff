@@ -1,3 +1,4 @@
+import AppKit
 import Testing
 import TypefaceCore
 
@@ -11,7 +12,7 @@ import TypefaceCore
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     defer { continuation.finish() }
     let fit = FontFitModel { _, _ in stream }
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer { host.window.close() }
     try await host.press("Font B Optimize tracking")
     var proposal = b
@@ -23,10 +24,19 @@ import TypefaceCore
     try await waitUntil { fit.result?.improved == true }
     #expect(fit.running && !host.isEnabled("Apply"))
     #expect(!fit.apply(to: model, undoManager: nil))
+    host.window.makeFirstResponder(nil)
+    let enter = try #require(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+        windowNumber: host.window.windowNumber, context: nil, characters: "\r",
+        charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+    host.window.sendEvent(enter)
+    try await host.settle()
     #expect(model.comparison == initial)
     try await host.press("Stop")
     try await host.settle { host.isEnabled("Apply") }
-    try await host.press("Apply")
+    host.window.sendEvent(enter)
+    try await host.settle { model.comparison.b == proposal }
     #expect(model.comparison.a == initial.a && model.comparison.b == proposal)
   }
 
@@ -46,7 +56,6 @@ import TypefaceCore
     let next = FontFitModel.Request(
       a: request.a, b: b, text: model.comparison.text, options: request.options,
       scale: request.scale)
-    #expect(request != next)
     #expect(!next.hasSameInputs(as: request))
     fit.start(next)
     #expect(fit.result == nil)

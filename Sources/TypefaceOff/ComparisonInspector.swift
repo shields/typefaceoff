@@ -19,10 +19,15 @@ import TypefaceCore
 struct ComparisonInspector: View {
   @ObservedObject var model: WorkbenchModel
   @ObservedObject var state: ComparisonInspectorState
+  var preview: FontConfiguration? = nil
   @Environment(\.workbenchUndoManager) private var undoManager
   @Environment(\.locale) private var locale
 
-  private var comparison: Comparison { model.comparison }
+  private var comparison: Comparison {
+    var comparison = model.comparison
+    if let preview { comparison.b = preview }
+    return comparison
+  }
   private var settings: [SpecificationSetting] {
     SpecificationSetting.settings(
       a: installed(.a)?.face.axes ?? [], b: installed(.b)?.face.axes ?? [])
@@ -35,7 +40,7 @@ struct ComparisonInspector: View {
         LazyVStack(alignment: .leading, spacing: 12) {
           appearance.id(ComparisonInspectorState.Section.appearance)
           Rectangle().fill(WorkbenchStyle.hairline).frame(height: 1)
-          ComparisonTypography(model: model, state: state)
+          ComparisonTypography(model: model, state: state, preview: preview)
             .id(ComparisonInspectorState.Section.typography)
         }.scrollTargetLayout()
           .onGeometryChange(for: CGFloat.self) {

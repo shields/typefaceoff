@@ -37,8 +37,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
   public var modalDepth: Int?
   /// True when an overlay had focus but could not be located, so discovery offered only plain keys.
   public var unlocated: Bool?
-  /// `FuzzAction.Sheet.logName` of the modal root.
-  public var sheet: String?
+  public var context: String?
   public var hitProcess: Int32?
   public var hitBundleIdentifier: String?
   public var recovered: Bool?
@@ -51,7 +50,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     elapsedMs: Double? = nil, skipped: Bool? = nil, focusedRole: String? = nil,
     focusedSubrole: String? = nil, focusLocation: FocusLocation? = nil,
     modalRole: String? = nil, modalDepth: Int? = nil, unlocated: Bool? = nil,
-    sheet: String? = nil, hitProcess: Int32? = nil, hitBundleIdentifier: String? = nil,
+    context: String? = nil, hitProcess: Int32? = nil, hitBundleIdentifier: String? = nil,
     recovered: Bool? = nil
   ) {
     self.uptime = uptime
@@ -75,7 +74,7 @@ public struct DriverEvent: Encodable, Equatable, Sendable {
     self.modalRole = modalRole
     self.modalDepth = modalDepth
     self.unlocated = unlocated
-    self.sheet = sheet
+    self.context = context
     self.hitProcess = hitProcess
     self.hitBundleIdentifier = hitBundleIdentifier
     self.recovered = recovered

@@ -398,7 +398,7 @@ import Testing
       openWork: ["ranking": 1], windows: 2, scope: .overlay, elements: 40, elapsedMs: 12.5,
       skipped: true, focusedRole: "AXSheet", focusedSubrole: "AXSystemDialog",
       focusLocation: .scopeWindow, modalRole: "AXSheet", modalDepth: 2, unlocated: true,
-      sheet: "match")
+      context: "match")
     let line = try DriverLog.line(event)
     #expect(!line.contains("\n"))
     let object = try #require(
@@ -408,7 +408,7 @@ import Testing
         "uptime", "event", "action", "control", "step", "attempts", "waitedMs", "timedOut",
         "pendingWork", "openWork", "windows", "scope", "elements", "elapsedMs", "skipped",
         "focusedRole", "focusedSubrole", "focusLocation", "modalRole", "modalDepth", "unlocated",
-        "sheet",
+        "context",
       ])
     #expect(object["focusedRole"] as? String == "AXSheet")
     #expect(object["focusedSubrole"] as? String == "AXSystemDialog")
@@ -416,7 +416,7 @@ import Testing
     #expect(object["modalRole"] as? String == "AXSheet")
     #expect(object["modalDepth"] as? Int == 2)
     #expect(object["unlocated"] as? Bool == true)
-    #expect(object["sheet"] as? String == "match")
+    #expect(object["context"] as? String == "match")
     #expect(object["event"] as? String == "resolve")
     #expect(object["step"] as? String == "uniqueName")
     #expect(object["scope"] as? String == "overlay")

@@ -4,8 +4,10 @@ import Foundation
 /// A nil field is unknown, and unknown never satisfies a requirement.
 struct WorkbenchState: Equatable, Sendable {
   enum Mode: Sendable { case text, glyph, languages }
-  enum Sheet: Sendable { case closed, editor, match }
-  enum Popover: Sendable { case closed, fonts, characters, glyphCharacters }
+  enum Operation: Sendable { case closed, editor, match }
+  enum Popover: Sendable {
+    case closed, fonts, characters, glyphCharacters, matchAxes, matchTypography
+  }
   enum Inspector: String, Sendable {
     case a = "Font A"
     case b = "Font B"
@@ -13,7 +15,8 @@ struct WorkbenchState: Equatable, Sendable {
 
   enum Requirement: Equatable, Sendable {
     case mode(Mode)
-    case sheet(Sheet?)
+    case editable
+    case operation(Operation?)
     case popover(Popover)
     case family(Inspector)
     case header(Inspector)
@@ -23,7 +26,7 @@ struct WorkbenchState: Equatable, Sendable {
   }
 
   var mode: Mode? = .text
-  var sheet: Sheet? = .closed
+  var operation: Operation? = .closed
   var popover: Popover? = .closed
   var inspectorVisible: Bool? = false
   var fontBPresent: Bool? = true
@@ -31,7 +34,7 @@ struct WorkbenchState: Equatable, Sendable {
 
   static let launch = WorkbenchState()
   static let unknown = WorkbenchState(
-    mode: nil, sheet: nil, popover: nil, inspectorVisible: nil, fontBPresent: nil)
+    mode: nil, operation: nil, popover: nil, inspectorVisible: nil, fontBPresent: nil)
 
   private static let command = UInt64(1 << 20)
   private static let shift = UInt64(1 << 17)
@@ -39,11 +42,15 @@ struct WorkbenchState: Equatable, Sendable {
   private static let escape = FuzzAction(kind: .key, keyCode: 53, delayMilliseconds: 400)
 
   static func requirement(of action: FuzzAction) -> Requirement? {
-    if action.kind == .showInspector { return nil }
-    if let sheet = action.sheet {
-      switch sheet {
-      case .match: return .sheet(.match)
-      case .editor: return .sheet(.editor)
+    if action.kind == .showInspector || action.kind == .setSpecimen { return .editable }
+    if action.targetRole == "AXMenuItem", let target = action.target {
+      if target.hasPrefix("Font B Optimize axis ") { return .popover(.matchAxes) }
+      if target.hasPrefix("Font B Optimize feature ") { return .popover(.matchTypography) }
+    }
+    if let operation = action.context {
+      switch operation {
+      case .match: return .operation(.match)
+      case .editor: return .operation(.editor)
       }
     }
     guard let target = action.target else { return nil }
@@ -59,17 +66,18 @@ struct WorkbenchState: Equatable, Sendable {
       "Show historical", "Use as specimen",
       "Clear filters":
       return .mode(.languages)
-    case "Custom specimen text": return .sheet(.editor)
-    case "Tracking", "Weight", "Size", "Refine", "Stop", "Cancel matching",
-      "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
-      "Match options scroll area", "Match status scroll area", "Optimize", "equal.square":
-      return .sheet(.match)
-    case let name where name.hasPrefix("Font B Optimize ") || name.hasPrefix("Optimize "):
-      return .sheet(.match)
-    case "Apply", "Cancel": return .sheet(nil)
+    case "Custom specimen text": return .operation(.editor)
+    case "Stop", "Cancel matching": return .operation(.match)
+    case let name where name.hasPrefix("Font B Optimize "):
+      return .operation(.match)
+    case "Apply", "Cancel": return .operation(nil)
     case "Search installed fonts": return .popover(.fonts)
     case "Search Unicode characters": return .popover(.glyphCharacters)
     case "Find Character": return .characterSearch
+    case "Show Inspector", "Toggle comparison inspector", "Sample selector", "Swap fonts",
+      "Swap Fonts", "arrow.up.arrow.down", "Header appearance link",
+      "Link A and B", "Link Appearance", "Make Sizes Equal", "Reset Appearance", "Reset Typography":
+      return .editable
     case "Typography", "Open typography inspector": return .header(.a)
     case let name
     where name.hasPrefix("Reset paired ") || name.hasPrefix("Reset feature ")
@@ -100,21 +108,29 @@ struct WorkbenchState: Equatable, Sendable {
 
   func satisfies(_ requirement: Requirement) -> Bool {
     switch requirement {
-    case .mode(let mode): self.mode == mode
-    case .sheet(let sheet?): self.sheet == sheet && (sheet != .match || fontBPresent == true)
-    case .sheet(nil): sheet == .editor || sheet == .match
-    case .popover(let popover): self.popover == popover
-    case .family: sheet == .closed
+    case .mode(let mode):
+      self.mode == mode && (operation == .closed || (operation == .match && mode != .languages))
+    case .editable: operation == .closed && popover == .closed
+    case .operation(let operation?):
+      self.operation == operation && (operation != .match || fontBPresent == true)
+    case .operation(nil): operation == .editor || operation == .match
+    case .popover(.matchAxes):
+      popover == .matchAxes && operation == .match && fontBPresent == true
+    case .popover(.matchTypography):
+      popover == .matchTypography && operation == .match && fontBPresent == true
+    case .popover(let popover):
+      self.popover == popover
+        && (operation == .closed || (operation == .match && popover != .fonts))
+    case .family: operation == .closed
     case .header(let side):
-      sheet == .closed && popover == .closed && (side != .b || fontBPresent == true)
-    case .inspector: inspectorVisible == true && sheet == .closed && popover == .closed
+      operation == .closed && popover == .closed && (side != .b || fontBPresent == true)
+    case .inspector: inspectorVisible == true && operation == .closed && popover == .closed
     case .configuredInspector(let side): satisfies(.inspector) && satisfies(.header(side))
-    case .characterSearch: sheet == .closed && (mode == .text || mode == .glyph)
+    case .characterSearch:
+      (operation == .closed || operation == .match) && (mode == .text || mode == .glyph)
     }
   }
 
-  /// Menu shortcuts are disabled while a sheet is up, so overlays are dismissed first and every
-  /// enabler starts from a known state. Every enabler sets its state rather than toggling it.
   mutating func enable(_ requirement: Requirement) -> [FuzzAction] {
     var actions: [FuzzAction] = []
     func run(_ action: FuzzAction) {
@@ -126,7 +142,17 @@ struct WorkbenchState: Equatable, Sendable {
         FuzzAction(
           kind: .selectFont, target: "Font B family", value: "Arial", delayMilliseconds: 400))
     }
-    while popover != .closed || sheet != .closed { run(Self.escape) }
+    let permitsMatch: Bool
+    switch requirement {
+    case .mode(let mode): permitsMatch = mode != .languages
+    case .popover(.matchAxes), .popover(.matchTypography): permitsMatch = fontBPresent == true
+    case .popover(let popover): permitsMatch = popover != .fonts
+    case .characterSearch: permitsMatch = true
+    default: permitsMatch = false
+    }
+    while popover != .closed || (operation != .closed && !(permitsMatch && operation == .match)) {
+      run(Self.escape)
+    }
     switch requirement {
     case .mode(let mode):
       run(
@@ -134,13 +160,28 @@ struct WorkbenchState: Equatable, Sendable {
           kind: .shortcut, keyCode: mode == .glyph ? 19 : mode == .languages ? 20 : 18,
           modifiers: Self.command,
           delayMilliseconds: 50))
-    case .sheet(let wanted):
+    case .operation(let wanted):
       if wanted == .match && fontBPresent != true { prepareFontB() }
       run(
         FuzzAction(
           kind: .shortcut, keyCode: wanted == .match ? 46 : 14,
           modifiers: Self.command | Self.shift, delayMilliseconds: 400))
     case .popover(let wanted):
+      if wanted == .matchAxes || wanted == .matchTypography {
+        if !satisfies(.operation(.match)) {
+          if fontBPresent != true { prepareFontB() }
+          run(
+            FuzzAction(
+              kind: .shortcut, keyCode: 46, modifiers: Self.command | Self.shift,
+              delayMilliseconds: 400))
+        }
+        run(
+          FuzzAction(
+            kind: .press,
+            target: wanted == .matchAxes ? "Font B Optimize axes" : "Font B Optimize typography",
+            delayMilliseconds: 400))
+        break
+      }
       if wanted == .characters && mode != .text && mode != .glyph {
         run(
           FuzzAction(kind: .shortcut, keyCode: 18, modifiers: Self.command, delayMilliseconds: 50))
@@ -156,7 +197,7 @@ struct WorkbenchState: Equatable, Sendable {
             ? FuzzAction(kind: .press, target: "Search characters", delayMilliseconds: 400)
             : FuzzAction(
               kind: .shortcut, keyCode: 3, modifiers: Self.command, delayMilliseconds: 400))
-    case .family: break
+    case .family, .editable: break
     case .header(let side):
       if side == .b && fontBPresent != true { prepareFontB() }
     case .inspector, .configuredInspector:
@@ -181,7 +222,7 @@ struct WorkbenchState: Equatable, Sendable {
     switch action.kind {
     case .shortcut: applyShortcut(action.keyCode, modifiers: action.modifiers)
     case .key: applyKey(action.keyCode)
-    case .press, .click, .drag: applyControl(action)
+    case .press, .click, .drag, .showMenu: applyControl(action)
     case .setValue:
       // Committing a search picks a result, which closes its popover.
       if action.target == "Find Character" {
@@ -202,17 +243,17 @@ struct WorkbenchState: Equatable, Sendable {
       popover = .closed
       fontPickerSide = nil
     case .setSpecimen:
-      sheet = .closed
+      operation = .closed
       popover = .closed
     case .showInspector:
       inspectorVisible = true
-      sheet = .closed
+      operation = .closed
       popover = .closed
     case .increment, .decrement:
       if ["Show Inspector", "Toggle comparison inspector"].contains(action.target) {
         inspectorVisible = nil
       }
-    case .scroll, .pause, .showMenu: break
+    case .scroll, .pause: break
     }
     if popover == .characters && mode == .languages { popover = .closed }
     if popover == .glyphCharacters && mode != .glyph { popover = mode == nil ? nil : .closed }
@@ -226,48 +267,53 @@ struct WorkbenchState: Equatable, Sendable {
     }
     // A window has its own state.
     if keyCode == 45 && modifiers == command { self = .unknown }
-    guard let sheet else {
+    guard let operation else {
       mode = nil
       return
     }
-    guard sheet == .closed else { return }
+    guard operation != .editor else { return }
     switch (keyCode, modifiers) {
     case (18, command): mode = .text
     case (19, command): mode = .glyph
-    case (20, command): mode = .languages
+    case (20, command): if operation == .closed { mode = .languages }
     case (3, command):
       popover = mode == .languages ? .closed : mode == nil ? nil : .characters
-    case (14, command | shift): self.sheet = .editor
-    case (46, command | shift):
-      if fontBPresent == true { self.sheet = .match }
-      if fontBPresent == nil { self.sheet = nil }
-    case (34, command | Self.control): inspectorVisible = inspectorVisible.map { !$0 }
+    case (14, command | shift): if operation == .closed { self.operation = .editor }
+    case (46, command | shift): openMatch()
+    case (34, command | Self.control):
+      if operation == .closed { inspectorVisible = inspectorVisible.map { !$0 } }
     default: break
     }
+  }
+
+  private mutating func openMatch() {
+    guard operation == .closed else { return }
+    if fontBPresent == true {
+      operation = .match
+      if mode == .languages { mode = .text }
+    }
+    if fontBPresent == nil { operation = nil }
   }
 
   private mutating func applyKey(_ keyCode: UInt16?) {
     switch keyCode {
     case 53:
       switch popover {
-      case .closed: sheet = .closed
+      case .closed: operation = .closed
       case nil:
-        // Escape closes an open popover before it closes a sheet, and the popover may be closed.
+        // An unknown popover can consume Escape before it reaches the active operation.
         popover = .closed
-        if sheet != .closed { sheet = nil }
+        if operation != .closed { operation = nil }
       default: popover = .closed
       }
     case 36:
       if popover == .fonts && fontPickerSide == .b { fontBPresent = nil }
-      // Return presses the Match sheet's default button, Apply, which is disabled until a fit
-      // improves, so whether that sheet closes is unknown and the next requirement dismisses it
-      // first. The editor sheet counts as closed.
       if popover != .closed {
         popover = nil
-      } else if sheet == .match {
-        sheet = nil
-      } else if sheet == .editor {
-        sheet = .closed
+      } else if operation == .match {
+        operation = nil
+      } else if operation == .editor {
+        operation = .closed
       }
     default: break
     }
@@ -281,15 +327,18 @@ struct WorkbenchState: Equatable, Sendable {
       mode = action.kind == .press ? .text : nil
     case "Glyph": mode = .glyph
     case "Text": mode = .text
-    case "Languages", "Languages view": mode = .languages
+    case "Languages", "Languages view": if operation == .closed { mode = .languages }
     case "Language use specimen button", "Use as specimen": mode = .text
     case let name where name.hasPrefix("Language missing ") && !name.hasSuffix(" disclosure"):
       mode = .glyph
-    case "Edit Text…", "Edit Sample Text…": if sheet == .closed { sheet = .editor }
-    case "Match…", "Match fonts…":
-      if sheet == .closed && fontBPresent == true { sheet = .match }
-      if sheet == .closed && fontBPresent == nil { sheet = nil }
-    case "Apply", "Cancel", "Cancel matching", "xmark.circle.fill": sheet = .closed
+    case "Edit Text…", "Edit Sample Text…": if operation == .closed { operation = .editor }
+    case "Match…", "Match fonts…": openMatch()
+    case "Font B Optimize axes": popover = .matchAxes
+    case "Font B Optimize typography": popover = .matchTypography
+    case let target
+    where target.hasPrefix("Font B Optimize axis ") || target.hasPrefix("Font B Optimize feature "):
+      if action.targetRole == "AXMenuItem" { popover = .closed }
+    case "Apply", "Cancel", "Cancel matching": operation = .closed
     case "Search characters":
       mode = .glyph
       popover = .glyphCharacters

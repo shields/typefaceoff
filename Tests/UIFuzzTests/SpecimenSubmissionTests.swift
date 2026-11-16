@@ -28,15 +28,15 @@ import Testing
     var state = WorkbenchState.unknown
     let submission = FuzzAction(kind: .setSpecimen, value: "new specimen")
     state.apply(submission)
-    #expect(state.sheet == .closed)
+    #expect(state.operation == .closed)
     #expect(state.popover == .closed)
     let trace = TraceMutator().repaired([
       FuzzAction(kind: .press, target: "Match…"), submission,
       FuzzAction(kind: .setValue, target: "Custom specimen text", value: "next edit"),
     ])
-    #expect(trace[1] == submission)
-    #expect(trace[2].kind == .shortcut)
-    #expect(trace[2].keyCode == 14)
+    #expect(trace[1].kind == .key && trace[1].keyCode == 53)
+    #expect(trace[2] == submission)
+    #expect(trace[3].kind == .shortcut && trace[3].keyCode == 14)
   }
 
   @Test func compoundActionsRoundTripWithoutRecordedControlPaths() throws {

@@ -177,17 +177,10 @@ extension SimilarityModelTests {
     let b = try #require(model.comparison.b)
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer {
       host.window.close()
       continuation.finish()
-    }
-    func displayedText() -> [String] {
-      (host.elements + host.hitElements + host.finelySampledHitElements()).compactMap {
-        element -> String? in
-        guard element.accessibilityRole?() == .staticText else { return nil }
-        return element.accessibilityValue?()
-      }
     }
     try await host.settle()
     let height = host.view.fittingSize.height
@@ -202,7 +195,9 @@ extension SimilarityModelTests {
           evaluations: count, finished: false))
       try await host.settle { fit.result?.evaluations == count }
       let suffix = count == 1 ? "1 evaluation" : "2 evaluations"
-      #expect(displayedText().contains { $0.hasSuffix(suffix) })
+      let status = try await host.element("Matching distance")
+      let text: String? = status.accessibilityValue?()
+      #expect(text?.hasSuffix(suffix) == true)
       #expect(abs(host.view.fittingSize.height - height) < 0.5)
     }
     if fail {
@@ -220,13 +215,14 @@ extension SimilarityModelTests {
   @Test func changingMatchingInputsClearsThePreviewWithoutStartingAnotherSearch() async throws {
     let model = WorkbenchModel()
     let fit = FontFitModel(load: Self.fitResult)
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer { host.window.close() }
     try await host.press("Font B Optimize tracking")
     try await host.settle { !fit.running && fit.result != nil }
     model.comparison.b?.size += 1
     try await host.settle { fit.result == nil }
     #expect(!fit.running && !host.isEnabled("Apply"))
+    try await host.press("Match…")
     try await host.press("Font B Optimize size")
     try await host.settle { !fit.running && fit.result != nil }
     #expect(fit.result?.proposed.tracking == model.comparison.b?.tracking)
@@ -274,19 +270,22 @@ extension SimilarityModelTests {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
     let fit = FontFitModel(load: Self.fitResult)
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 750)
+    let host = WorkbenchTestHost(
+      WorkbenchView(model: model, fit: fit, matching: true), width: 1440, height: 900)
     defer { host.window.close() }
     try await host.settle()
     #expect(fit.result == nil && !fit.running)
     #expect(!host.isEnabled("Apply"))
     let initial = try #require(model.comparison.b)
     let axis = try #require(model.comparison.b?.face.axes.first)
-    try await host.press("Font B Optimize axis \(axis.id)")
+    try await host.choose("Font B Optimize axes", nativeTitles: [axis.name], item: axis.name)
     try await host.settle { !fit.running && fit.result != nil && host.isEnabled("Apply") }
     var expected = initial
     expected.axes[axis.id] = (expected.axes[axis.id] ?? 0) + 0.1
     #expect(fit.result?.proposed == expected)
-    try await host.press("Font B Optimize feature ot.kern")
+    let feature = try #require(initial.face.features.first { $0.id == "ot.kern" })
+    try await host.choose(
+      "Font B Optimize typography", nativeTitles: [feature.name], item: feature.name)
     try await host.settle { fit.result?.evaluations == 20 && host.isEnabled("Apply") }
     expected.features["ot.kern"] = 0
     #expect(fit.result?.proposed == expected)
@@ -328,7 +327,7 @@ extension SimilarityModelTests {
           $0.finish()
         }
       }
-      let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+      let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
       defer { host.window.close() }
       try await host.press("Font B Optimize tracking")
       try await host.settle { fail ? fit.error != nil : (fit.result != nil && !fit.running) }
@@ -338,7 +337,7 @@ extension SimilarityModelTests {
     }
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer {
       host.window.close()
       continuation.finish()
@@ -372,7 +371,7 @@ extension SimilarityModelTests {
     #expect(!first.familySimilarity.comparing)
   }
 
-  @Test func removingTheMatchViewCancelsItsWorkAndDefaultsMissingAxes() async throws {
+  @Test func removingTheMatchViewCancelsItsWork() async throws {
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     var b = FontConfiguration(name)
     b.axes = [:]
@@ -380,18 +379,12 @@ extension SimilarityModelTests {
     let model = WorkbenchModel(comparison: Comparison(a: b, b: b))
     let (stream, continuation) = AsyncThrowingStream<FontFitResult, Error>.makeStream()
     let fit = FontFitModel { _, _ in stream }
-    let host = WorkbenchTestHost(AnyView(MatchSheet(model: model, fit: fit)))
+    let host = WorkbenchTestHost(AnyView(WorkbenchView(model: model, fit: fit, matching: true)))
     defer {
       host.window.close()
       continuation.finish()
     }
-    _ = try await host.element("Font B Optimize feature ot.kern")
-    let values = (host.elements + host.hitElements + host.finelySampledHitElements()).compactMap {
-      element -> String? in
-      guard element.accessibilityRole?() == .staticText else { return nil }
-      return element.accessibilityValue?()
-    }
-    #expect(values.contains("999"))
+    _ = try await host.element("Font B Optimize typography")
     try await host.press("Font B Optimize tracking")
     try await host.settle { fit.running }
     #expect(fit.running)

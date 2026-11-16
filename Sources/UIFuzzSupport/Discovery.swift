@@ -23,23 +23,31 @@ public struct DiscoveryCapture<Node: AccessibilityNode> {
   public var offersShortcuts: Bool { modal.root == nil && !modal.unlocated }
 }
 
-extension FuzzAction.Sheet {
-  /// The sheet that a modal root of role `rootRole` holds, told apart by a control that only it
-  /// has. `targets` are the names of the controls discovery offered inside the root. The Match
-  /// sheet's icon-only close button is named by its label or by its symbol.
+extension FuzzAction.Context {
   public static func identify(rootRole: String?, targets: [String?]) -> Self? {
-    guard rootRole == "AXSheet" else { return nil }
     let names = Set(targets.compactMap { $0 })
-    if !names.isDisjoint(with: ["Cancel matching", "xmark.circle.fill"]) { return .match }
-    return names.contains("Custom specimen text") ? .editor : nil
+    if rootRole == "AXSheet" {
+      return names.contains("Custom specimen text") ? .editor : nil
+    }
+    if rootRole == nil || rootRole == "AXMenu" {
+      if names.contains("Cancel matching")
+        || names.contains(where: { $0.hasPrefix("Font B Optimize ") })
+      {
+        return .match
+      }
+    }
+    return nil
   }
 
-  /// What the driver log records for a modal root: the sheet it was identified as, or that an
-  /// `AXSheet` could not be identified, since no tag reaches the traces then. Nil for any other
-  /// root.
+  public func forTarget(_ target: String?) -> Self? {
+    if self == .editor { return self }
+    guard let target else { return nil }
+    return ["Apply", "Cancel matching", "Stop"].contains(target)
+      || target.hasPrefix("Font B Optimize ") ? self : nil
+  }
+
   public static func logName(rootRole: String?, identified: Self?) -> String? {
-    guard rootRole == "AXSheet" else { return nil }
-    return identified?.rawValue ?? "unidentified"
+    identified?.rawValue ?? (rootRole == "AXSheet" ? "unidentified" : nil)
   }
 }
 

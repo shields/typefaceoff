@@ -261,6 +261,8 @@ import TypefaceCore
     #expect(!model.comparison.shape && model.comparison.spacing)
     #expect(!model.comparison.frequency)
     model.updatePresentation { $0.selectedGlyph = "g" }
+    model.edit("Resize", undoManager: undo) { $0.a.size = 22 }
+    #expect(!undo.canUndo)
     #expect(undo.canRedo)
     undo.redo()
     #expect(model.comparison.a.size == 44)

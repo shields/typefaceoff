@@ -56,7 +56,7 @@ import Testing
       ([press("Search characters")], [glyphMode, press("Search characters")]),
       ([editorText], [openEditor, editorText]),
       ([press("Apply")], [openEditor, press("Apply")]),
-      ([press("Tracking")], [openMatch, press("Tracking")]),
+      ([press("Font B Optimize tracking")], [openMatch, press("Font B Optimize tracking")]),
       ([fontSearch], [press("Font A family"), fontSearch]),
       ([characterSearch], [glyphMode, findCharacter, characterSearch]),
       (
@@ -72,8 +72,8 @@ import Testing
         [press("Font A family"), escape, glyphMode, findCharacter, characterSearch]
       ),
       (
-        [openEditor, press("Tracking")],
-        [openEditor, escape, openMatch, press("Tracking")]
+        [openEditor, press("Font B Optimize tracking")],
+        [openEditor, escape, openMatch, press("Font B Optimize tracking")]
       ),
       (
         [openEditor, press("Cancel"), press("Apply")],
@@ -140,12 +140,15 @@ import Testing
         [press("Font A family"), fontSearch, openEditor, escape, escape, openEditor, editorText]
       ),
       (
-        [press("Match…"), key(36), press("Tracking")],
-        [press("Match…"), key(36), escape, openMatch, press("Tracking")]
+        [press("Match…"), key(36), press("Font B Optimize tracking")],
+        [press("Match…"), key(36), escape, openMatch, press("Font B Optimize tracking")]
       ),
       (
-        [press("Edit Text…"), press("Match…"), press("Tracking")],
-        [press("Edit Text…"), press("Match…"), escape, openMatch, press("Tracking")]
+        [press("Edit Text…"), press("Match…"), press("Font B Optimize tracking")],
+        [
+          press("Edit Text…"), press("Match…"), escape, openMatch,
+          press("Font B Optimize tracking"),
+        ]
       ),
       (
         [openEditor, glyphMode, zoomIn],
@@ -206,25 +209,22 @@ import Testing
     #expect(Self.repaired(plan).map(Self.describe) == Self.expected(expected))
   }
 
-  private static func inSheet(
-    _ sheet: FuzzAction.Sheet, _ kind: FuzzAction.Kind = .press, _ target: String? = nil,
+  private static func inContext(
+    _ sheet: FuzzAction.Context, _ kind: FuzzAction.Kind = .press, _ target: String? = nil,
     path: [Int]? = nil, role: String? = nil
   ) -> FuzzAction {
-    FuzzAction(kind: kind, target: target, targetPath: path, targetRole: role, sheet: sheet)
+    FuzzAction(kind: kind, target: target, targetPath: path, targetRole: role, context: sheet)
   }
 
   @Test(
     arguments: [
-      "Tracking", "Weight", "Size", "Refine", "Stop", "Cancel matching",
-      "xmark.circle.fill", "Reference A specimen scroll area", "Proposed B specimen scroll area",
-      "Match options scroll area", "Match status scroll area", "Optimize", "equal.square",
-      "Optimize Tracking",
+      "Stop", "Cancel matching", "Font B Optimize axes", "Font B Optimize typography",
       "Font B Optimize tracking", "Font B Optimize size", "Font B Optimize axis 2003265652",
       "Font B Optimize feature ot.kern",
     ])
-  func matchSheetControlsNeedTheMatchSheet(name: String) {
+  func matchControlsNeedMatchMode(name: String) {
     let control = Self.press(name)
-    #expect(WorkbenchState.requirement(of: control) == .sheet(.match))
+    #expect(WorkbenchState.requirement(of: control) == .operation(.match))
     #expect(
       Self.repaired([control]).map(Self.describe) == Self.expected([Self.openMatch, control]))
     #expect(
@@ -235,13 +235,81 @@ import Testing
         == Self.expected([Self.openMatch, control]))
   }
 
+  @Test func navigatingDuringMatchKeepsThePreviewActive() {
+    let actions = [
+      Self.openMatch, Self.glyphMode, Self.zoomIn, Self.textMode,
+      Self.press("Font B specimen"), Self.set("Find Character", commit: false),
+    ]
+    #expect(Self.repaired(actions) == actions)
+    var state = WorkbenchState.launch
+    for action in actions { state.apply(action) }
+    #expect(state.operation == .match && state.mode == .text)
+    let zoom = Self.repaired([Self.openMatch, Self.zoomIn])
+    #expect(
+      zoom.map(Self.describe) == Self.expected([Self.openMatch, Self.glyphMode, Self.zoomIn]))
+  }
+
+  @Test func lockedControlsCloseMatchBeforeEditing() {
+    for target in [
+      "Show Inspector", "Font A family", "Font B Size field", "Search Languages",
+      "Open typography inspector", "Link A and B",
+    ] {
+      let actions = Self.repaired([Self.openMatch, Self.press(target)])
+      #expect(actions[1].kind == .key && actions[1].keyCode == 53)
+      #expect(actions.last?.target == target)
+    }
+    var state = WorkbenchState.launch
+    state.mode = .languages
+    state.apply(Self.openMatch)
+    #expect(state.mode == .text && state.operation == .match)
+    state.apply(Self.shortcut(20))
+    state.apply(Self.press("Languages"))
+    #expect(state.mode == .text)
+  }
+
+  @Test func axisAndFeatureMenuItemsReopenTheirOwnMenu() {
+    for (target, menu, popover) in [
+      ("Font B Optimize axis 2003265652", "Font B Optimize axes", WorkbenchState.Popover.matchAxes),
+      ("Font B Optimize feature ot.liga", "Font B Optimize typography", .matchTypography),
+    ] {
+      let item = FuzzAction(kind: .press, target: target, targetRole: "AXMenuItem", context: .match)
+      #expect(WorkbenchState.requirement(of: item) == .popover(popover))
+      #expect(
+        Self.repaired([item]).map(Self.describe)
+          == Self.expected([
+            Self.openMatch, Self.press(menu), item,
+          ]))
+      #expect(
+        Self.repaired([Self.openMatch, Self.press(menu), item, item]).map(Self.describe)
+          == Self.expected([
+            Self.openMatch, Self.press(menu), item, Self.press(menu), item,
+          ]))
+      let show = FuzzAction(kind: .showMenu, target: menu)
+      #expect(Self.repaired([Self.openMatch, show, item]) == [Self.openMatch, show, item])
+      var state = WorkbenchState(operation: .match, fontBPresent: nil)
+      _ = state.enable(.popover(popover))
+      #expect(state.satisfies(.popover(popover)))
+      state.apply(item)
+      #expect(state.popover == .closed && state.operation == .match)
+      state.fontBPresent = false
+      _ = state.enable(.popover(popover))
+      #expect(state.satisfies(.popover(popover)))
+    }
+    #expect(
+      WorkbenchState.requirement(of: Self.press("Font B Optimize axis 2003265652"))
+        == .operation(.match))
+    #expect(
+      WorkbenchState.requirement(
+        of: FuzzAction(kind: .press, target: "Copy", targetRole: "AXMenuItem")) == nil)
+  }
+
   @Test(
     arguments: [
-      press("Cancel"), press("Apply"), press("Cancel matching"), press("xmark.circle.fill"),
+      press("Cancel"), press("Apply"), press("Cancel matching"), press("Cancel matching"),
       FuzzAction(kind: .click, target: "Cancel matching"), escape,
     ])
-  func everyCloserEndsTheMatchSheet(closer: FuzzAction) {
-    let size = Self.press("Size")
+  func everyCloserEndsMatchMode(closer: FuzzAction) {
+    let size = Self.press("Font B Optimize size")
     #expect(
       Self.repaired([Self.openMatch, closer, size]).map(Self.describe)
         == Self.expected([Self.openMatch, closer, Self.openMatch, size]))
@@ -273,8 +341,8 @@ import Testing
       ])
   }
 
-  @Test func returnMayLeaveTheMatchSheetOpenSoTheNextRequirementDismissesItFirst() {
-    let size = Self.press("Size")
+  @Test func returnMayLeaveMatchActiveSoItsNextControlRequiresReopening() {
+    let size = Self.press("Font B Optimize size")
     #expect(
       Self.repaired([Self.openMatch, Self.key(36), size]).map(Self.describe)
         == Self.expected([Self.openMatch, Self.key(36), Self.escape, Self.openMatch, size]))
@@ -287,14 +355,14 @@ import Testing
         == Self.expected([Self.openEditor, closer, Self.openEditor, Self.editorText]))
   }
 
-  @Test func aTagNamesTheSheetWhateverTheControlIsCalled() {
-    let axis = Self.inSheet(.match, .press, "Optical Size")
-    let feature = Self.inSheet(.match, .press, "Standard Ligatures")
-    let unnamed = Self.inSheet(
+  @Test func aTagNamesTheOperationWhateverTheControlIsCalled() {
+    let axis = Self.inContext(.match, .press, "Optical Size")
+    let feature = Self.inContext(.match, .press, "Standard Ligatures")
+    let unnamed = Self.inContext(
       .match, .scroll, path: [0, 1, 4], role: "AXScrollArea")
-    let text = Self.inSheet(.editor, .setValue, "Anything")
+    let text = Self.inContext(.editor, .setValue, "Anything")
     for control in [axis, feature, unnamed] {
-      #expect(WorkbenchState.requirement(of: control) == .sheet(.match))
+      #expect(WorkbenchState.requirement(of: control) == .operation(.match))
       let repaired = Self.repaired([control])
       #expect(repaired.map(Self.describe) == Self.expected([Self.openMatch, control]))
       #expect(repaired.last == control)
@@ -308,18 +376,18 @@ import Testing
         Self.repaired([Self.openMatch, Self.press("Cancel"), control]).map(Self.describe)
           == Self.expected([Self.openMatch, Self.press("Cancel"), Self.openMatch, control]))
     }
-    #expect(WorkbenchState.requirement(of: text) == .sheet(.editor))
+    #expect(WorkbenchState.requirement(of: text) == .operation(.editor))
     #expect(
       Self.repaired([Self.openMatch, text]).map(Self.describe)
         == Self.expected([Self.openMatch, Self.escape, Self.openEditor, text]))
   }
 
   @Test func aTagOutranksTheNameTable() {
-    let editorTracking = Self.inSheet(.editor, .press, "Tracking")
-    #expect(WorkbenchState.requirement(of: editorTracking) == .sheet(.editor))
-    let matchApply = Self.inSheet(.match, .press, "Apply")
-    #expect(WorkbenchState.requirement(of: matchApply) == .sheet(.match))
-    #expect(WorkbenchState.requirement(of: Self.press("Apply")) == .sheet(nil))
+    let editorTracking = Self.inContext(.editor, .press, "Font B Optimize tracking")
+    #expect(WorkbenchState.requirement(of: editorTracking) == .operation(.editor))
+    let matchApply = Self.inContext(.match, .press, "Apply")
+    #expect(WorkbenchState.requirement(of: matchApply) == .operation(.match))
+    #expect(WorkbenchState.requirement(of: Self.press("Apply")) == .operation(nil))
     #expect(
       Self.repaired([Self.openEditor, matchApply]).map(Self.describe)
         == Self.expected([Self.openEditor, Self.escape, Self.openMatch, matchApply]))
@@ -328,44 +396,50 @@ import Testing
         == Self.expected([Self.openMatch, Self.escape, Self.openEditor, editorTracking]))
   }
 
-  @Test func closersAreControlsOfTheSheetTheyCloseWhenTagged() {
-    let close = Self.inSheet(.match, .press, "xmark.circle.fill")
-    let size = Self.inSheet(.match, .press, "Some axis")
+  @Test func closersRequireTheOperationTheyCloseWhenTagged() {
+    let close = Self.inContext(.match, .press, "Cancel matching")
+    let size = Self.inContext(.match, .press, "Some axis")
     #expect(
       Self.repaired([close, size]).map(Self.describe)
         == Self.expected([Self.openMatch, close, Self.openMatch, size]))
   }
 
-  @Test func menuItemsOpenTheirSheetsButNotUnderAnotherSheet() {
+  @Test func editingCommandsWaitUntilTheCurrentOperationCloses() {
     let match = Self.press("Match fonts…")
     let edit = Self.press("Edit Sample Text…")
     #expect(
-      Self.repaired([match, Self.press("Size")]).map(Self.describe)
-        == Self.expected([match, Self.press("Size")]))
+      Self.repaired([match, Self.press("Font B Optimize size")]).map(Self.describe)
+        == Self.expected([match, Self.press("Font B Optimize size")]))
     #expect(
       Self.repaired([edit, Self.editorText]).map(Self.describe)
         == Self.expected([edit, Self.editorText]))
     #expect(
-      Self.repaired([Self.openEditor, match, Self.press("Size")]).map(Self.describe)
+      Self.repaired([Self.openEditor, match, Self.press("Font B Optimize size")]).map(Self.describe)
         == Self.expected(
-          [Self.openEditor, match, Self.escape, Self.openMatch, Self.press("Size")]))
+          [Self.openEditor, match, Self.escape, Self.openMatch, Self.press("Font B Optimize size")])
+    )
     #expect(
       Self.repaired([Self.openMatch, edit, Self.editorText]).map(Self.describe)
         == Self.expected([Self.openMatch, edit, Self.escape, Self.openEditor, Self.editorText]))
   }
 
-  @Test func sheetShortcutsDoNothingWhileASheetIsOpen() {
+  @Test func editingShortcutsDoNothingDuringAnotherOperation() {
     #expect(
-      Self.repaired([Self.openMatch, Self.openMatch, Self.press("Size")]).map(Self.describe)
-        == Self.expected([Self.openMatch, Self.openMatch, Self.press("Size")]))
+      Self.repaired([Self.openMatch, Self.openMatch, Self.press("Font B Optimize size")]).map(
+        Self.describe)
+        == Self.expected([Self.openMatch, Self.openMatch, Self.press("Font B Optimize size")]))
     #expect(
       Self.repaired([Self.openMatch, Self.openEditor, Self.editorText]).map(Self.describe)
         == Self.expected(
           [Self.openMatch, Self.openEditor, Self.escape, Self.openEditor, Self.editorText]))
     #expect(
-      Self.repaired([Self.openEditor, Self.openMatch, Self.press("Size")]).map(Self.describe)
+      Self.repaired([Self.openEditor, Self.openMatch, Self.press("Font B Optimize size")]).map(
+        Self.describe)
         == Self.expected(
-          [Self.openEditor, Self.openMatch, Self.escape, Self.openMatch, Self.press("Size")]))
+          [
+            Self.openEditor, Self.openMatch, Self.escape, Self.openMatch,
+            Self.press("Font B Optimize size"),
+          ]))
   }
 
   @Test func repairedStepsKeepTheirDelaysAndSettleBeforeShortcuts() {
@@ -415,10 +489,10 @@ import Testing
 
   @Test func enablersEstablishTheirRequirementFromEveryState() {
     let modes: [WorkbenchState.Mode?] = [nil, .text, .glyph]
-    let sheets: [WorkbenchState.Sheet?] = [nil, .closed, .editor, .match]
+    let sheets: [WorkbenchState.Operation?] = [nil, .closed, .editor, .match]
     let popovers: [WorkbenchState.Popover?] = [nil, .closed, .fonts, .characters, .glyphCharacters]
     let requirements: [WorkbenchState.Requirement] = [
-      .mode(.text), .mode(.glyph), .sheet(.editor), .sheet(.match), .sheet(nil),
+      .mode(.text), .mode(.glyph), .operation(.editor), .operation(.match), .operation(nil),
       .popover(.fonts), .popover(.glyphCharacters), .popover(.characters),
     ]
     for mode in modes {
@@ -426,7 +500,7 @@ import Testing
         for popover in popovers {
           for requirement in requirements {
             var state = WorkbenchState(
-              mode: mode, sheet: sheet, popover: popover)
+              mode: mode, operation: sheet, popover: popover)
             let actions = state.enable(requirement)
             #expect(state.satisfies(requirement))
             #expect((1...4).contains(actions.count))
@@ -457,20 +531,18 @@ import Testing
     #expect(checked > 500)
   }
 
-  /// A trace of the shape an exploration records. `needs` names the sheet that each sheet-only
-  /// action can exist in, independently of the model under test.
   private struct Exploration {
     var actions: [FuzzAction]
-    var needs: [FuzzAction: FuzzAction.Sheet]
+    var needs: [FuzzAction: FuzzAction.Context]
 
-    init(_ steps: [(FuzzAction, FuzzAction.Sheet?)]) {
+    init(_ steps: [(FuzzAction, FuzzAction.Context?)]) {
       actions = steps.map(\.0)
       needs = [:]
       for case (let action, let sheet?) in steps { needs[action] = sheet }
     }
   }
 
-  private static func plain(_ actions: [FuzzAction]) -> [(FuzzAction, FuzzAction.Sheet?)] {
+  private static func plain(_ actions: [FuzzAction]) -> [(FuzzAction, FuzzAction.Context?)] {
     actions.map { ($0, nil) }
   }
 
@@ -491,31 +563,31 @@ import Testing
     press("Swap fonts"), press("Link A and B"),
   ])
 
-  private static let axisToggle = inSheet(.match, .press, "Optical Size")
-  private static let featureToggle = inSheet(.match, .press, "Standard Ligatures")
-  private static let matchList = inSheet(
+  private static let axisToggle = inContext(.match, .press, "Optical Size")
+  private static let featureToggle = inContext(.match, .press, "Standard Ligatures")
+  private static let matchList = inContext(
     .match, .scroll, path: [0, 1, 4, 2], role: "AXScrollArea")
-  private static let closeMatch = inSheet(.match, .press, "xmark.circle.fill")
-  private static let applyMatch = inSheet(.match, .press, "Apply")
-  private static let cancelMatch = inSheet(.match, .press, "Cancel")
-  private static let editorList = inSheet(
+  private static let closeMatch = inContext(.match, .press, "Cancel matching")
+  private static let applyMatch = inContext(.match, .press, "Apply")
+  private static let cancelMatch = inContext(.match, .press, "Cancel")
+  private static let editorList = inContext(
     .editor, .scroll, path: [0, 1, 0], role: "AXScrollArea")
-  private static let editorField = inSheet(.editor, .setValue, "Custom specimen text")
-  private static let applyEditor = inSheet(.editor, .press, "Apply")
+  private static let editorField = inContext(.editor, .setValue, "Custom specimen text")
+  private static let applyEditor = inContext(.editor, .press, "Apply")
 
   private static let explorations: [Exploration] = [
     Exploration(
       workbenchPrefix + [
-        (openMatch, nil), (press("Size"), .match),
+        (openMatch, nil), (press("Font B Optimize size"), .match),
         (press("Font B Optimize feature ot.kern"), .match),
-        (press("Refine"), .match), (press("Stop"), .match), (axisToggle, .match),
+        (press("Font B Optimize leading"), .match), (press("Stop"), .match), (axisToggle, .match),
         (featureToggle, .match), (matchList, .match), (escape, nil),
       ] + workbenchSuffix),
     Exploration(
       workbenchPrefix + [
         (press("Match…"), nil), (axisToggle, .match), (closeMatch, .match),
         (press("Match…"), nil), (featureToggle, .match), (applyMatch, .match), (openMatch, nil),
-        (matchList, .match), (press("Refine"), .match), (key(36), nil),
+        (matchList, .match), (press("Font B Optimize leading"), .match), (key(36), nil),
       ] + workbenchSuffix),
     Exploration(
       workbenchPrefix + [
@@ -531,12 +603,11 @@ import Testing
       ] + workbenchSuffix),
   ]
 
-  @Test func explorationsMutateWithoutUsingASheetControlWhileItsSheetIsClosed() {
+  @Test func explorationsKeepControlsInsideTheirRequiredOperation() {
     let mutator = TraceMutator(maximumTextUnits: 32, installedFontFamilies: ["A", "B"])
     var checked = 0
     var violations: [String] = []
     for (index, exploration) in Self.explorations.enumerated() {
-      // Return may leave the Match sheet open, so repair can add an Escape after it.
       var remaining = exploration.actions[...]
       for action in mutator.repaired(exploration.actions) where action == remaining.first {
         remaining.removeFirst()
@@ -549,7 +620,7 @@ import Testing
         for action in trace.actions {
           if let sheet = exploration.needs[action] {
             checked += 1
-            if state.sheet != (sheet == .match ? .match : .editor) {
+            if state.operation != (sheet == .match ? .match : .editor) {
               violations.append("scenario \(index) seed \(seed): \(Self.describe(action))")
             }
           }

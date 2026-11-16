@@ -14,7 +14,7 @@ struct DiscoveryStats {
   var modalRole: String?
   var modalDepth: Int?
   var unlocated: Bool
-  var sheet: String?
+  var context: String?
 }
 
 extension AXDriver {
@@ -39,7 +39,7 @@ extension AXDriver {
     let focusedNode = focused.map { AXNode($0.element, reads: reads) }
     var result = ActionExplorer.keyboardActions(
       includeShortcuts: capture.offersShortcuts, inMenu: capture.menuIsOpen)
-    let sheet = FuzzAction.Sheet.identify(
+    let context = FuzzAction.Context.identify(
       rootRole: capture.modal.rootRole, targets: capture.elements.map { $0.node.discoveryTarget })
     for node in capture.elements {
       let element = node.node.element
@@ -87,7 +87,7 @@ extension AXDriver {
                 "Search languages",
               ].contains(target)
             : nil,
-          sheet: sheet)
+          context: context?.forTarget(target))
       }
     }
     observe(
@@ -97,7 +97,7 @@ extension AXDriver {
         focusedSubrole: focusedNode?.subrole, focusLocation: capture.modal.focus,
         modalRole: capture.modal.rootRole, modalDepth: capture.modal.root?.count,
         unlocated: capture.unlocated,
-        sheet: FuzzAction.Sheet.logName(rootRole: capture.modal.rootRole, identified: sheet)))
+        context: FuzzAction.Context.logName(rootRole: capture.modal.rootRole, identified: context)))
     return result
   }
 }

@@ -199,20 +199,20 @@ import TypefaceCore
   }
 
   @Test func matchPreviewsAreDistinguishable() async throws {
-    let host = WorkbenchTestHost(MatchSheet(model: WorkbenchModel()))
+    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(), matching: true))
     defer { host.window.close() }
     try await host.settle()
     let scrolls = host.subviews.compactMap { $0 as? NSScrollView }.map {
       $0.accessibilityIdentifier()
     }
-    #expect(scrolls.contains("Reference A specimen scroll area"))
-    #expect(scrolls.contains("Proposed B specimen scroll area"))
+    #expect(scrolls.contains("Font A specimen scroll area"))
+    #expect(scrolls.contains("Font B specimen scroll area"))
     let texts = host.subviews.compactMap { $0 as? SpecimenNSTextView }
     #expect(
-      texts.map { $0.accessibilityIdentifier() }.sorted() == [
-        "Proposed B specimen", "Reference A specimen",
+      texts.map { $0.accessibilityLabel()! }.sorted() == [
+        "Font A specimen", "Font B specimen",
       ])
-    #expect(texts.allSatisfy { $0.accessibilityLabel() == "Font A specimen" })
+    #expect(texts.allSatisfy { $0.accessibilityIdentifier().isEmpty })
   }
 
   @Test func redesignedControlNamesResolve() async throws {

@@ -155,7 +155,7 @@ import TypefaceCore
       window.close()
     }
     let match = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 600, height: 660), styleMask: [.titled],
+      contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled],
       backing: .buffered, defer: false)
     match.isReleasedWhenClosed = false
     var matching = Comparison()
@@ -163,7 +163,7 @@ import TypefaceCore
     matching.customText = "Hamburg minimum AV To fi fl 1820"
     let fit = FontFitModel()
     let host = NSHostingView(
-      rootView: MatchSheet(model: WorkbenchModel(comparison: matching), fit: fit)
+      rootView: WorkbenchView(model: WorkbenchModel(comparison: matching), fit: fit, matching: true)
         .preferredColorScheme(.dark))
     match.contentView = host
     match.orderFront(nil)

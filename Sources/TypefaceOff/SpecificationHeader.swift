@@ -6,6 +6,7 @@ struct SpecificationHeader: View {
   @ObservedObject var model: WorkbenchModel
   let inspectorOpen: Bool
   let matching: Bool
+  let preview: FontConfiguration?
   let openInspector: (ComparisonInspectorState.Section) -> Void
   let match: () -> Void
   @Environment(\.workbenchUndoManager) private var undoManager
@@ -17,18 +18,24 @@ struct SpecificationHeader: View {
   init(
     model: WorkbenchModel, inspectorOpen: Bool, matching: Bool,
     familyFocus: Binding<Side?> = .constant(nil),
+    preview: FontConfiguration? = nil,
     openInspector: @escaping (ComparisonInspectorState.Section) -> Void, match: @escaping () -> Void
   ) {
     self.model = model
     self.inspectorOpen = inspectorOpen
     self.matching = matching
+    self.preview = preview
     self.openInspector = openInspector
     self.match = match
     _choosing = State(initialValue: nil)
     _familyFocus = familyFocus
   }
 
-  private var comparison: Comparison { model.comparison }
+  private var comparison: Comparison {
+    var comparison = model.comparison
+    if let preview { comparison.b = preview }
+    return comparison
+  }
   private var canCompare: Bool {
     FontRenderer.isAvailable(comparison.a)
       && comparison.b.map { FontRenderer.isAvailable($0) } == true
@@ -112,9 +119,9 @@ struct SpecificationHeader: View {
             .frame(width: 76, height: 24).offset(x: width - 100, y: 72)
         }
         Rectangle().fill(WorkbenchStyle.ink).frame(width: width - 48, height: 1)
-          .offset(x: 24, y: 105)
+          .offset(x: 24, y: matching ? 181 : 105)
       }.font(.system(size: 13)).foregroundStyle(WorkbenchStyle.ink)
-    }.frame(height: 106)
+    }.frame(height: matching ? 182 : 106)
       .onChange(of: familyFocus) { _, side in
         if let side {
           focusedFamily = side
@@ -196,7 +203,9 @@ struct SpecificationHeader: View {
     _ setting: SpecificationSetting, title: String, unit: String,
     config: FontConfiguration, side: Side
   ) -> some View {
-    let configs = [comparison.a, comparison.b].compactMap { $0 }.filter {
+    let configs = [comparison.a, comparison.b, matching ? model.comparison.b : nil].compactMap {
+      $0
+    }.filter {
       FontRenderer.isAvailable($0)
     }
     let values = configs.map { setting.value(in: $0) }
@@ -213,7 +222,9 @@ struct SpecificationHeader: View {
       identifier: "\(side.fontName) \(title) field",
       value: setting.value(in: config), precision: precision, unit: unit,
       automatic: setting == .leading && config.leading == nil,
-      rules: setting.rules(for: config)!, numberWidth: ceil(numberWidth), enabled: !matching
+      rules: setting.rules(for: config)!, numberWidth: ceil(numberWidth), enabled: !matching,
+      emphasized: matching && side == .b && (setting != .leading || config.leading != nil)
+        && changed(setting, config: config)
     ) { entry, both in
       var accepted = false
       edit("Adjust \(title.lowercased())") {
@@ -248,7 +259,9 @@ struct SpecificationHeader: View {
       openInspector(.typography)
     } label: {
       HStack(spacing: 4) {
-        Text(verbatim: title)
+        Text(verbatim: title).fontWeight(
+          matching && side == .b && config.features != model.comparison.b?.features
+            ? .semibold : .regular)
         Image(systemName: "chevron.down").font(.system(size: 11))
       }.frame(minHeight: 20, alignment: .top).contentShape(Rectangle())
     }.buttonStyle(.plain).disabled(matching)
@@ -266,6 +279,12 @@ struct SpecificationHeader: View {
 
   private func edit(_ name: String, _ body: (inout Comparison) -> Void) {
     model.edit(name, undoManager: undoManager, body)
+  }
+
+  private func changed(_ setting: SpecificationSetting, config: FontConfiguration) -> Bool {
+    guard let before = model.comparison.b else { return false }
+    return setting.value(in: config) != setting.value(in: before)
+      || (setting == .leading && config.leading != before.leading)
   }
 }
 

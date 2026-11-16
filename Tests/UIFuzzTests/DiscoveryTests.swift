@@ -25,7 +25,7 @@ import Testing
 
   func sheet(hidden: Bool? = nil, enabled: Bool? = nil) -> FakeNode {
     world.node(
-      "AXSheet", name: "Match sheet", frame: Self.sheetFrame, enabled: enabled, hidden: hidden,
+      "AXSheet", name: "Editor sheet", frame: Self.sheetFrame, enabled: enabled, hidden: hidden,
       children: [
         button("Apply", at: Self.insideSheet), button("Cancel", at: Self.insideSheet),
       ])
@@ -133,7 +133,7 @@ import Testing
     var description: String { name }
   }
 
-  static let sheetControls = ["Match sheet", "Apply", "Cancel"]
+  static let sheetControls = ["Editor sheet", "Apply", "Cancel"]
   static let everything = [
     "Workbench", "Font A Size", "Font B Size", "Panel", "Panel button", "Edit", "View",
   ]
@@ -439,9 +439,9 @@ import Testing
   }
 
   @Test func aSheetIsIdentifiedByTheControlsOnlyItHas() {
-    let cases: [([String], FuzzAction.Sheet?)] = [
-      (["Cancel matching", "Cancel", "Apply"], .match),
-      (["xmark.circle.fill", "Cancel", "Apply"], .match),
+    let cases: [([String], FuzzAction.Context?)] = [
+      (["Cancel matching", "Cancel", "Apply"], nil),
+
       (["Custom specimen text", "Cancel", "Apply"], .editor),
       (["Cancel", "Apply"], nil),
     ]
@@ -454,7 +454,7 @@ import Testing
       ])
       let capture = discover(application, focused: sheet)
       #expect(
-        FuzzAction.Sheet.identify(
+        FuzzAction.Context.identify(
           rootRole: capture.modal.rootRole,
           targets: capture.elements.map { $0.node.fakeAttributes.discoveryTarget })
           == expected, "\(names)")
@@ -472,25 +472,49 @@ import Testing
     #expect(capture.modal.rootRole == "AXPopover")
     let targets = capture.elements.map { $0.node.fakeAttributes.discoveryTarget }
     #expect(targets.contains("Cancel matching"))
-    #expect(FuzzAction.Sheet.identify(rootRole: capture.modal.rootRole, targets: targets) == nil)
+    #expect(FuzzAction.Context.identify(rootRole: capture.modal.rootRole, targets: targets) == nil)
 
     let window = world.window(
       name: "Workbench", children: [workbench(), button("Custom specimen text")])
     let plain = discover(world.application([window, menuBar()]), focused: window)
     #expect(plain.modal.rootRole == nil)
     #expect(
-      FuzzAction.Sheet.identify(
+      FuzzAction.Context.identify(
         rootRole: plain.modal.rootRole,
         targets: plain.elements.map { $0.node.fakeAttributes.discoveryTarget }) == nil)
-    #expect(FuzzAction.Sheet.identify(rootRole: "AXSheet", targets: [nil, "Apply"]) == nil)
+    #expect(FuzzAction.Context.identify(rootRole: "AXSheet", targets: [nil, "Apply"]) == nil)
   }
 
   @Test func theLogNamesTheSheetOrSaysThatASheetWasNotIdentified() {
-    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: .match) == "match")
-    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: .editor) == "editor")
-    #expect(FuzzAction.Sheet.logName(rootRole: "AXSheet", identified: nil) == "unidentified")
-    #expect(FuzzAction.Sheet.logName(rootRole: "AXPopover", identified: nil) == nil)
-    #expect(FuzzAction.Sheet.logName(rootRole: nil, identified: .match) == nil)
+    #expect(FuzzAction.Context.logName(rootRole: "AXSheet", identified: .match) == "match")
+    #expect(FuzzAction.Context.logName(rootRole: "AXSheet", identified: .editor) == "editor")
+    #expect(FuzzAction.Context.logName(rootRole: "AXSheet", identified: nil) == "unidentified")
+    #expect(FuzzAction.Context.logName(rootRole: "AXPopover", identified: nil) == nil)
+    #expect(FuzzAction.Context.logName(rootRole: nil, identified: .match) == "match")
+  }
+
+  @Test func matchingContextTagsOnlyItsControlsAndLeavesNavigationAvailable() {
+    let window = world.window(
+      name: "Workbench",
+      children: [
+        workbench(), button("Cancel matching"), button("Apply"), button("Font B Optimize size"),
+      ])
+    let capture = discover(world.application([window]), focused: window)
+    let context = FuzzAction.Context.identify(
+      rootRole: capture.modal.rootRole,
+      targets: capture.elements.map { $0.node.fakeAttributes.discoveryTarget })
+    #expect(context == .match && capture.offersShortcuts)
+    for name in ["Cancel matching", "Apply", "Stop", "Font B Optimize size"] {
+      #expect(context?.forTarget(name) == .match)
+    }
+    for name: String? in [nil, "Font B specimen", "Glyph canvas", "Find Character", "Shape"] {
+      #expect(context?.forTarget(name) == nil)
+    }
+    #expect(FuzzAction.Context.editor.forTarget("Apply") == .editor)
+    #expect(
+      FuzzAction.Context.identify(rootRole: "AXMenu", targets: ["Font B Optimize axis 123"])
+        == .match)
+    #expect(FuzzAction.Context.identify(rootRole: "AXMenu", targets: ["Copy"]) == nil)
   }
 
   @Test func escapeStaysAvailableWhenShortcutsAreWithheld() {

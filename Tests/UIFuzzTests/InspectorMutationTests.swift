@@ -86,7 +86,7 @@ import Testing
     var state = WorkbenchState.unknown
     state.apply(reveal)
     #expect(state.inspectorVisible == true)
-    #expect(state.sheet == .closed && state.popover == .closed)
+    #expect(state.operation == .closed && state.popover == .closed)
   }
 
   @Test(arguments: [false, true])
@@ -111,10 +111,10 @@ import Testing
     state.apply(FuzzAction(kind: .press, target: "None"))
     state.apply(FuzzAction(kind: .shortcut, keyCode: 46, modifiers: UInt64((1 << 20) | (1 << 17))))
     #expect(state.fontBPresent == false)
-    #expect(state.sheet == .closed)
-    _ = state.enable(.sheet(.match))
+    #expect(state.operation == .closed)
+    _ = state.enable(.operation(.match))
     #expect(state.fontBPresent == true)
-    #expect(state.satisfies(.sheet(.match)))
+    #expect(state.satisfies(.operation(.match)))
   }
 
   @Test func matchingAfterUndoDoesNotClaimAnUnknownFontBIsPresent() {
@@ -125,10 +125,10 @@ import Testing
       var state = WorkbenchState.launch
       state.apply(FuzzAction(kind: .press, target: "Undo"))
       state.apply(match)
-      #expect(state.sheet == nil)
-      _ = state.enable(.sheet(.match))
+      #expect(state.operation == nil)
+      _ = state.enable(.operation(.match))
       #expect(state.fontBPresent == true)
-      #expect(state.satisfies(.sheet(.match)))
+      #expect(state.satisfies(.operation(.match)))
     }
   }
 

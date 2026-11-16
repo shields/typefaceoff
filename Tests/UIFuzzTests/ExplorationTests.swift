@@ -63,13 +63,13 @@ private func control(
     var explorer = ActionExplorer(mutator: TraceMutator())
     var random = SplitMix64(seed: 7)
     var tagged = control(.press, "Optical Size", [0, 1, 5], role: "AXCheckBox")
-    tagged.sheet = .match
+    tagged.context = .match
     let actions = picks(4, explorer: &explorer, random: &random) { _ in [tagged] }
-    #expect(actions.allSatisfy { $0.sheet == .match && $0.target == "Optical Size" })
+    #expect(actions.allSatisfy { $0.context == .match && $0.target == "Optical Size" })
     let untagged = picks(1, explorer: &explorer, random: &random) { _ in
       [control(.press, "Swap fonts", [0, 2])]
     }
-    #expect(untagged[0].sheet == nil)
+    #expect(untagged[0].context == nil)
   }
 
   @Test func keyboardActionsKeepSeparateCounts() {

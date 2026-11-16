@@ -4,6 +4,7 @@ import TypefaceCore
 struct WorkbenchView: View {
   @ObservedObject var model: WorkbenchModel
   @StateObject private var ranking: RankingModel
+  @StateObject private var fit: FontFitModel
   @StateObject private var scrollPosition = SpecimenScrollPosition()
   @Environment(\.workbenchUndoManager) private var undoManager
   @State private var searchFocused = false
@@ -19,13 +20,14 @@ struct WorkbenchView: View {
 
   // Initialize state explicitly so Xcode 26's coverage does not include unused
   // synthesized initializers for the property defaults.
-  init(model: WorkbenchModel) {
+  init(model: WorkbenchModel, fit: FontFitModel? = nil, matching: Bool = false) {
     self.model = model
     _ranking = StateObject(wrappedValue: RankingModel(preparation: model.initialWork))
+    _fit = StateObject(wrappedValue: fit ?? FontFitModel(catalog: model.catalog))
     _showInspector = State(initialValue: false)
     _familyFocus = State(initialValue: nil)
     _glyphZoom = State(initialValue: 1)
-    _showMatch = State(initialValue: false)
+    _showMatch = State(initialValue: matching)
     _showEditor = State(initialValue: false)
     _customText = State(initialValue: "")
     _glyphFocusRequest = State(initialValue: UUID())
@@ -34,6 +36,16 @@ struct WorkbenchView: View {
   }
 
   private var comparison: Comparison { model.comparison }
+  private var matching: Bool {
+    showMatch && FontRenderer.isAvailable(comparison.a)
+      && comparison.b.map { FontRenderer.isAvailable($0) } == true
+  }
+  private var preview: FontConfiguration? { matching ? fit.result?.proposed : nil }
+  private var displayedComparison: Comparison {
+    var comparison = self.comparison
+    if let preview { comparison.b = preview }
+    return comparison
+  }
   private var windowTitle: String {
     [comparison.a, comparison.b].compactMap { $0 }.map { config in
       FontRenderer.isAvailable(config)
@@ -48,7 +60,7 @@ struct WorkbenchView: View {
       shape: presentation(\.shape), spacing: presentation(\.spacing),
       frequency: presentation(\.frequency), zoom: $glyphZoom,
       find: { searchFocused = true }, focusFont: { familyFocus = $0 }, navigate: navigate,
-      match: openMatch, editText: openEditor)
+      match: openMatch, editText: openEditor, matching: matching)
   }
   private var rankingKey: RankingKey { .init(comparison) }
   private var ranked: [GlyphDifference] {
@@ -82,12 +94,23 @@ struct WorkbenchView: View {
     NavigationStack {
       VStack(spacing: 0) {
         SpecificationHeader(
-          model: model, inspectorOpen: showInspector, matching: showMatch,
-          familyFocus: $familyFocus,
+          model: model, inspectorOpen: showInspector, matching: matching,
+          familyFocus: $familyFocus, preview: preview,
           openInspector: { section in
             model.inspector.reveal(section)
             showInspector = true
-          }, match: openMatch)
+          }, match: openMatch
+        )
+        .overlay(alignment: .topLeading) {
+          if matching {
+            MatchBand(
+              comparison: comparison, fit: fit, inspectorOpen: showInspector,
+              cancel: cancelMatch,
+              apply: {
+                if fit.apply(to: model, undoManager: undoManager) { showMatch = false }
+              })
+          }
+        }
         if comparison.mode != .languages {
           DifferenceIndex(
             model: model, ranking: ranking, inspectorOpen: showInspector,
@@ -96,11 +119,12 @@ struct WorkbenchView: View {
         switch comparison.mode {
         case .text:
           TextComparisonView(
-            comparison: comparison, highlights: highlights, highlightKinds: highlightKinds,
+            comparison: displayedComparison, highlights: highlights, highlightKinds: highlightKinds,
             scrollPosition: scrollPosition, select: selectGlyph)
         case .glyph:
           GlyphComparisonView(
-            comparison: comparison, focusRequest: glyphFocusRequest, searching: characterSearch,
+            comparison: displayedComparison, focusRequest: glyphFocusRequest,
+            searching: characterSearch,
             select: selectGlyph, navigate: navigate,
             showText: { model.updatePresentation { $0.mode = .text } },
             focusChanged: { glyphFocused = $0 }, zoom: $glyphZoom)
@@ -115,7 +139,8 @@ struct WorkbenchView: View {
       .inspector(isPresented: $showInspector) {
         // Defer content creation until the inspector can honor its initial scroll position.
         if showInspector {
-          ComparisonInspector(model: model, state: model.inspector)
+          ComparisonInspector(model: model, state: model.inspector, preview: preview)
+            .disabled(matching)
             .inspectorColumnWidth(320)
         }
       }
@@ -132,10 +157,11 @@ struct WorkbenchView: View {
             }
             Divider()
             Button("Edit Text…", action: openEditor)
-          }.accessibilityIdentifier("Sample selector")
+          }.accessibilityIdentifier("Sample selector").disabled(matching)
         }
         ToolbarItem(placement: .principal) {
-          WorkbenchModePicker(mode: presentation(\.mode)).frame(width: 260)
+          WorkbenchModePicker(mode: presentation(\.mode), allowsLanguages: !matching).frame(
+            width: 260)
         }
         ToolbarItem(placement: .primaryAction) {
           ToolbarSearch(
@@ -147,6 +173,7 @@ struct WorkbenchView: View {
           Button("Show Inspector", systemImage: "sidebar.right") { showInspector.toggle() }
             .accessibilityIdentifier("Toggle comparison inspector")
             .help("Show or hide the comparison inspector (Control-Command-I)")
+            .disabled(matching)
         }
       }
       .toolbar(removing: .title)
@@ -156,7 +183,7 @@ struct WorkbenchView: View {
     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
     .preferredColorScheme(.light)
     .tint(WorkbenchStyle.ink)
-    .focusedSceneValue(\.workbenchActions, showMatch || showEditor ? nil : commands)
+    .focusedSceneValue(\.workbenchActions, showEditor ? nil : commands)
     .task(id: rankingKey) { await ranking.update(comparison) }
     .task(id: comparison.mode == .languages ? LanguageBrowserModel.Request(comparison) : nil) {
       if comparison.mode == .languages { await model.languages.update(.init(comparison)) }
@@ -168,9 +195,12 @@ struct WorkbenchView: View {
     .onChange(of: comparison.customText) {
       if comparison.sample == .custom { scrollPosition.reset() }
     }
-    .sheet(isPresented: $showMatch) {
-      MatchSheet(model: model, fit: FontFitModel(catalog: model.catalog))
+    .onChange(of: [comparison.a, comparison.b]) { showMatch = false }
+    .onChange(of: Array(comparison.text.utf8)) { showMatch = false }
+    .task(id: showMatch) {
+      if !showMatch && fit.searchOptions != nil { fit.start(nil) }
     }
+    .onDisappear { Task { @MainActor in fit.stop() } }
     .sheet(isPresented: $showEditor) { editor }
   }
 
@@ -204,7 +234,19 @@ struct WorkbenchView: View {
       })
   }
 
-  private func openMatch() { showMatch = true }
+  private func openMatch() {
+    guard FontRenderer.isAvailable(comparison.a),
+      comparison.b.map({ FontRenderer.isAvailable($0) }) == true
+    else { return }
+    fit.start(nil)
+    if comparison.mode == .languages { model.updatePresentation { $0.mode = .text } }
+    showMatch = true
+  }
+
+  private func cancelMatch() {
+    fit.start(nil)
+    showMatch = false
+  }
 
   private func openEditor() {
     customText = comparison.text

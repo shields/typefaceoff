@@ -4,9 +4,14 @@ import TypefaceCore
 struct ComparisonTypography: View {
   @ObservedObject var model: WorkbenchModel
   @ObservedObject var state: ComparisonInspectorState
+  let preview: FontConfiguration?
   @Environment(\.workbenchUndoManager) private var undoManager
 
-  private var comparison: Comparison { model.comparison }
+  private var comparison: Comparison {
+    var comparison = model.comparison
+    if let preview { comparison.b = preview }
+    return comparison
+  }
   private var rows: [PairedFontFeature] {
     PairedFontFeature.rows(
       a: installed(.a)?.face.features ?? [], b: installed(.b)?.face.features ?? [])

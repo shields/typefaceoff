@@ -4,6 +4,7 @@ import TypefaceCore
 
 struct WorkbenchModePicker: NSViewRepresentable {
   @Binding var mode: ComparisonMode
+  let allowsLanguages: Bool
   private static let modes: [ComparisonMode] = [.text, .glyph, .languages]
 
   func makeCoordinator() -> Coordinator { Coordinator(mode: $mode) }
@@ -20,6 +21,7 @@ struct WorkbenchModePicker: NSViewRepresentable {
   func updateNSView(_ control: NSSegmentedControl, context: Context) {
     context.coordinator.mode = $mode
     control.selectedSegment = Self.modes.firstIndex(of: mode)!
+    control.setEnabled(allowsLanguages, forSegment: 2)
   }
 
   @MainActor final class Coordinator: NSObject {

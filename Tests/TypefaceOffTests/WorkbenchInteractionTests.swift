@@ -33,7 +33,7 @@ import TypefaceCore
     let model = WorkbenchModel()
     let initial = model.comparison
     let fit = FontFitModel(load: SimilarityModelTests.fitResult)
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer { host.window.close() }
     try await host.settle()
     let expectedSize = (initial.b?.size ?? 0) + 2
@@ -59,7 +59,7 @@ import TypefaceCore
   func cancellingMatchingDiscardsOptions(button: String) async throws {
     let model = WorkbenchModel()
     let initial = model.comparison
-    let host = WorkbenchTestHost(MatchSheet(model: model))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, matching: true))
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Font B Optimize size")
@@ -74,11 +74,11 @@ import TypefaceCore
     comparison.a.leading = leading
     comparison.b?.leading = 48
     comparison.sample = .custom
-    comparison.customText = "Hamburg"
+    comparison.customText = "Hamburg\nHamburg"
     comparison.calibrate()
     let model = WorkbenchModel(comparison: comparison)
     let fit = FontFitModel()
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer { host.window.close() }
     try await host.settle()
     let size = try #require(try await host.element("Font B Optimize size").accessibilityFrame?())
@@ -86,7 +86,7 @@ import TypefaceCore
       try await host.element("Font B Optimize leading").accessibilityFrame?())
     let tracking = try #require(
       try await host.element("Font B Optimize tracking").accessibilityFrame?())
-    #expect(size.minY > spacing.minY && spacing.minY > tracking.minY)
+    #expect(size.minX < spacing.minX && spacing.minX < tracking.minX)
     try await host.press("Font B Optimize leading")
     let (states, continuation) = AsyncStream<Bool>.makeStream()
     let subscription = fit.$running.sink { continuation.yield($0) }
@@ -104,13 +104,13 @@ import TypefaceCore
     #expect(model.comparison == comparison)
     let preview = try #require(
       host.subviews.compactMap { $0 as? SpecimenNSTextView }.first {
-        $0.accessibilityIdentifier() == "Proposed B specimen"
+        $0.accessibilityLabel() == "Font B specimen"
       })
     #expect(preview.string == "Hamburg\nHamburg")
     let baselines = SpecimenLeadingTests.baselines(
       try #require(preview.layoutManager), range: preview.bodyRange)
     try #require(baselines.count == 2)
-    #expect(abs(baselines[1] - baselines[0] - 29 * expected.leading! / comparison.a.size) < 0.001)
+    #expect(abs(baselines[1] - baselines[0] - expected.leading!) < 0.001)
     try await host.press("Apply")
     #expect(model.comparison.a == comparison.a && model.comparison.b == expected)
     host.window.undoManager?.undo()
@@ -119,10 +119,11 @@ import TypefaceCore
 
   @Test func matchingWithoutASecondFontIsDisabled() async throws {
     let model = WorkbenchModel(comparison: Comparison(b: nil))
-    let host = WorkbenchTestHost(MatchSheet(model: model))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, matching: true))
     defer { host.window.close() }
     try await host.settle()
-    #expect(try await host.element("Apply").isAccessibilityEnabled?() == false)
+    #expect(!host.isEnabled("Match…"))
+    #expect(host.window.sheets.isEmpty)
     #expect(model.comparison.b == nil)
   }
 
@@ -132,9 +133,10 @@ import TypefaceCore
     comparison.a.axes[tagNumber("wght")] = 1.2
     let model = WorkbenchModel(comparison: comparison)
     let fit = FontFitModel(load: SimilarityModelTests.fitResult)
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit))
+    let host = WorkbenchTestHost(WorkbenchView(model: model, fit: fit, matching: true))
     defer { host.window.close() }
-    try await host.press("Font B Optimize axis \(tagNumber("wght"))")
+    let axis = try #require(comparison.b?.face.axes.first { $0.tag == "wght" })
+    try await host.choose("Font B Optimize axes", nativeTitles: [axis.name], item: axis.name)
     try await host.settle(
       until: { fit.result?.improved == true && host.isEnabled("Apply") },
       describing: "fit result \(String(describing: fit.result))")
@@ -370,8 +372,8 @@ import TypefaceCore
     try await host.settle { model.comparison.frequency }
     #expect(model.comparison.frequency)
     try await host.press("Match…")
-    try await host.settle { !host.window.sheets.isEmpty }
-    #expect(!host.window.sheets.isEmpty)
+    _ = try await host.element("Font B Optimize size")
+    #expect(host.window.sheets.isEmpty)
     try await host.press("Cancel")
     try await host.settle { host.window.sheets.isEmpty }
   }

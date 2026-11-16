@@ -12,6 +12,7 @@ struct SpecificationField: NSViewRepresentable {
   let rules: SpecificationValue
   let numberWidth: CGFloat
   var enabled = true
+  var emphasized = false
   var showsAutomaticLabel = true
   let commit: (SpecificationValue.Entry, Bool) -> Bool
   @Environment(\.locale) private var locale
@@ -26,7 +27,8 @@ struct SpecificationField: NSViewRepresentable {
       label: label, identifier: identifier, value: value, precision: precision, unit: unit,
       automatic: automatic, rules: rules, numberWidth: numberWidth,
       enabled: enabled && environmentEnabled,
-      locale: locale, showsAutomaticLabel: showsAutomaticLabel, commit: commit)
+      locale: locale, showsAutomaticLabel: showsAutomaticLabel, emphasized: emphasized,
+      commit: commit)
   }
 }
 
@@ -80,7 +82,7 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
   func configure(
     label: String, identifier: String, value: Double, precision: Int, unit: String,
     automatic: Bool, rules: SpecificationValue, numberWidth: CGFloat, enabled: Bool,
-    locale: Locale, showsAutomaticLabel: Bool = true,
+    locale: Locale, showsAutomaticLabel: Bool = true, emphasized: Bool = false,
     commit: @escaping (SpecificationValue.Entry, Bool) -> Bool
   ) {
     self.value = value
@@ -93,6 +95,7 @@ final class SpecificationFieldView: NSView, NSTextFieldDelegate {
     self.locale = locale
     self.commit = commit
     field.isEnabled = enabled
+    field.font = .monospacedDigitSystemFont(ofSize: 13, weight: emphasized ? .semibold : .regular)
     field.setAccessibilityLabel(label)
     field.setAccessibilityIdentifier(identifier)
     field.setAccessibilityHelp(

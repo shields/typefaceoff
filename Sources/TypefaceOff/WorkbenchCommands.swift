@@ -2,6 +2,7 @@ import SwiftUI
 import TypefaceCore
 
 @MainActor struct WorkbenchActions {
+  let matching: Bool
   let inspector: Binding<Bool>
   let mode: Binding<ComparisonMode>
   let shape: Binding<Bool>
@@ -28,8 +29,9 @@ import TypefaceCore
     mode: Binding<ComparisonMode>, shape: Binding<Bool>, spacing: Binding<Bool>,
     frequency: Binding<Bool>, zoom: Binding<Double>, find: @escaping () -> Void,
     focusFont: @escaping (Side) -> Void, navigate: @escaping (Int) -> Void,
-    match: @escaping () -> Void, editText: @escaping () -> Void
+    match: @escaping () -> Void, editText: @escaping () -> Void, matching: Bool = false
   ) {
+    self.matching = matching
     self.inspector = inspector
     self.mode = mode
     self.shape = shape
@@ -129,10 +131,12 @@ struct WorkbenchMenuItems: View {
       case .inspectors:
         Toggle("Show Inspector", isOn: actions?.inspector ?? .constant(false))
           .keyboardShortcut("i", modifiers: [.command, .control])
+          .disabled(actions?.matching == true)
       case .view:
         Toggle("Text", isOn: mode(.text)).keyboardShortcut("1")
         Toggle("Glyph", isOn: mode(.glyph)).keyboardShortcut("2")
         Toggle("Languages", isOn: mode(.languages)).keyboardShortcut("3")
+          .disabled(actions?.matching == true)
         Divider()
         Toggle("Shape", isOn: actions?.shape ?? .constant(false))
           .keyboardShortcut("1", modifiers: [.command, .shift])
@@ -175,7 +179,7 @@ struct WorkbenchMenuItems: View {
         Button("Edit Sample Text…") { actions?.editText() }
           .keyboardShortcut("e", modifiers: [.command, .shift])
       }
-    }.disabled(actions == nil)
+    }.disabled(actions == nil || (section == .comparison && actions?.matching == true))
   }
 
   private func mode(_ value: ComparisonMode) -> Binding<Bool> {

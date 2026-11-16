@@ -3,7 +3,7 @@ import TypefaceCore
 
 @MainActor
 final class FontFitModel: ObservableObject {
-  struct Request: Equatable {
+  struct Request {
     let a: FontConfiguration
     let b: FontConfiguration
     let text: String
@@ -15,10 +15,6 @@ final class FontFitModel: ObservableObject {
       return a == other.a && b == other.b && scale == other.scale
         && text.unicodeScalars.elementsEqual(other.text.unicodeScalars)
     }
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.hasSameInputs(as: rhs) && lhs.options == rhs.options
-    }
   }
 
   @Published private(set) var result: FontFitResult?
@@ -28,6 +24,7 @@ final class FontFitModel: ObservableObject {
   private var generation = UUID()
   private var task: Task<Void, Never>?
   private var request: Request?
+  var searchOptions: FontFitOptions? { request?.options }
   private let load:
     @Sendable (Request, FontConfiguration) async throws -> AsyncThrowingStream<FontFitResult, Error>
 

@@ -120,6 +120,29 @@ import TypefaceCore
     #expect(try await host.element("Actual Size").isAccessibilityEnabled?() == false)
   }
 
+  @Test func matchingLocksEditingCommandsAndKeepsNavigationAvailable() async throws {
+    let fixture = CommandFixture()
+    fixture.matching = true
+    let host = WorkbenchTestHost(CommandTestView(fixture: fixture, model: fixture.model))
+    defer { host.window.close() }
+    try await host.settle()
+    for title in [
+      "Show Inspector", "Font A", "Font B", "Languages", "Match…", "Swap Fonts",
+      "Edit Sample Text…", "Link Appearance", "Make Sizes Equal", "Reset Appearance",
+      "Reset Typography",
+    ] {
+      #expect(!host.isEnabled(title))
+    }
+    for title in ["Find Character", "Text", "Glyph", "Shape", "Spacing", "Frequency"] {
+      #expect(host.isEnabled(title))
+    }
+    try await host.press("Glyph")
+    try await host.settle()
+    try await host.press("Zoom In")
+    try await host.press("Next Character")
+    #expect(fixture.zoom == 1.25 && fixture.navigation == [1])
+  }
+
   @Test func findCharacterIsTheOnlyCommandF() throws {
     func items(_ menu: NSMenu) -> [NSMenuItem] {
       menu.items + menu.items.compactMap(\.submenu).flatMap(items)
@@ -173,6 +196,7 @@ private struct CommandTestView: View {
   let undo = UndoManager()
   @Published var inspector = false
   @Published var zoom = 1.0
+  var matching = false
   var focusedFont: Side?
   var navigation: [Int] = []
   @Published var searching = false
@@ -194,7 +218,7 @@ private struct CommandTestView: View {
       find: { self.searching = true }, focusFont: { self.focusedFont = $0 },
       navigate: { self.navigation.append($0) },
       match: { self.matchRequested = true },
-      editText: { self.editRequested = true })
+      editText: { self.editRequested = true }, matching: matching)
   }
 
   private func presentation<Value>(_ key: WritableKeyPath<Comparison, Value>) -> Binding<Value> {

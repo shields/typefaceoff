@@ -12,6 +12,7 @@ import TypefaceCore
     let request = LanguageBrowserModel.Request(Comparison())
     #expect(
       browser.rows.isEmpty && browser.selectedLanguage == nil && browser.selectedOrthography == nil)
+    #expect(browser.hiddenMatches == 0)
     await browser.update(request)
     #expect(!browser.checking && browser.problem == nil)
     #expect(browser.a.count == 705 && browser.b.count == 705)

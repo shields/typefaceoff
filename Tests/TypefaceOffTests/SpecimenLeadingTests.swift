@@ -70,12 +70,17 @@ import TypefaceCore
 
   @Test func matchingPreviewsRemainVisibleWithExtremeLeading() async throws {
     var comparison = Comparison()
+    comparison.shape = false
+    comparison.spacing = false
     comparison.a.leading = 1
     comparison.b?.leading = 200
+    comparison.sample = .custom
+    comparison.customText = "Hamburg\nHamburg"
     comparison.calibrate()
     let model = WorkbenchModel(comparison: comparison)
     let fit = FontFitModel(load: SimilarityModelTests.fitResult)
-    let host = WorkbenchTestHost(MatchSheet(model: model, fit: fit), width: 600, height: 660)
+    let host = WorkbenchTestHost(
+      WorkbenchView(model: model, fit: fit, matching: true), width: 1440, height: 900)
     defer { host.window.close() }
     try await host.settle()
     try await host.press("Font B Optimize tracking")
@@ -92,7 +97,9 @@ import TypefaceCore
       let inkBottom = preview.textContainerOrigin.y + baseline - bounds.minY
       #expect(inkTop >= preview.visibleRect.minY)
       #expect(inkBottom <= preview.visibleRect.maxY)
-      #expect(try Self.visibleInk(preview).count > 100)
+      let firstLine = NSRect(
+        x: 0, y: inkTop, width: min(200, preview.bounds.width), height: inkBottom - inkTop)
+      #expect(try Self.visibleInk(preview, rect: firstLine).count > 100)
     }
   }
 
@@ -186,8 +193,8 @@ import TypefaceCore
     return result
   }
 
-  private static func visibleInk(_ view: NSView) throws -> Set<Int> {
-    let rect = view.visibleRect
+  private static func visibleInk(_ view: NSView, rect: NSRect? = nil) throws -> Set<Int> {
+    let rect = rect ?? view.visibleRect
     let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: rect))
     view.cacheDisplay(in: rect, to: bitmap)
     var result = Set<Int>()

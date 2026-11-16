@@ -3,6 +3,33 @@ import Testing
 @testable import TypefaceCore
 
 @Suite struct DifferenceTests {
+  @Test func displayedScoresUseTheExactRankingMetric() {
+    let scores = [
+      GlyphDifference(glyph: "a", shape: 0.8, spacing: 0.01),
+      .init(glyph: "@", shape: 0.2, spacing: 0.06), .init(glyph: "x", shape: 0.7, spacing: 0.07),
+    ]
+    for shape in [false, true] {
+      for spacing in [false, true] {
+        for frequency in [false, true] {
+          let ranked = Differences.scored(
+            scores, shape: shape, spacing: spacing, frequency: frequency)
+          #expect(
+            ranked.map(\.difference)
+              == Differences.ranked(scores, shape: shape, spacing: spacing, frequency: frequency))
+          #expect(ranked.map(\.weighted) == ranked.map(\.weighted).sorted(by: >))
+          for item in ranked {
+            #expect(item.id == item.difference.id)
+            #expect(item.weighted == item.measured * (frequency ? item.difference.weight : 1))
+            if shape != spacing {
+              #expect(item.measured == (shape ? item.difference.shape : item.difference.spacing))
+            }
+          }
+        }
+      }
+    }
+    let combined = Differences.scored(scores, shape: true, spacing: true, frequency: false)
+    #expect(combined.map(\.measured) == [1.5, 1, 0.5])
+  }
   @Test func antialiasedIntersectionOverUnion() {
     #expect(Differences.inkDifference([0, 0], [0, 0]) == 0)
     #expect(Differences.inkDifference([255, 127], [255, 127]) == 0)

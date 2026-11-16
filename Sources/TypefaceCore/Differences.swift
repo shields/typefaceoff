@@ -22,6 +22,13 @@ public struct GlyphDifference: Identifiable, Hashable, Sendable {
   }
 }
 
+public struct RankedDifference: Identifiable, Sendable {
+  public let difference: GlyphDifference
+  public let measured: Double
+  public let weighted: Double
+  public var id: [Unicode.Scalar] { difference.id }
+}
+
 public enum Differences {
   public static func inkDifference(_ a: [UInt8], _ b: [UInt8]) -> Double {
     precondition(a.count == b.count)
@@ -79,20 +86,24 @@ public enum Differences {
   )
     -> [GlyphDifference]
   {
-    if shape != spacing {
-      return scores.sorted {
-        let left = $0.weighted(shape ? $0.shape : $0.spacing, frequency: frequency)
-        let right = $1.weighted(shape ? $1.shape : $1.spacing, frequency: frequency)
-        return left == right ? $0.glyph < $1.glyph : left > right
-      }
-    }
-    let shapeRanks = percentiles(scores, key: \.shape)
-    let spacingRanks = percentiles(scores, key: \.spacing)
-    // Both maps contain every input glyph, including ties and duplicate glyphs.
-    return scores.sorted {
-      let left = $0.weighted(shapeRanks[$0.id]! + spacingRanks[$0.id]!, frequency: frequency)
-      let right = $1.weighted(shapeRanks[$1.id]! + spacingRanks[$1.id]!, frequency: frequency)
-      return left == right ? $0.glyph < $1.glyph : left > right
+    scored(scores, shape: shape, spacing: spacing, frequency: frequency).map(\.difference)
+  }
+
+  public static func scored(
+    _ scores: [GlyphDifference], shape: Bool, spacing: Bool, frequency: Bool
+  ) -> [RankedDifference] {
+    let shapeRanks = shape == spacing ? percentiles(scores, key: \.shape) : [:]
+    let spacingRanks = shape == spacing ? percentiles(scores, key: \.spacing) : [:]
+    return scores.map { item in
+      let measured =
+        shape == spacing
+        ? shapeRanks[item.id]! + spacingRanks[item.id]! : shape ? item.shape : item.spacing
+      return RankedDifference(
+        difference: item, measured: measured,
+        weighted: item.weighted(measured, frequency: frequency))
+    }.sorted {
+      $0.weighted == $1.weighted
+        ? $0.difference.glyph < $1.difference.glyph : $0.weighted > $1.weighted
     }
   }
 

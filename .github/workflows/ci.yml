@@ -76,13 +76,13 @@ jobs:
       ${{ !cancelled() && needs.reuse.result != 'failure' &&
       needs.reuse.outputs.reused != 'true' }}
     runs-on: xcode-27
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Install developer tools
-        run: brew install xcodegen
+        run: brew install xcodegen syft jq
       - name: Build tests
         run: make build-for-testing
       - uses: actions/upload-artifact@v7.0.2
@@ -93,6 +93,16 @@ jobs:
             .build/portable-runtime.tar
           if-no-files-found: error
           retention-days: 1
+      - name: Archive and verify third-party notices
+        id: archive
+        run: make ci-archive
+      - uses: actions/upload-artifact@v7.0.2
+        if: ${{ !cancelled() && steps.archive.outcome != 'skipped' }}
+        with:
+          name: TypefaceOff-sbom
+          path: .build/ci-distribution/TypefaceOff.xcarchive/TypefaceOff.spdx.json
+          if-no-files-found: error
+          include-hidden-files: true
 
   stage-support:
     name: Stage the Xcode 26.6 XCTest support

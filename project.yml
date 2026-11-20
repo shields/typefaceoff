@@ -34,6 +34,19 @@ targets:
       - path: Sources/TypefaceOff/AppIcon.icon
         type: file
         buildPhase: resources
+    postBuildScripts:
+      - name: Generate third-party notices
+        inputFiles:
+          - $(SRCROOT)/NOTICE
+          - $(SRCROOT)/scripts/app-notice.sh
+          - $(SRCROOT)/scripts/app-provenance.jq
+          - $(SRCROOT)/Sources/TypefaceCore/Resources/languages.json
+          - $(SRCROOT)/Sources/TypefaceCore/Resources/character-frequencies.tsv
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Acknowledgments.txt
+        script: |
+          set -eu
+          sh "$SRCROOT/scripts/app-notice.sh" "$SRCROOT/Sources/TypefaceCore/Resources" > "$SCRIPT_OUTPUT_FILE_0"
     dependencies:
       - package: TypefaceCore
         product: TypefaceCore

@@ -15,7 +15,9 @@ import TypefaceCore
       #expect(appearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua)
       let usesContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
       #expect(WorkbenchStyle.increasedContrast(appearance) == usesContrast)
-      appearance.performAsCurrentDrawingAppearance {
+      let drawingAppearance = PaletteAppearance()
+      drawingAppearance.match = increased ? .accessibilityHighContrastAqua : .aqua
+      drawingAppearance.performAsCurrentDrawingAppearance {
         let colors: [(NSColor, Int, Int)] = [
           (WorkbenchStyle.red, 0xb43b43, 0x8f2530),
           (WorkbenchStyle.blue, 0x286b9d, 0x1a527d),
@@ -30,7 +32,7 @@ import TypefaceCore
             Int((resolved.redComponent * 255).rounded()) << 16
             | Int((resolved.greenComponent * 255).rounded()) << 8
             | Int((resolved.blueComponent * 255).rounded())
-          #expect(actual == (usesContrast ? contrast : normal))
+          #expect(actual == (increased ? contrast : normal))
         }
       }
     }
@@ -194,5 +196,13 @@ import TypefaceCore
     host.view.cacheDisplay(in: host.view.bounds, to: image)
     try #require(image.representation(using: .png, properties: [:])).write(
       to: URL(fileURLWithPath: directory).appendingPathComponent("\(name).png"))
+  }
+}
+
+private final class PaletteAppearance: NSAppearance {
+  var match: Name = .aqua
+
+  override func bestMatch(from appearances: [Name]) -> Name? {
+    appearances.contains(match) ? match : super.bestMatch(from: appearances)
   }
 }

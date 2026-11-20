@@ -94,17 +94,9 @@ import TypefaceCore
   }
 
   @Test func aFamilyFocusRequestLetsReturnOpenTheCorrectPicker() async throws {
-    // SwiftUI button key handling requires a regular application activation policy.
-    let policy = NSApp.activationPolicy()
-    precondition(NSApp.setActivationPolicy(.regular))
-    defer {
-      NSApp.deactivate()
-      precondition(NSApp.setActivationPolicy(policy))
-    }
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(HeaderFocusProbe(model: model))
     defer { host.window.close() }
-    NSApp.activate()
     try await host.settle()
     for side in [Side.a, .b] {
       try await host.press("Focus \(side.fontName)")
@@ -114,7 +106,7 @@ import TypefaceCore
           with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
           windowNumber: host.window.windowNumber, context: nil, characters: "\r",
           charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
-      NSApp.sendEvent(event)
+      host.window.sendEvent(event)
       try await host.settle {
         host.subviews.compactMap { $0 as? NSSearchField }.contains {
           $0.placeholderString == "Search installed fonts"

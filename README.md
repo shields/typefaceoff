@@ -80,6 +80,27 @@ to make Xcode embed the provisioning profile required by TestFlight.
 After Apple processes the upload, configure test information and tester groups
 on the app’s TestFlight tab. External testing requires TestFlight App Review.
 
+### Bill of materials and notices
+
+Install the archive tools with `brew install syft jq`. Both `make archive` and
+`make testflight` generate `TypefaceOff.spdx.json` at the root of the finished
+`.xcarchive`. Keep the report with its archive. Its file hashes describe that
+particular build. CI runs the same checks on an unsigned universal archive and
+publishes its report as the **TypefaceOff-sbom** workflow artifact.
+
+Choose **Typeface/Off → About Typeface/Off → Acknowledgments** to open the
+bundled text file in your default text viewer. Each build adds the Hyperglot
+version, FineFreq commit, and Wikipedia revision from its data resources to the
+reviewed attribution in [NOTICE](NOTICE).
+
+The archive check verifies the notice against the bundled resources. Syft
+inventories the bundle, and the link maps and load commands identify libraries
+in each architecture. If the scan finds an unrecognized package or library, the
+SBOM identifies it and the archive check stops the upload. When adding
+third-party data, artwork, text, or code, update the attribution in `NOTICE` and
+the source relationships in `scripts/app-sbom.jq`. For a local check,
+`make ci-archive` builds an unsigned archive under `.build/ci-distribution`.
+
 ## Use
 
 - Search either inspector’s font selector for an installed family, then choose a

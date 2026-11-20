@@ -1,10 +1,12 @@
 Typeface/Off's language catalog (see docs/languages.md) is derived from
-Hyperglot 0.8.1.
+Hyperglot.
 
     Hyperglot — https://github.com/rosettatype/hyperglot
     Developed by Rosetta Type/Research and the Hyperglot contributors.
     Licensed under the Apache License, Version 2.0 —
     https://www.apache.org/licenses/LICENSE-2.0
+
+    Hyperglot contributors — see CONTRIBUTORS.txt in the Hyperglot distribution.
 
 Typeface/Off expands inventory inheritance, retains preliminary and verified
 language records with primary or historical orthographies, and converts the
@@ -28,6 +30,13 @@ The per-language character counts are FineFreq, a table of per-code-point
 frequency counts computed over the FineWeb and FineWeb2 web corpora
 (themselves built from Common Crawl).
 
+    FineWeb and FineWeb2 — Hugging Face and the dataset contributors.
+    https://huggingface.co/datasets/HuggingFaceFW/fineweb
+    https://huggingface.co/datasets/HuggingFaceFW/fineweb-2
+    Open Data Commons Attribution License 1.0 —
+    https://opendatacommons.org/licenses/by/1-0/
+    Common Crawl — https://commoncrawl.org
+
     FineFreq — https://huggingface.co/datasets/lgi2p/finefreq
     © Binbin Xu, licensed under Creative Commons Attribution 4.0 International
     (CC BY 4.0) — https://creativecommons.org/licenses/by/4.0/
@@ -50,6 +59,7 @@ whose non-normalized text preserves them.
     Leipzig Corpora Collection — https://wortschatz.uni-leipzig.de
     © Universität Leipzig, licensed under Creative Commons Attribution 4.0
     International (CC BY 4.0) — https://creativecommons.org/licenses/by/4.0/
+    Terms for the downloadable text corpora — https://wortschatz-leipzig.de/en/usage
 
     D. Goldhahn, T. Eckart & U. Quasthoff. Building Large Monolingual
     Dictionaries at the Leipzig Corpora Collection: From 100 to 200 Languages.
@@ -77,3 +87,26 @@ Each language's contribution to the mix is weighted by its speakers
 
 Only the speaker counts used as mixing weights are reflected in the
 generated table; no Ethnologue, Wikipedia, or Wikidata text is redistributed.
+
+---
+
+The “Queen Alice” reading sample is chapter IX of Through the Looking-Glass
+by Lewis Carroll (1871). The text is in the public domain in the United States.
+The transcription follows Project Gutenberg eBook 12 and preserves the
+chapter’s emphasis and verse breaks.
+
+    https://www.gutenberg.org/ebooks/12
+
+---
+
+The app icon shows the capital R from Helvetica Neue Regular overlaid with
+the capital R from Arial Regular. The icon contains a raster rendering of
+these installed macOS typefaces.
+
+---
+
+The app executable includes operating-system version checks from the LLVM
+Project’s compiler-rt, linked by the Apple toolchain.
+
+    LLVM Project contributors — https://compiler-rt.llvm.org/
+    Apache License 2.0 with LLVM Exceptions — https://llvm.org/LICENSE.txt

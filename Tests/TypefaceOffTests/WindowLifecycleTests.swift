@@ -9,6 +9,40 @@ import Testing
     #expect(NSImage(named: "AppIcon") != nil)
   }
 
+  @Test func aboutLinksToTheBundledAcknowledgments() async throws {
+    let url = try #require(Bundle.main.url(forResource: "Acknowledgments", withExtension: "txt"))
+    let notice = try String(contentsOf: url, encoding: .utf8)
+    #expect(notice.contains("Hyperglot"))
+    #expect(notice.contains("Lewis Carroll"))
+    let menu = try #require(NSApp.mainMenu?.items.first?.submenu)
+    let index = try #require(menu.items.firstIndex { $0.title == "About Typeface/Off" })
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    menu.performActionForItem(at: index)
+    func credits(in window: NSWindow) -> NSTextView? {
+      guard let content = window.contentView, window.isVisible else { return nil }
+      return descendants(content).compactMap { $0 as? NSTextView }.first {
+        $0.string.contains("Acknowledgments")
+      }
+    }
+    try await waitUntil {
+      NSApp.windows.contains { credits(in: $0) != nil }
+    }
+    let window = try #require(NSApp.windows.first { credits(in: $0) != nil })
+    defer {
+      window.close()
+      if let frontmost, frontmost != .current, NSApp.isActive {
+        NSApp.yieldActivation(to: frontmost)
+        frontmost.activate(from: .current)
+      }
+      NSApp.deactivate()
+    }
+    let text = try #require(credits(in: window))
+    let range = (text.string as NSString).range(of: "Acknowledgments")
+    let link = try #require(
+      text.textStorage?.attribute(.link, at: range.location, effectiveRange: nil) as? URL)
+    #expect(link.standardizedFileURL == url.standardizedFileURL)
+  }
+
   @Test(arguments: [NSApplication.ActivationPolicy.prohibited, .regular])
   func applicationLaunchRestoresTheTestHostPolicy(policy: NSApplication.ActivationPolicy) {
     if NSApp.activationPolicy() != policy {
@@ -106,11 +140,12 @@ import Testing
     try #require(findSizeField(in: window))
   }
 
+  private func descendants(_ view: NSView) -> [NSView] {
+    [view] + view.subviews.flatMap(descendants)
+  }
+
   private func findSizeField(in window: NSWindow) -> NSTextField? {
     guard let root = window.contentView else { return nil }
-    func descendants(_ view: NSView) -> [NSView] {
-      [view] + view.subviews.flatMap(descendants)
-    }
     return descendants(root).compactMap { $0 as? NSTextField }.first {
       $0.accessibilityIdentifier() == "Font A Size field"
     }

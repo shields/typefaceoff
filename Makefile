@@ -28,13 +28,17 @@ STARTUP_PROFILE ?= $(CURDIR)/.build/startup-profile.txt
 HIGHLIGHT_APP ?= $(FUZZ_BENCHMARK_APP)
 HIGHLIGHT_RUNS ?= 7
 HIGHLIGHT_OUTPUT ?= $(CURDIR)/.build/highlight-benchmark
-ARCHIVE = $(CURDIR)/.build/distribution/TypefaceOff.xcarchive
-ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Release -destination 'generic/platform=macOS' -derivedDataPath .build/distribution/xcode -archivePath "$(ARCHIVE)" -allowProvisioningUpdates
+DISTRIBUTION_DIR ?= .build/distribution
+ARCHIVE = $(abspath $(DISTRIBUTION_DIR))/TypefaceOff.xcarchive
+SBOM_DERIVED_DATA ?= $(DISTRIBUTION_DIR)/xcode
+SBOM_OUTPUT = $(ARCHIVE)/TypefaceOff.spdx.json
+ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Release -destination 'generic/platform=macOS' -derivedDataPath "$(SBOM_DERIVED_DATA)" -archivePath "$(ARCHIVE)" LD_GENERATE_MAP_FILE=YES
+GENERATE_SBOM = bash scripts/app-sbom.sh "$(ARCHIVE)" "$(SBOM_DERIVED_DATA)" "$(SBOM_OUTPUT)"
 
 .PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm ci-reuse test-ci-reuse
-.PHONY: archive testflight
+.PHONY: archive ci-archive testflight sbom
 .PHONY: languages languages-check test-languages
 
 project:
@@ -43,13 +47,23 @@ project:
 build: project
 	xcodebuild $(XCODE_FLAGS) build
 
-archive: project
+ci-archive: DISTRIBUTION_DIR = .build/ci-distribution
+archive ci-archive: project
 	@set -eu; \
-	version=$$(tools/gitcalver.sh --prefix 0.); \
-	build=$${version#0.}; \
-	echo "Archiving Typeface/Off $$version (build $$build)"; \
+	if [ "$@" = archive ]; then \
+		version=$$(tools/gitcalver.sh --prefix 0.); \
+		build=$${version#0.}; \
+		echo "Archiving Typeface/Off $$version (build $$build)"; \
+		set -- -allowProvisioningUpdates MARKETING_VERSION="$$version" CURRENT_PROJECT_VERSION="$$build"; \
+	else \
+		set -- CODE_SIGNING_ALLOWED=NO; \
+	fi; \
 	rm -rf "$(ARCHIVE)"; \
-	xcodebuild $(ARCHIVE_FLAGS) MARKETING_VERSION="$$version" CURRENT_PROJECT_VERSION="$$build" archive
+	xcodebuild $(ARCHIVE_FLAGS) "$$@" archive
+	$(GENERATE_SBOM)
+
+sbom:
+	$(GENERATE_SBOM)
 
 testflight: archive
 	rm -rf .build/distribution/upload

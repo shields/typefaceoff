@@ -8,6 +8,7 @@ dependencies = ["hyperglot==0.8.1"]
 dev = ["pytest", "ruff", "ty"]
 
 [tool.uv]
+exclude-newer = "3 days"
 package = false
 
 [tool.pytest.ini_options]

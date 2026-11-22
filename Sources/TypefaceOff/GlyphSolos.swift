@@ -55,6 +55,7 @@ final class GlyphSoloView: NSView {
               to: CGPoint(x: x + figure.advance + 12, y: baseline + xHeight))
           }
           context.saveGState()
+          context.textMatrix = .identity
           context.textPosition = figure.origin
           CTLineDraw(line, context)
           context.restoreGState()

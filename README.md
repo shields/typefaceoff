@@ -103,14 +103,14 @@ the source relationships in `scripts/app-sbom.jq`. For a local check,
 
 ## Use
 
-- Search either inspector’s font selector for an installed family, then choose a
-  style. The selector focuses its search field; use ↑/↓ to highlight a result,
-  Return to choose it, or Escape to dismiss it. Browsing leaves the current font
-  unchanged until confirmation. Search for **None** in B to inspect one font;
-  reselecting that family restores its previous settings.
+- Choose a family and style in either font row above the comparison. The
+  selector focuses its search field; use ↑/↓ to highlight a result, Return to
+  choose it, or Escape to dismiss it. Browsing leaves the current font unchanged
+  until confirmation. Search for **None** in B to inspect one font; reselecting
+  that family restores its previous settings.
 - Appearance is linked initially. Size preserves the B/A ratio, and weight,
   tracking, and shared axes preserve their offsets, including after a range
-  limit temporarily clamps a value. Unlock either inspector to adjust sides
+  limit temporarily clamps a value. Turn off **Link A and B** to adjust sides
   separately. Typography settings always remain independent.
 - **Leading** sets the distance between text baselines in points (1–288).
   **Auto**, on by default, uses the font’s natural line spacing and displays its
@@ -120,34 +120,35 @@ the source relationships in `scripts/app-sbom.jq`. For a local check,
   including after a range limit clamps a value. If either side is Auto when
   linked, entering a value sets both sides to that value; resetting either side
   restores Auto to both.
-- Choose a reading sample or edit your own text. Enter a size in the center
-  toolbar and press Return to set both sides. **Mixed** indicates different
-  sizes.
+- Choose a reading sample from the toolbar or edit your own text. Enter a size
+  in either font row and press Option-Return to set both sides to that value.
 - Open **Languages** (⌘3) to compare character coverage by language and script.
   The logarithmic speaker filter starts at 8.3M; historical records ship with
   the app and are hidden by default. Use **All** and **Show historical** to
-  browse the complete catalog. **Use as specimen** creates an editable character
-  sheet with one Undo step. See [language coverage](docs/languages.md) for the
-  inventory policy, limitations, and data generation.
+  browse the complete catalog. **Use Checked as Specimen** creates an editable
+  character sheet from the checked categories with one Undo step. See
+  [language coverage](docs/languages.md) for the inventory policy, limitations,
+  and data generation.
 - Click a character in the text or difference strip to inspect it. Arrow keys in
-  the glyph view navigate the ranked characters. Type a grapheme in the
-  character field and press Return to inspect any Unicode character. Click the
-  glyph canvas at 100% to return to the text, or choose **Text** (⌘1).
+  the glyph view navigate the ranked characters. Click the glyph canvas at 100%
+  to return to the text, or choose **Text** (⌘1).
 - Click the inspected character’s name, or choose **Find Character** (⌘F), to
   search by name (“left arrow”), by the character itself, or by code point
   (U+2192). Use ↑/↓ to highlight a result and Return to inspect it, or Escape to
   dismiss the search.
-- In glyph view, use the mouse wheel, pinch gesture, or zoom slider to magnify
-  the canvas from 100% to 800% without changing font settings. Zoom follows the
+- In glyph view, use the mouse wheel, pinch gesture, or zoom buttons to magnify
+  the overlay from 100% to 800% without changing font settings. Zoom follows the
   pointer for wheel and pinch gestures. Drag or scroll with two fingers to pan
   when zoomed; click the percentage to reset to 100%. Zoom and pan stay fixed
   while navigating characters. Glyph outlines and their shared-ink intersection
   render as cached vectors; bitmap fonts use raster rendering.
-- The overlay shows A-only ink in red, B-only ink in blue, and shared ink in
-  black. Baseline, x-height, and vertical advance guides remain visible. Shape
-  aligns left ink edges; Spacing alone aligns advance origins. Glyph scale and
-  baseline stay fixed while navigating a sample. Advance and side bearings show
-  native font units and em, independent of specimen size and added tracking.
+- Both individual glyphs stand over the metrics table on the left, with the
+  enlarged overlay on the right. The overlay shows A-only ink in red, B-only ink
+  in blue, and shared ink in black. Baseline, x-height, and vertical advance
+  guides remain visible. Shape aligns left ink edges; Spacing alone aligns
+  advance origins. Glyph scale and baseline stay fixed while navigating a
+  sample. Advance and side bearings show native font units and em, independent
+  of specimen size and added tracking.
 - **Shape** and **Spacing** independently control highlighting and ranking.
   Scores use actual configured font shapes and metrics, including axes and
   substitutions. Ranking runs away from the UI thread, and obsolete requests are
@@ -166,7 +167,7 @@ the source relationships in `scripts/app-sbom.jq`. For a local check,
   means closer. Search filters the live results; pending and unsupported
   families remain selectable. Choosing a family carries B’s settings forward as
   usual, so its specimen can differ from the default settings used for ranking.
-- **Match…** lists B’s axes, size, leading, tracking, and typography. Click
+- **Match…** opens beneath the font rows and previews B on the canvas. Click
   **Optimize** beside a setting to search for its closest value while keeping
   every other preview setting fixed. Searches start only when clicked, and
   successive searches build on the preview. Each search uses up to 15 seconds or
@@ -185,11 +186,10 @@ the source relationships in `scripts/app-sbom.jq`. For a local check,
   without a verified example show **No preview available**.
 
 The **Edit** menu’s Find Character (⌘F) searches for a character to inspect. The
-**View** menu switches between Text (⌘1) and Glyph (⌘2), toggles the font
-inspectors (⌥⌘1 and ⌥⌘2), and toggles Shape and Spacing highlights (⇧⌘1 and ⇧⌘2)
-and frequency weighting (⇧⌘F). The **Comparison** menu offers Match (⇧⌘M), Swap
-Fonts (⌥⌘S), and Edit Sample Text (⇧⌘E). Commands apply to the active comparison
-window and are unavailable while its editing or matching sheet is open.
+**View** menu switches among Text (⌘1), Glyph (⌘2) and Languages (⌘3), shows the
+comparison inspector (⌃⌘I), and toggles Shape (⇧⌘1), Spacing (⇧⌘2) and Frequency
+(⇧⌘F). The **Comparison** menu focuses Font A (⌥⌘1) or Font B (⌥⌘2) and offers
+Match (⇧⌘M), Swap Fonts (⌥⌘S), and Edit Sample Text (⇧⌘E).
 
 ## Develop
 
@@ -417,9 +417,9 @@ executes no tests fails. A push to `main` skips the macOS jobs when
 day, whose every job passed on GitHub-hosted runners.
 
 `make review` renders native text, glyph, single-font, and character search
-windows into `.build/review` for visual inspection and records glyph redraw
-timings in `glyph-performance.json`. It requires an active macOS desktop
-session.
+windows, Match and the comparison inspector into `.build/review` (override with
+`REVIEW_DIR`) for visual inspection and records glyph redraw timings in
+`glyph-performance.json`. It requires an active macOS desktop session.
 
 `make benchmark-startup` launches the optimized, sandboxed app in fresh
 processes with coverage disabled. It measures process launch through the first

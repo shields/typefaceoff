@@ -118,10 +118,12 @@ struct DifferenceIndex: View {
               Rectangle().fill(WorkbenchStyle.ink)
                 .frame(width: maximum > 0 ? 44 * item.weighted / maximum : 0, height: 2).offset(
                   y: 53)
-              if comparison.mode == .glyph && comparison.selectedScalars == item.id {
-                Rectangle().fill(WorkbenchStyle.ink).frame(width: 48, height: 2).offset(y: 75)
-              }
-            }.frame(width: 48, height: 76).contentShape(Rectangle())
+            }.frame(width: 48, height: 76)
+              .overlay(alignment: .bottom) {
+                if comparison.mode == .glyph && comparison.selectedScalars == item.id {
+                  Rectangle().fill(WorkbenchStyle.ink).frame(height: 2)
+                }
+              }.contentShape(Rectangle())
           }.buttonStyle(.plain).focusable(false).id(item.id)
             .accessibilityLabel("Inspect \(unicodeDescription(item.difference.glyph))")
             .accessibilityValue("\(index + 1) of \(items.count)")
@@ -137,7 +139,7 @@ struct DifferenceIndex: View {
       HStack(spacing: 0) {
         Color.black
         LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-          .frame(width: 72)
+          .frame(width: DifferenceStripView.fadeWidth)
       }
     }
   }

@@ -18,7 +18,8 @@ struct DifferenceStrip<Content: View>: NSViewRepresentable {
   func updateNSView(_ view: DifferenceStripView, context: Context) {
     let document = view.documentView as! NSHostingView<InheritedContent>
     document.rootView = InheritedContent(content: content(), values: context.environment)
-    document.setFrameSize(NSSize(width: count * 48, height: 76))
+    document.setFrameSize(
+      NSSize(width: CGFloat(count * 48) + DifferenceStripView.fadeWidth, height: 76))
     view.navigate = navigate
     view.follow(selection)
   }
@@ -27,11 +28,14 @@ struct DifferenceStrip<Content: View>: NSViewRepresentable {
     let content: Content
     let values: EnvironmentValues
 
-    var body: some View { content.environment(\.self, values) }
+    var body: some View {
+      content.padding(.trailing, DifferenceStripView.fadeWidth).environment(\.self, values)
+    }
   }
 }
 
 final class DifferenceStripView: NSScrollView {
+  static let fadeWidth: CGFloat = 72
   var navigate: (Int) -> Void = { _ in }
   private var selection: Int?
 
@@ -78,7 +82,8 @@ final class DifferenceStripView: NSScrollView {
 
   private func revealSelection() {
     if let selection {
-      documentView?.scrollToVisible(NSRect(x: selection * 48, y: 0, width: 48, height: 76))
+      documentView?.scrollToVisible(
+        NSRect(x: CGFloat(selection * 48), y: 0, width: 48 + Self.fadeWidth, height: 76))
     }
   }
 }

@@ -20,6 +20,8 @@ import Testing
       #expect(scroll.contentView.bounds.minX > before)
       #expect(scroll.contentView.bounds.minY == 0)
     }
+    scroll.follow(20)
+    #expect(abs(scroll.documentVisibleRect.maxX - (21 * 48 + 72)) < 0.001)
     scroll.follow(49)
     #expect(scroll.documentView!.visibleRect.maxX == 2400)
     scroll.follow(49)
@@ -55,9 +57,9 @@ import Testing
         Text("Index test").frame(width: 2400, height: 76)
       })
     try await host.settle()
-    #expect(scroll.documentView!.visibleRect.maxX == 2400)
+    #expect(abs(scroll.documentVisibleRect.maxX - (2400 + 72)) < 0.001)
     scroll.setFrameSize(NSSize(width: 240, height: 76))
     scroll.tile()
-    #expect(scroll.documentView!.visibleRect.maxX == 2400)
+    #expect(abs(scroll.documentVisibleRect.maxX - (2400 + 72)) < 0.001)
   }
 }

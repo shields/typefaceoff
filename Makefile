@@ -185,8 +185,10 @@ languages-check:
 test-languages: languages-check
 	uv run --frozen pytest
 
+REVIEW_DIR ?= $(CURDIR)/.build/review
+
 review: project
-	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(CURDIR)/.build/review" -only-testing:TypefaceOffTests/ReviewScreens test
+	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(abspath $(REVIEW_DIR))" -only-testing:TypefaceOffTests/ReviewScreens test
 
 fuzz-build: project
 	swift build $(FUZZ_SWIFT_FLAGS) --product ui-fuzz

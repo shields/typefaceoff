@@ -54,7 +54,6 @@ import TypefaceCore
   func renderWorkbench() async throws {
     let folder = try #require(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"])
     try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
-    NSApplication.shared.activate()
     var glyph = Comparison()
     glyph.mode = .glyph
     glyph.selectedGlyph = "@"
@@ -137,7 +136,8 @@ import TypefaceCore
       if comparison.mode == .languages { model.languages.selection = "eng" }
       let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: width, height: height),
-        styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered,
+        defer: false)
       window.isReleasedWhenClosed = false
       let host = NSHostingView(
         rootView: WorkbenchView(model: model))
@@ -236,6 +236,30 @@ import TypefaceCore
   }
 
   private func saveTextWindow(_ window: NSWindow, in folder: String) async throws {
+    let policy = NSApp.activationPolicy()
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    try #require(NSApp.setActivationPolicy(.regular))
+    defer {
+      if let frontmost, frontmost != .current, NSApp.isActive {
+        NSApp.yieldActivation(to: frontmost)
+        frontmost.activate(from: .current)
+      }
+      #expect(NSApp.setActivationPolicy(policy))
+    }
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.addsToRecentItems = false
+    configuration.allowsRunningApplicationSubstitution = false
+    let app = try await NSWorkspace.shared.openApplication(
+      at: Bundle.main.bundleURL, configuration: configuration)
+    try #require(app == .current)
+    window.makeKeyAndOrderFront(nil)
+    let deadline = ContinuousClock.now + .seconds(10)
+    while !NSApp.isActive || !window.isKeyWindow {
+      try #require(ContinuousClock.now < deadline, "The Text window did not gain keyboard focus")
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    window.displayIfNeeded()
+    CATransaction.flush()
     let content = try await SCShareableContent.currentProcess
     let source = try #require(content.windows.first { $0.windowID == window.windowNumber })
     let filter = SCContentFilter(desktopIndependentWindow: source)

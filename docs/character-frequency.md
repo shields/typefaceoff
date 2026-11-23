@@ -16,11 +16,15 @@ limitations under the License.
 
 # Character frequencies
 
-This is the research record behind frequency weighting: why it uses a global,
-speaker-weighted mix of languages, which languages the mix includes, which
-weighting formula was chosen and why, and what the result still gets wrong. The
-README’s “Character frequencies” section describes the feature and how to
-regenerate its data; NOTICE credits the sources.
+The **Frequency** control weights glyph differences by how often each character
+appears in text. Characters that appear at least once per thousand receive full
+weight. Rarer characters receive progressively less, down to one-tenth for the
+rarest characters and those missing from the table.
+
+To regenerate `Sources/TypefaceCore/Resources/character-frequencies.tsv`, run
+`make frequencies` from the repository root. It downloads about 800 MB of pinned
+FineFreq and Leipzig data and caches them in `.build/character-frequencies`. The
+data sources are credited in [NOTICE](../NOTICE).
 
 ## Why a global, speaker-weighted mix
 

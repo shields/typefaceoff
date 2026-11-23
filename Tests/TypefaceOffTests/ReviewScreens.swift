@@ -260,6 +260,7 @@ import TypefaceCore
       try #require(ContinuousClock.now < deadline, "The Text window did not gain keyboard focus")
       try await Task.sleep(for: .milliseconds(10))
     }
+    try #require(window.makeFirstResponder(nil))
     window.displayIfNeeded()
     CATransaction.flush()
     let content = try await SCShareableContent.currentProcess

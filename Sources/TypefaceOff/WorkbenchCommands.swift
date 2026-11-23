@@ -121,6 +121,10 @@ struct WorkbenchCommands: Commands {
         NSApp.orderFrontStandardAboutPanel(options: [.applicationVersion: version, .version: ""])
       }
     }
+    CommandGroup(replacing: .help) {
+      Link("Typeface/Off Support", destination: URL(string: "https://typefaceoff.com/support")!)
+      Link("Privacy Policy", destination: URL(string: "https://typefaceoff.com/privacy")!)
+    }
     CommandGroup(after: .pasteboard) {
       WorkbenchMenuItems(section: .find, actions: actions)
     }

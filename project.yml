@@ -52,7 +52,8 @@ aggregateTargets:
           - $(CONFIGURATION_TEMP_DIR)/TypefaceOff-Info.plist
         script: |
           set -eu
-          version=$("$SRCROOT/tools/gitcalver.sh" --prefix 0. --dirty -dirty)
+          version=${TYPEFACEOFF_RELEASE_VERSION:-}
+          if [ -z "$version" ]; then version=$("$SRCROOT/tools/gitcalver.sh" --prefix 0. --dirty -dirty); fi
           plutil -insert TypefaceOffDisplayVersion -string "$version" -o "$SCRIPT_OUTPUT_FILE_0" "$SCRIPT_INPUT_FILE_0"
 targets:
   TypefaceOff:
@@ -106,6 +107,10 @@ targets:
         CURRENT_PROJECT_VERSION: "0"
       configs:
         Release:
+          ENABLE_HARDENED_RUNTIME: YES
+          TYPEFACEOFF_SIGNING_STYLE: Automatic
+          CODE_SIGN_STYLE: $(TYPEFACEOFF_SIGNING_STYLE)
+          PROVISIONING_PROFILE_SPECIFIER: $(TYPEFACEOFF_PROFILE)
           CODE_SIGN_ENTITLEMENTS: Config/TestFlight.entitlements
         FuzzCoverage:
           PRODUCT_BUNDLE_IDENTIFIER: com.typefaceoff.fuzz.coverage
@@ -152,6 +157,7 @@ schemes:
       environmentVariables:
         TYPEFACEOFF_TESTING: "1"
         TYPEFACEOFF_REVIEW_DIR: "$(TYPEFACEOFF_REVIEW_DIR)"
+        TYPEFACEOFF_STORE_SCREENSHOTS: "$(TYPEFACEOFF_STORE_SCREENSHOTS)"
       targets:
         - TypefaceOffTests
   PortableTests:

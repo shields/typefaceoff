@@ -62,8 +62,8 @@ struct ComparisonInspector: View {
       Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 1) {
         GridRow {
           Color.clear.frame(width: 94, height: 20)
-          letter(.a)
-          letter(.b)
+          letter(.a).gridColumnAlignment(.trailing)
+          letter(.b).gridColumnAlignment(.trailing)
         }
         fact("Units/em") { String($0.face.unitsPerEm) }
         fact("x-height") { config in

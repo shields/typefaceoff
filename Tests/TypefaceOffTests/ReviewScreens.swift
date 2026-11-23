@@ -215,11 +215,13 @@ import TypefaceCore
       CharacterSearchPicker(comparison: Comparison(), search: searchModel) { _ in },
       width: 440, height: 460)
     try await search.settle()
-    search.enter(
-      "arrow", in: try #require(search.subviews.compactMap { $0 as? NSSearchField }.first))
-    try await search.settle(until: {
-      searchModel.answer?.request.query == "arrow" && searchModel.answer?.results.isEmpty == false
-    })
+    let query = "tilde"
+    search.enter(query, in: try #require(search.subviews.compactMap { $0 as? NSSearchField }.first))
+    try await search.settle(until: { searchModel.answer?.request.query == query })
+    let tilde = try #require(searchModel.answer?.results.firstIndex { $0.glyph == "~" })
+    let searchTable = try #require(search.subviews.compactMap { $0 as? NSTableView }.first)
+    searchTable.selectRowIndexes(IndexSet(integer: tilde), byExtendingSelection: false)
+    try await search.settle()
     try save(search.view, as: "character-search", in: folder)
     search.window.close()
 

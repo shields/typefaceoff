@@ -68,19 +68,9 @@ import Testing
   }
 
   @Test func comparisonsAreIndependentUndoableAndDiscardedOnClose() async throws {
-    let launchDeadline = ContinuousClock.now + .seconds(10)
-    while !NSApp.windows.contains(where: { $0.title == "Helvetica Neue vs. Arial" }) {
-      try #require(
-        ContinuousClock.now < launchDeadline,
-        "The app did not create its initial comparison window")
-      try await Task.sleep(for: .milliseconds(50))
-    }
-    let initial = try #require(NSApp.windows.first { $0.title == "Helvetica Neue vs. Arial" })
-    initial.orderFront(nil)
-    try await settle(initial)
+    _ = try await comparisonWindow()
     #expect(NSApp.activationPolicy() == .prohibited)
     #expect(!NSApp.isActive)
-    #expect(NSApp.windows.contains { $0.isVisible && $0.title == "Helvetica Neue vs. Arial" })
     let fileMenu = try #require(NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu)
     #expect(
       !fileMenu.items.contains { item in
@@ -129,23 +119,33 @@ import Testing
     #expect(!NSApp.isActive)
   }
 
-  private func newWindow(_ menu: NSMenu) async throws -> NSWindow {
-    let existing = Set(NSApp.windows.map(ObjectIdentifier.init))
+  private func newWindow(_ menu: NSMenu, sourceLocation: SourceLocation = #_sourceLocation)
+    async throws -> NSWindow
+  {
+    let existing = NSApp.windows
     let index = try #require(
       menu.items.firstIndex {
         $0.keyEquivalent == "n" && $0.keyEquivalentModifierMask == .command
       })
     menu.performActionForItem(at: index)
+    return try await comparisonWindow(excluding: existing, sourceLocation: sourceLocation)
+  }
+
+  private func comparisonWindow(
+    excluding existing: [NSWindow] = [], sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws -> NSWindow {
     let deadline = ContinuousClock.now + .seconds(10)
     while true {
+      if NSApp.isHidden { NSApp.unhideWithoutActivation() }
       if let window = NSApp.windows.first(where: {
-        $0.isVisible && $0.title == "Helvetica Neue vs. Arial"
-          && !existing.contains(ObjectIdentifier($0))
+        $0.isVisible && $0.title == "Helvetica Neue vs. Arial" && !existing.contains($0)
       }) {
         window.contentView?.layoutSubtreeIfNeeded()
         if findSizeField(in: window) != nil { return window }
       }
-      try #require(ContinuousClock.now < deadline, "No new comparison window appeared")
+      try #require(
+        ContinuousClock.now < deadline, "No visible comparison window with a size field appeared",
+        sourceLocation: sourceLocation)
       try await Task.sleep(for: .milliseconds(50))
     }
   }

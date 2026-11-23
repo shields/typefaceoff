@@ -74,7 +74,7 @@ import TypefaceCore
         $0.field.accessibilityIdentifier() == "Font A Inspector Size field"
       })
     #expect(inspectorSize.field.stringValue == "26")
-    let strip = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
+    let strip = try await host.populatedDifferenceStrip()
     let openWidth = strip.frame.width
     try await host.press("Show Inspector")
     try await host.settle { strip.frame.width > openWidth + 200 }

@@ -606,8 +606,7 @@ import TypefaceCore
   @Test func workbenchToolbarCanHideAndRestoreTheInspector() async throws {
     let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel()))
     defer { host.window.close() }
-    try await host.settle()
-    let strip = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
+    let strip = try await host.populatedDifferenceStrip()
     let closedWidth = strip.frame.width
     for _ in 0..<2 {
       try await host.press("Show Inspector")
@@ -1066,6 +1065,21 @@ import TypefaceCore
 }
 
 extension WorkbenchTestHost where Content == WorkbenchView {
+  func populatedDifferenceStrip(sourceLocation: SourceLocation = #_sourceLocation) async throws
+    -> DifferenceStripView
+  {
+    func populatedStrip() -> DifferenceStripView? {
+      subviews.lazy.compactMap { $0 as? DifferenceStripView }.first {
+        ($0.documentView?.frame.width ?? 0) > DifferenceStripView.fadeWidth
+      }
+    }
+    try await settle(
+      until: { populatedStrip() != nil },
+      describing: "no ranked characters in the Differences strip",
+      sourceLocation: sourceLocation)
+    return try #require(populatedStrip(), sourceLocation: sourceLocation)
+  }
+
   func firstRankedCharacterButton(for model: WorkbenchModel) async throws -> AnyObject {
     let comparison = model.comparison
     let scores = try #require(try await model.initialWork.ranking.value(for: comparison))

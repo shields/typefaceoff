@@ -32,8 +32,7 @@ import TypefaceCore
       host.window.close()
       continuation.finish()
     }
-    try await host.settle()
-    let strip = try #require(host.subviews.compactMap { $0 as? DifferenceStripView }.first)
+    let strip = try await host.populatedDifferenceStrip()
     let originalY = strip.convert(strip.bounds, to: host.view).minY
     try await host.press("Match…")
     try await host.settle()

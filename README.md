@@ -21,12 +21,19 @@ typefaces, overlay individual glyphs to see where their shapes and spacing
 differ, and check which languages each font covers. The app runs offline on
 macOS 15 or later.
 
+<https://typefaceoff.com>
+
 ## Install
+
+### From GitHub
 
 Published disk images appear on
 [GitHub Releases](https://github.com/shields/typefaceoff/releases). Open the DMG
-and drag TypefaceOff to Applications. The first published cask will also be
-available through `brew install --cask shields/tap/typefaceoff`.
+and drag `TypefaceOff` to `Applications`.
+
+### Using Homebrew
+
+`brew install --cask shields/tap/typefaceoff`
 
 ## Run from source
 

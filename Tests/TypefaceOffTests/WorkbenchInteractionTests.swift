@@ -20,6 +20,14 @@ import TypefaceCore
 @testable import TypefaceOff
 
 @Suite(.serialized) @MainActor struct WorkbenchInteractionTests {
+  @Test func testWindowKeepsLayoutsWiderThanTheScreen() async throws {
+    let width = try #require(NSScreen.screens.first).frame.width + 96
+    let host = WorkbenchTestHost(Color.clear, width: width, height: 200)
+    defer { host.window.close() }
+    try await host.settle()
+    #expect(host.view.bounds.width == width)
+  }
+
   @Test func missingControlsRespectTheDeadlineAcrossLongScrollViews() async throws {
     let host = WorkbenchTestHost(
       ScrollView {
@@ -1069,6 +1077,10 @@ import TypefaceCore
 @MainActor final class WorkbenchTestWindow: NSWindow {
   private let testUndoManager = UndoManager()
   override var undoManager: UndoManager? { testUndoManager }
+
+  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+    frameRect
+  }
 }
 
 @MainActor private final class WorkbenchTestMenuSelection: NSObject {

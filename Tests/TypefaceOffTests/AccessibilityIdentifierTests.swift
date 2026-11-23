@@ -77,7 +77,7 @@ import TypefaceCore
     let model = WorkbenchModel(comparison: Comparison(a: .init(name), b: .init(name)))
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
-    try await Self.waitForRankedStrip(in: host)
+    _ = try await host.firstRankedCharacterButton(for: model)
     let owners = Self.owners(in: host)
     // SwiftUI names images and icon-only buttons after their SF Symbol, which repeats by design.
     for (identifier, elements) in owners
@@ -92,9 +92,10 @@ import TypefaceCore
     let name = try #require(FontCatalog().preferredFace(in: "Skia")).id
     var comparison = Comparison(a: .init(name), b: .init(name))
     comparison.mode = .text
-    let host = WorkbenchTestHost(WorkbenchView(model: WorkbenchModel(comparison: comparison)))
+    let model = WorkbenchModel(comparison: comparison)
+    let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
-    try await Self.waitForRankedStrip(in: host)
+    _ = try await host.firstRankedCharacterButton(for: model)
     let elements = Self.allElements(in: host)
     var reserved = Set(["Comparison inspector"])
     func collect(_ menu: NSMenu?) {
@@ -316,13 +317,6 @@ import TypefaceCore
       ) {
         try await check()
       }
-    }
-  }
-
-  private static func waitForRankedStrip<Content>(in host: WorkbenchTestHost<Content>) async throws
-  {
-    try await host.settle {
-      allElements(in: host).contains { ($0.accessibilityLabel?() ?? "").hasPrefix("Inspect U+") }
     }
   }
 

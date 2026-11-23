@@ -655,16 +655,7 @@ import TypefaceCore
     let model = WorkbenchModel()
     let host = WorkbenchTestHost(WorkbenchView(model: model))
     defer { host.window.close() }
-    let inspectButton: () -> AnyObject? = {
-      func isRankedButton(_ element: AnyObject) -> Bool {
-        (element.accessibilityLabel?() ?? "").hasPrefix("Inspect U+")
-      }
-      return host.elements.first(where: isRankedButton)
-        ?? host.hitElements.first(where: isRankedButton)
-    }
-    try await host.settle(
-      until: { inspectButton() != nil }, describing: "no ranked character button")
-    let button = try #require(inspectButton())
+    let button = try await host.firstRankedCharacterButton(for: model)
     let help = try #require(button.accessibilityHelp?())
     #expect(help.contains("\nShape "))
     #expect(help.contains("\nSpacing "))
@@ -1071,6 +1062,20 @@ import TypefaceCore
       return [element] + (children + contents + views).flatMap(descendants)
     }
     return ([window] + contentRoots).flatMap { descendants($0) }
+  }
+}
+
+extension WorkbenchTestHost where Content == WorkbenchView {
+  func firstRankedCharacterButton(for model: WorkbenchModel) async throws -> AnyObject {
+    let comparison = model.comparison
+    let scores = try #require(try await model.initialWork.ranking.value(for: comparison))
+    let first = try #require(
+      Differences.ranked(
+        scores, shape: comparison.shape, spacing: comparison.spacing,
+        frequency: comparison.frequency
+      ).first)
+    return try await element(
+      "Inspect \(unicodeDescription(first.glyph))", in: "Differences strip scroll area")
   }
 }
 

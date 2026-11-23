@@ -37,6 +37,23 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+aggregateTargets:
+  AppVersion:
+    targets: []
+    settings:
+      # Git needs the working tree and the shared Git directory of linked worktrees.
+      ENABLE_USER_SCRIPT_SANDBOXING: NO
+    buildScripts:
+      - name: Embed gitcalver version
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(SRCROOT)/Config/Info.plist
+        outputFiles:
+          - $(CONFIGURATION_TEMP_DIR)/TypefaceOff-Info.plist
+        script: |
+          set -eu
+          version=$("$SRCROOT/tools/gitcalver.sh" --prefix 0. --dirty -dirty)
+          plutil -insert TypefaceOffDisplayVersion -string "$version" -o "$SCRIPT_OUTPUT_FILE_0" "$SCRIPT_INPUT_FILE_0"
 targets:
   TypefaceOff:
     type: application
@@ -62,6 +79,7 @@ targets:
           set -eu
           sh "$SRCROOT/scripts/app-notice.sh" "$SRCROOT/Sources/TypefaceCore/Resources" > "$SCRIPT_OUTPUT_FILE_0"
     dependencies:
+      - target: AppVersion
       - package: TypefaceCore
         product: TypefaceCore
     info:
@@ -83,6 +101,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Config/TypefaceOff.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: $(CONFIGURATION_TEMP_DIR)/TypefaceOff-Info.plist
         MARKETING_VERSION: "0.0.0"
         CURRENT_PROJECT_VERSION: "0"
       configs:

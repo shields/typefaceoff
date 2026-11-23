@@ -23,7 +23,7 @@ import Testing
     #expect(NSImage(named: "AppIcon") != nil)
   }
 
-  @Test func aboutLinksToTheBundledAcknowledgments() async throws {
+  @Test func aboutShowsVersionAndLinksToBundledAcknowledgments() async throws {
     let url = try #require(Bundle.main.url(forResource: "Acknowledgments", withExtension: "txt"))
     let notice = try String(contentsOf: url, encoding: .utf8)
     #expect(notice.contains("Hyperglot"))
@@ -51,6 +51,14 @@ import Testing
       NSApp.deactivate()
     }
     let text = try #require(credits(in: window))
+    let version = try #require(
+      Bundle.main.object(forInfoDictionaryKey: "TypefaceOffDisplayVersion") as? String)
+    #expect(version.wholeMatch(of: /0\.[0-9]{8}\.[0-9]+(-dirty\.[0-9a-f]{7})?/) != nil)
+    let content = try #require(window.contentView)
+    #expect(
+      descendants(content).compactMap { $0 as? NSTextField }.contains {
+        $0.stringValue.contains(version)
+      })
     let range = (text.string as NSString).range(of: "Acknowledgments")
     let link = try #require(
       text.textStorage?.attribute(.link, at: range.location, effectiveRange: nil) as? URL)

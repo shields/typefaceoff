@@ -114,6 +114,13 @@ struct WorkbenchCommands: Commands {
   @FocusedValue(\.workbenchActions) private var actions
 
   var body: some Commands {
+    CommandGroup(replacing: .appInfo) {
+      Button("About Typeface/Off") {
+        let version =
+          Bundle.main.object(forInfoDictionaryKey: "TypefaceOffDisplayVersion") as! String
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationVersion: version, .version: ""])
+      }
+    }
     CommandGroup(after: .pasteboard) {
       WorkbenchMenuItems(section: .find, actions: actions)
     }

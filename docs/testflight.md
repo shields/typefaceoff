@@ -42,9 +42,13 @@ from the release commit, with build number `YYYYMMDD.N`. Unlike iOS, macOS
 [requires build numbers to increase across versions](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution).
 The vendored `tools/gitcalver.sh` is the unmodified
 [v20260825.1 release](https://github.com/gitcalver/sh/releases/tag/v20260825.1).
-Dirty working trees and commits outside the default branch are rejected. Each
-upload needs a new commit; Xcode does not rewrite the version or build number.
-Development builds use `0.0.0` with build number `0`.
+`make archive` requires a clean working tree and a commit on the default branch.
+Each upload needs a new commit, and Xcode preserves its version and build
+number.
+
+**About Typeface/Off** shows the gitcalver version in every build. For a working
+tree with uncommitted changes or commits off the default branch, gitcalver
+appends `-dirty.` and the seven-character commit hash.
 
 The Release configuration selects `Config/TestFlight.entitlements`, which
 enables the sandbox and an empty Keychain Sharing entitlement. Apple

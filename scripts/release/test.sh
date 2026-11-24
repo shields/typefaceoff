@@ -5,24 +5,32 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 git init -q -b main "$work/repo"
 cd "$work/repo"
-mkdir -p scripts/release
+git config user.name test
+git config user.email test@example.invalid
+git commit -q --allow-empty -m 'Before releases'
+git switch -qc distribution
+mkdir -p scripts/release .github/workflows
+touch .github/workflows/release.yml
 cp "$root/scripts/release/checks.jq" scripts/release/
-git add scripts
-for commit in first second third; do
-    git -c user.name=test -c user.email=test@example.invalid commit -q --allow-empty -m "$commit"
+git add scripts .github
+git commit -qm 'Add release workflow'
+git switch -q main
+git merge -q --no-ff distribution -m first
+for commit in second third; do
+    git commit -q --allow-empty -m "$commit"
 done
 export GITHUB_REPOSITORY=example/test RUNNER_TEMP="$work" GITHUB_OUTPUT="$work/output"
-RELEASE_START_SHA=$(git rev-parse HEAD~2)
+first=$(git rev-parse HEAD~2)
 second=$(git rev-parse HEAD~1)
 third=$(git rev-parse HEAD)
-export RELEASE_START_SHA
+export first
 cat >"$work/gh" <<'MOCK'
 #!/bin/bash
 set -eu
 case $2 in
 */status)
     sha=${2%/status}
-    if [[ ${sha##*/} == "$RELEASE_START_SHA" ]]; then
+    if [[ ${sha##*/} == "$first" ]]; then
         printf '%s\n' "$completed"
     else
         echo '[]'
@@ -30,7 +38,7 @@ case $2 in
     ;;
 */runs\?*)
     outcome=success
-    if [[ $2 == *"$RELEASE_START_SHA"* ]]; then outcome=$first_outcome; fi
+    if [[ $2 == *"$first"* ]]; then outcome=$first_outcome; fi
     jq -n --arg outcome "$outcome" '{workflow_runs: ["ci","actions-lock","zizmor"] | map({id: 1, path: (".github/workflows/" + . + ".yml"), conclusion: (if $outcome == "pending" then null else $outcome end)})}'
     ;;
 *) exit 3 ;;
@@ -44,11 +52,16 @@ check() {
     diff -u <(printf 'dmg=%s\nstore=%s\ntap=%s\n' "$1" "$2" "$3") "$GITHUB_OUTPUT"
 }
 export completed='[]' first_outcome=success
-check "$RELEASE_START_SHA" "$RELEASE_START_SHA" ""
+git switch -q --detach "$first^"
+check "" "" ""
+git switch -q --detach "$first"
+check "$first" "$first" ""
+git switch -q main
+check "$first" "$first" ""
 completed='["store-rejected"]'
-check "$RELEASE_START_SHA" "$second" ""
+check "$first" "$second" ""
 completed='["release/dmg"]'
-check "$second" "$RELEASE_START_SHA" "$RELEASE_START_SHA"
+check "$second" "$first" "$first"
 completed='["release/dmg","release/store","release/tap"]'
 check "$second" "$second" ""
 completed='[]'
@@ -56,9 +69,6 @@ first_outcome=pending
 check "" "" ""
 first_outcome=failure
 check "$second" "$second" ""
-RELEASE_START_SHA=$third
-first_outcome=success
-check "$third" "$third" ""
 mkdir -p tools "$work/assets"
 printf '#!/bin/sh\necho 0.20261123.1\n' >tools/gitcalver.sh
 chmod +x tools/gitcalver.sh

@@ -1,14 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-start=${RELEASE_START_SHA:?}
-[[ $start =~ ^[0-9a-f]{40}$ ]]
 git rev-list --first-parent HEAD >"$RUNNER_TEMP/main-commits"
-grep -Fxq "$start" "$RUNNER_TEMP/main-commits"
 channels=(dmg store tap)
 done_channels=" "
 declare -a next=("" "" "")
 while read -r sha; do
+    workflow=$(git ls-tree --name-only "$sha" -- .github/workflows/release.yml)
+    [[ -n $workflow ]] || break
     statuses=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/status" --jq '.statuses | map(if .state == "success" then .context elif .context == "release/store" and .state == "failure" then "store-rejected" else empty end)')
     for channel in "${channels[@]}"; do
         if jq -e --arg name "release/$channel" 'index($name) != null' <<<"$statuses" >/dev/null; then done_channels+="$channel "; fi
@@ -28,6 +27,5 @@ while read -r sha; do
         pending) next[i]="" ;;
         esac
     done
-    if [[ $sha == "$start" ]]; then break; fi
 done <"$RUNNER_TEMP/main-commits"
 for i in "${!channels[@]}"; do printf '%s=%s\n' "${channels[i]}" "${next[i]}"; done >>"$GITHUB_OUTPUT"

@@ -15,7 +15,7 @@ concurrency:
 jobs:
   queue:
     name: Select tested main commits
-    if: github.ref == 'refs/heads/main' && vars.RELEASE_START_SHA != ''
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
@@ -35,7 +35,6 @@ jobs:
         run: bash scripts/release/queue.sh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_START_SHA: ${{ vars.RELEASE_START_SHA }}
 
   dmg:
     name: Sign and notarize disk image

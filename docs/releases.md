@@ -20,11 +20,10 @@ own last successful commit. App Review is manual.
    and its Apple Distribution certificate. Obtain a Mac Installer Distribution
    certificate for the signed Store package. Export the signing identities with
    their private keys into the password-protected PKCS#12 files below.
-4. After the implementation has passed CI on main, set the source repository
-   variable `RELEASE_START_SHA` to the **full SHA of the first main push to
-   distribute**. Run **Release → Run workflow** on main or wait for its
-   schedule. Unset the variable to pause releases. Keep its original value when
-   resuming to retain the backlog.
+4. Merge the release workflow into main when you're ready to publish. The main
+   push that introduces the workflow is the first release candidate. Once its
+   checks pass, the next scheduled run picks it up. You can also run **Release →
+   Run workflow** on main.
 
 | GitHub environment | Secrets                                                                                                                                                                                                                                | Variables                                                                           |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |

@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "0.8.1",
+  "version": "0.8.2",
   "source": "https://github.com/rosettatype/hyperglot",
   "excluded": {
-    "data confidence": 76,
+    "data confidence": 77,
     "no primary or historical orthography": 7
   },
   "languages": [
@@ -2627,6 +2627,64 @@
       "reviewers": []
     },
     {
+      "id": "aoc",
+      "name": "Pemon",
+      "isoName": "Pemon",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 900,
+      "speakersDate": null,
+      "autonyms": ["", "Përepepɨ/Përe"],
+      "orthographies": [
+        {
+          "id": "aoc/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Përepepɨ/Përe",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A C D E H I Ï J K M N O Ö P R S T U Ü W Y ’ a c d e h i ï j k m n o ö p r s t u ü w y",
+              "requirements": "A C D E H I J K M N O P R S T U W Y a c d e h i j k m n o p r s t u w y Ï Ö Ü ï ö ü ’",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission describes the language as threatened with extinction."
+      ],
+      "sources": [
+        "Ethnologue. (n.d.). *Pemon*. https://www.ethnologue.com/language/aoc/",
+        "Década Internacional das Línguas Indígenas no Brasil. (n.d.). https://www.decadalinguasindigenasbr.com/",
+        "Museu do Índio. (n.d.). *Portal Japiim*. https://japiim.museudoindio.gov.br/index.php"
+      ],
+      "contributors": ["Ana Ribeiro"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "aoz",
       "name": "Uab Meto",
       "isoName": "Uab Meto",
@@ -3246,6 +3304,67 @@
       ],
       "contributors": ["David Březina"],
       "reviewers": []
+    },
+    {
+      "id": "atx",
+      "name": "Arutani",
+      "isoName": "Arutani",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 20,
+      "speakersDate": null,
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "atx/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Á Ã E H I Ĩ K M N Ñ O P R S T U W X Y a á ã e h i ĩ k m n ñ o p r s t u w x y",
+              "requirements": "A E H I K M N O P R S T U W X Y a e h i k m n o p r s t u w x y Á Ã Ñ á ã ñ Ĩ ĩ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": [
+            "The original submission notes that tilde occurs on all vowels."
+          ]
+        }
+      ],
+      "notes": [
+        "Alternative names listed in the original submission: Anake, Aoaqui, Auakê, Auaqué, Awaikê, Awaké, Oewaku, Orotani, Uruak, Urutaní. The source reports 4 speakers in Brazil and 16 in Venezuela; speakers_date was not specified."
+      ],
+      "sources": [
+        "Ethnologue. (n.d.). *Arutani*. https://www.ethnologue.com/language/atx/",
+        "Endangered Languages Project. (n.d.). *Language search map*. https://www.endangeredlanguages.com/language-search-map",
+        "Museu do Índio. (n.d.). *Arutani*. Portal Japiim. https://japiim.museudoindio.gov.br/dic/arutani/index.php",
+        "ScriptSource. (n.d.). *Arutani*. https://scriptsource.org/cms/scripts/page.php?item_id=language_detail&key=atx"
+      ],
+      "contributors": ["Gabriela Serpa"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "aud",
@@ -3910,42 +4029,6 @@
             "Used in Iran.",
             "Positional forms of the characters (initial, medial, and final forms) and some ligatures are required for proper representation of the language."
           ]
-        },
-        {
-          "id": "azb/1/Latn/primary",
-          "script": "Latin",
-          "scriptCode": "Latn",
-          "status": "primary",
-          "autonym": "",
-          "grouped": false,
-          "categories": {
-            "base": {
-              "characters": "A B C D E F G H I J K L M N O P Q R S T U V X Y Z Ç Ö Ü Ğ Ş Ə a b c d e f g h i j k l m n o p q r s t u v x y z ç ö ü ğ İ ı ş ə ʼ",
-              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V X Y Z a b c d e f g h i j k l m n o p q r s t u v x y z Ç Ö Ü ç ö ü Ğ ğ İ ı Ş ş Ə ə ʼ",
-              "sequences": ""
-            },
-            "auxiliary": {
-              "characters": "Ä ä",
-              "requirements": "Ä ä",
-              "sequences": ""
-            },
-            "numerals": {
-              "characters": "0 1 2 3 4 5 6 7 8 9 + − ± ÷ × = ≈ ≠ % ‰",
-              "requirements": "% + 0 1 2 3 4 5 6 7 8 9 = ± × ÷ ‰ − ≈ ≠",
-              "sequences": ""
-            },
-            "punctuation": {
-              "characters": ". , : ; ! ? - ‐ – — _ ~ ( ) [ ] { } / | ¦ \\ ' \" ^ § • ¶ # & @ © ® ™ ′ ″ ° … * ·",
-              "requirements": "! \" # & ' ( ) * , - . / : ; ? @ [ \\ ] ^ _ { | } ~ ¦ § © ® ° ¶ · ‐ – — • … ′ ″ ™",
-              "sequences": ""
-            },
-            "currency": {
-              "characters": "¤ ₼",
-              "requirements": "¤ ₼",
-              "sequences": ""
-            }
-          },
-          "notes": ["Used outside Iran."]
         }
       ],
       "notes": [],
@@ -3963,44 +4046,8 @@
       "validity": "verified",
       "speakers": 23000000,
       "speakersDate": "2018",
-      "autonyms": ["", "Азәрбајҹан"],
+      "autonyms": [""],
       "orthographies": [
-        {
-          "id": "azj/0/Cyrl/primary",
-          "script": "Cyrillic",
-          "scriptCode": "Cyrl",
-          "status": "primary",
-          "autonym": "Азәрбајҹан",
-          "grouped": false,
-          "categories": {
-            "base": {
-              "characters": "А Б В Г Д Е Ж З И К Л М Н О П Р С Т У Ф Х Ц Ч Ш Щ Ъ Ы Ь Э Ю Я Ј Ғ Ҝ Ү Ҹ Һ Ә Ө а б в г д е ж з и к л м н о п р с т у ф х ц ч ш щ ъ ы ь э ю я ј ғ ҝ ү ҹ һ ә ө ʼ",
-              "requirements": "ʼ Ј А Б В Г Д Е Ж З И К Л М Н О П Р С Т У Ф Х Ц Ч Ш Щ Ъ Ы Ь Э Ю Я а б в г д е ж з и к л м н о п р с т у ф х ц ч ш щ ъ ы ь э ю я ј Ғ ғ Ҝ ҝ Ү ү Ҹ ҹ Һ һ Ә ә Ө ө",
-              "sequences": ""
-            },
-            "auxiliary": {
-              "characters": "Й й",
-              "requirements": "Й й",
-              "sequences": ""
-            },
-            "numerals": {
-              "characters": "0 1 2 3 4 5 6 7 8 9 + − ± ÷ × = ≈ ≠ % ‰",
-              "requirements": "% + 0 1 2 3 4 5 6 7 8 9 = ± × ÷ ‰ − ≈ ≠",
-              "sequences": ""
-            },
-            "punctuation": {
-              "characters": ". , : ; ! ? - ‐ – — _ ~ ( ) [ ] { } / | ¦ \\ ' \" ^ § • ¶ # & @ © ® ™ ′ ″ ° … * · “ ” „",
-              "requirements": "! \" # & ' ( ) * , - . / : ; ? @ [ \\ ] ^ _ { | } ~ ¦ § © ® ° ¶ · ‐ – — “ ” „ • … ′ ″ ™",
-              "sequences": ""
-            },
-            "currency": {
-              "characters": "¤ ₼",
-              "requirements": "¤ ₼",
-              "sequences": ""
-            }
-          },
-          "notes": ["Official in Dagestan (Russia)."]
-        },
         {
           "id": "azj/1/Latn/primary",
           "script": "Latin",
@@ -4035,7 +4082,7 @@
               "sequences": ""
             }
           },
-          "notes": []
+          "notes": ["Official national language of Azerbaijan."]
         }
       ],
       "notes": [],
@@ -12401,13 +12448,13 @@
           "grouped": false,
           "categories": {
             "base": {
-              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Æ Œ a b c d e f g h i j k l m n o p q r s t u v w x y z æ œ",
-              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z Æ æ Œ œ",
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z",
               "sequences": ""
             },
             "auxiliary": {
-              "characters": "À Á Ç È É Ê Ë Ï Ñ Ô Ö à á ç è é ê ë ï ñ ô ö",
-              "requirements": "À Á Ç È É Ê Ë Ï Ñ Ô Ö à á ç è é ê ë ï ñ ô ö",
+              "characters": "À Á Ç È É Ê Ë Ï Ñ Ô Ö Æ Œ à á ç è é ê ë ï ñ ô ö æ œ",
+              "requirements": "À Á Æ Ç È É Ê Ë Ï Ñ Ô Ö à á æ ç è é ê ë ï ñ ô ö Œ œ",
               "sequences": ""
             },
             "numerals": {
@@ -14319,6 +14366,72 @@
       "reviewers": []
     },
     {
+      "id": "gae",
+      "name": "Warekena (Guarequena)",
+      "isoName": "Warekena (Guarequena)",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 210,
+      "speakersDate": null,
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "gae/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã B D E Ẽ H I Ĩ K L M N O P R S T U Ũ V W X Y a ã b d e ẽ h i ĩ k l m n o p r s t u ũ v w x y",
+              "requirements": "A B D E H I K L M N O P R S T U V W X Y a b d e h i k l m n o p r s t u v w x y Ã ã Ĩ ĩ Ũ ũ Ẽ ẽ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": [
+            "The original submission states that there is no widely standardized Warekena orthography and that academic materials use Latin-based phonetic transcriptions influenced by Baniva de Maroa conventions."
+          ]
+        }
+      ],
+      "notes": [
+        "The original submission reports approximately 10 speakers in Brazil and 200 in Venezuela, describes the language as severely endangered, and identifies alternative names Guarequena, Wanekena, Uarequena, and Baniva de Maroa."
+      ],
+      "sources": [
+        "Aikhenvald, A. Y. (2012). *The languages of the Amazon*. Oxford University Press.",
+        "Aikhenvald, A. Y. (2015). The Arawak language family in the North of Amazonia. In P. Hammarström & H. Haspelmath (Eds.), *Linguistic discovery in the Amazon Basin*. Oxford University Press.",
+        "Brandão, A. de C. (2014). *Estudo gramatical da língua Warekena (Aruák)* [Doctoral dissertation, Universidade de Brasília]. Repositório da UnB.",
+        "Endangered Languages Project. (n.d.). *Warekena / Guarequena*. Retrieved October 15, 2025, from https://www.endangeredlanguages.com/lang/3313",
+        "Glottolog. (2025). *Warekena (ware1252)*. Max Planck Institute for Evolutionary Anthropology. Retrieved October 15, 2025, from https://glottolog.org/resource/languoid/id/ware1252",
+        "Mosonyi, E., & Camico, C. (1996). *Propuesta de ortografía práctica para el idioma Baniva (Arawak del Orinoco)*. Instituto Caribe de Antropología y Sociología.",
+        "Native Languages of the Americas. (n.d.). *Guarequena language (Warekena, Baniva de Maroa)*. Retrieved October 15, 2025, from https://www.native-languages.org/guarequena.htm",
+        "UNESCO. (2010). *Atlas of the world’s languages in danger* (3rd ed.). UNESCO Publishing.",
+        "*Língua baniva de Maroa*. (2024, October 17). In *Wikipédia*. https://pt.wikipedia.org/w/index.php?title=Língua_baniva_de_Maroa&oldid=68838306"
+      ],
+      "contributors": ["Amanda Martins"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "gag",
       "name": "Gagauz",
       "isoName": "Gagauz",
@@ -15526,6 +15639,65 @@
       "reviewers": []
     },
     {
+      "id": "gta",
+      "name": "Guató",
+      "isoName": "Guató",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 5,
+      "speakersDate": "2008",
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "gta/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã B D E Ẽ F G H I Ĩ J K M N O P R T U Ũ V W X Y Ỹ a ã b d e ẽ f g h i ĩ j k m n o p r t u ũ v w x y ỹ",
+              "requirements": "A B D E F G H I J K M N O P R T U V W X Y a b d e f g h i j k m n o p r t u v w x y Ã ã Ĩ ĩ Ũ ũ Ẽ ẽ Ỹ ỹ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission notes recent language revitalization efforts, particularly cultural projects and the introduction of Guató into activities at the Indigenous school."
+      ],
+      "sources": [
+        "Ethnologue. (n.d.). *Guató*. https://www.ethnologue.com/language/gta/",
+        "Instituto Socioambiental. (n.d.). *Guató*. Povos Indígenas no Brasil. https://pib.socioambiental.org/pt/Povo:Guat%C3%B3",
+        "Glottolog. (n.d.). *Guató (guat1253)*. https://glottolog.org/resource/languoid/id/guat1253",
+        "Museu do Índio. (n.d.). *Portal Japiim*. https://japiim.museudoindio.gov.br/index.php"
+      ],
+      "contributors": ["Giovanna Julião"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "guc",
       "name": "Wayuu",
       "isoName": "Wayuu",
@@ -15692,6 +15864,68 @@
       ],
       "contributors": ["David Březina", "Sergio Martins"],
       "reviewers": []
+    },
+    {
+      "id": "gun",
+      "name": "Guarani Mbyá",
+      "isoName": "Guarani Mbyá",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 15050,
+      "speakersDate": null,
+      "autonyms": ["", "Mbyá Ayvu ou Nhandeayvu"],
+      "orthographies": [
+        {
+          "id": "gun/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Mbyá Ayvu ou Nhandeayvu",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A B E H J K M N O T X Y a b e h j k m n o t x y",
+              "requirements": "A B E H J K M N O T X Y a b e h j k m n o t x y",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission dates the speaker estimate to 2007–2008."
+      ],
+      "sources": [
+        "Ethnologue. (n.d.). *Mbyá Guaraní*. https://www.ethnologue.com/language/gun/",
+        "Glottolog. (n.d.). *Mbyá Guaraní*. https://glottolog.org/resource/languoid/id/mbya1239",
+        "Museu do Índio. (n.d.). *Portal Japiim*. https://japiim.museudoindio.gov.br/",
+        "Brasil de Fato. (n.d.). [Source cited in the original submission].",
+        "Instituto Socioambiental. (n.d.). *Povos Indígenas no Brasil*. https://pib.socioambiental.org/",
+        "Brazil1500.tripod.com. (n.d.). [Source cited in the original submission].",
+        "*Mbyá Guaraní language*. (2026, August 1). In *Wikipedia*. https://en.wikipedia.org/w/index.php?title=Mbyá_Guaraní_language&oldid=1367164941"
+      ],
+      "contributors": ["Lauane da Silva Sousa"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "gur",
@@ -18346,6 +18580,65 @@
       ],
       "contributors": ["David Březina"],
       "reviewers": []
+    },
+    {
+      "id": "ite",
+      "name": "Moré-Kuyubim",
+      "isoName": "Itene",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 20,
+      "speakersDate": "2025",
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "ite/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A E F I K M N Ñ O P R S T U W X Y Z ' a e f i k m n ñ o p r s t u w x y z",
+              "requirements": "' A E F I K M N O P R S T U W X Y Z a e f i k m n o p r s t u w x y z Ñ ñ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission describes Itene / Moré-Kuyubim as a Chapacuran language spoken by Moré and Kuyubim communities near the Bolivia–Brazil border, with a Latin-based orthography and critically reduced speaker population."
+      ],
+      "sources": [
+        "Angenot-de Lima, G. (2002). *Descrição fonológica, gramatical e lexical do moré, língua amazônica da Bolívia e do Brasil* [Doctoral dissertation, Leiden University]. Etnolinguistica.org. http://etnolinguistica.wdfiles.com/local--files/tese%3Alima-2002/lima_2002_tomo1.pdf",
+        "Endangered Languages Archive. (2020). *Documentation of Moré (Iténez), a Chapacuran language of Bolivia and Brazil*. https://www.elararchive.org/dk0833",
+        "Museu do Índio. (n.d.). *Dicionário Moré-Kuyubim*. Portal Japiim. https://japiim.museudoindio.gov.br/dic/morekuyubim/index.php",
+        "Hammarström, H., Forkel, R., Haspelmath, M., & Bank, S. (Eds.). (2025). *Moré (Iténez)*. Glottolog 5.0. Max Planck Institute for Evolutionary Anthropology. https://glottolog.org/resource/languoid/id/iten1243"
+      ],
+      "contributors": ["Diogo Alves"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "itl",
@@ -21399,6 +21692,68 @@
       "reviewers": []
     },
     {
+      "id": "kpj",
+      "name": "Karajá",
+      "isoName": "Karajá",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 2137,
+      "speakersDate": "2010",
+      "autonyms": ["Iny rybè", ""],
+      "orthographies": [
+        {
+          "id": "kpj/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A B D E H I Ĩ J K L M N O R S T U W X Y À Ã È Ò Õ Ỹ a b d e h i ĩ j k l m n o r s t u x w y à ã è ò õ ỹ",
+              "requirements": "A B D E H I J K L M N O R S T U W X Y a b d e h i j k l m n o r s t u w x y À Ã È Ò Õ à ã è ò õ Ĩ ĩ Ỹ ỹ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission states that the data refer specifically to Karajá proper, excluding varieties such as Javaé and Northern Karajá."
+      ],
+      "sources": [
+        "Instituto Socioambiental. (n.d.). *Karajá*. Povos Indígenas no Brasil. https://pib.socioambiental.org/pt/Povo:Iny_Karaj%C3%A1",
+        "Endangered Languages Project. (n.d.). *Karajá*. https://www.endangeredlanguages.com/pt-br/node/89499",
+        "Crevels, M. (2012). Language endangerment in South America: The clock is ticking. In L. Campbell & V. Grondona (Eds.), *The Indigenous Languages of South America: A Comprehensive Guide* (pp. 167–234). Mouton de Gruyter.",
+        "Museu do Índio. (n.d.). *Karajá*. Portal Japiim / ProDoclin. https://japiim.museudoindio.gov.br/dic/karaja/index.php",
+        "Projeto de Documentação da Língua Karajá. (2011, March 10). *Relatório com o perfil tipológico da língua Karajá* (Projeto 914BRA4010). Museu do Índio / FUNAI / UNESCO.",
+        "Ethnologue. (n.d.). *Karajá*. https://www.ethnologue.com/language/kpj/",
+        "Instituto Brasileiro de Geografia e Estatística. (2012). *Censo demográfico 2010: Características gerais dos indígenas: Resultados do universo*. IBGE."
+      ],
+      "contributors": ["Maria Fernanda Paz Almeida"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "kpt",
       "name": "Karata",
       "isoName": "Karata",
@@ -24428,8 +24783,8 @@
           "grouped": false,
           "categories": {
             "base": {
-              "characters": "A B C E G H I J L M N O P Q R S T U Y Ā Ē Ī Ō Ū a b c e g h i j l m n o p q r s t u y ' ā ē ī ō ū",
-              "requirements": "' A B C E G H I J L M N O P Q R S T U Y a b c e g h i j l m n o p q r s t u y Ā ā Ē ē Ī ī Ō ō Ū ū",
+              "characters": "A B C E G H I J L M N O P Q R S T U Y Ä Ë Ï Ö Ü CH SH TS AN EN ËN IN ON UN a b c e g h i j l m n o p q r s t u y ' Ch Sh Ts An En Ën In On Un ä ë ï ö ü ch sh ts an en ën in on un",
+              "requirements": "' A B C E G H I J L M N O P Q R S T U Y a b c e g h i j l m n o p q r s t u y Ä Ë Ï Ö Ü ä ë ï ö ü",
               "sequences": ""
             },
             "auxiliary": {
@@ -24458,11 +24813,70 @@
       ],
       "notes": [],
       "sources": [
-        "Ager, S. (2021, May 4). *Omniglot* https://www.omniglot.com",
+        "Ager, S. (2021, May 4). *Omniglot* https://www.omniglot.com/writing/matses.htm",
         "Matsés language. (2024, March 26). In *Wikipedia*. https://en.wikipedia.org/wiki/Mats%C3%A9s_language?oldid=1215640765"
       ],
       "contributors": ["Sergio Martins"],
       "reviewers": []
+    },
+    {
+      "id": "mch",
+      "name": "Ye’Kwana",
+      "isoName": "Ye’Kwana",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 7997,
+      "speakersDate": "2011",
+      "autonyms": ["", "Soto"],
+      "orthographies": [
+        {
+          "id": "mch/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Soto",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ä D E F H I J K M N O Ö S T U W Y ' a ä d e f h i j k m n o ö s t u w y",
+              "requirements": "' A D E F H I J K M N O S T U W Y a d e f h i j k m n o s t u w y Ä Ö ä ö",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "Ethnonyms listed in the original submission: Ye’kwana (variants De’kwana and Dhe’kwana), Maiongong, and Makiritare. The autonym Soto is glossed there as ‘person’ or ‘people’."
+      ],
+      "sources": [
+        "Glottolog. (n.d.). *Maquiritari–Aramä (maqu1238)*. Retrieved October 16, 2025, from https://glottolog.org/resource/languoid/id/maqu1238",
+        "Instituto Socioambiental. (n.d.). *Ye’kwana*. Povos Indígenas no Brasil. Retrieved October 16, 2025, from https://pib.socioambiental.org/pt/Povo:Ye%27kwana",
+        "*Yeꞌkuana language*. (2026, August 9). In *Wikipedia*. https://en.wikipedia.org/w/index.php?title=Yeꞌkuana_language&oldid=1368456218",
+        "Museu do Índio. (n.d.). *Dicionário Ye’kwana*. Portal Japiim. Retrieved October 16, 2025, from https://japiim.museudoindio.gov.br/dic/yekwana/index.php"
+      ],
+      "contributors": ["Luiza Ishigame"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "mcn",
@@ -24577,6 +24991,64 @@
       ],
       "contributors": ["David Březina", "Sergio Martins"],
       "reviewers": []
+    },
+    {
+      "id": "mdk",
+      "name": "Munduruku",
+      "isoName": "Munduruku",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 17997,
+      "speakersDate": "2020",
+      "autonyms": ["", "Wuyjuḡu"],
+      "orthographies": [
+        {
+          "id": "mdk/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Wuyjuḡu",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã B C D E Ẽ H I Ĩ J K ‘ M N G̃ O Õ P R S T U Ũ W X Y a ã b c d e ẽ h i ĩ j k m n g̃ o õ p r s t u ũ w x y",
+              "requirements": "A B C D E G H I J K M N O P R S T U W X Y a b c d e g h i j k m n o p r s t u w x y Ã Õ ã õ Ĩ ĩ Ũ ũ ̃ Ẽ ẽ ‘",
+              "sequences": "G̃ g̃"
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "̃",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": [
+            "The original submission also lists ‘ among its marks; it is preserved in the base repertoire."
+          ]
+        }
+      ],
+      "notes": [],
+      "sources": [
+        "Crofts, M. (2004). *Munduruku: aspectos da língua*. Sociedade Internacional de Linguística. (Original work published 1985).",
+        "Universidade do Estado do Amazonas. (n.d.). [Article cited in the original submission]. https://periodicos.uea.edu.br/index.php/contracorrente/article/view/3609",
+        "Projeto Suframa / Portal Adari. (n.d.). *Munduruku*. https://www.projetosufam.com.br/portaladari/povos/munduruku.html"
+      ],
+      "contributors": ["Tayna Silva"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "men",
@@ -32585,6 +33057,67 @@
       "reviewers": []
     },
     {
+      "id": "shb",
+      "name": "Ninam",
+      "isoName": "Ninam",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": null,
+      "speakersDate": null,
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "shb/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã E Ẽ Ë Ë̃ H I Ĩ Ɨ Ɨ̃ K M N O Õ P R S T U Ũ W X Y a ã e ẽ ë ë̃ h i ĩ ɨ ɨ̃ k m n o õ p r s t u ũ w x y",
+              "requirements": "A E H I K M N O P R S T U W X Y a e h i k m n o p r s t u w x y Ã Ë Õ ã ë õ Ĩ ĩ Ũ ũ Ɨ ɨ ̃ ̈ Ẽ ẽ",
+              "sequences": "Ë̃ Ɨ̃ ë̃ ɨ̃"
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü ̃ ̈",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission reports fewer than 10,000 speakers, with date indicated as 2025?, and describes the language as living and stable. The original marks field listed Ë̃, Ɨ̃, ë̃, and ɨ."
+      ],
+      "sources": [
+        "Ethnologue. (n.d.). *Languages of Brazil*. https://www.ethnologue.com/country/BR/",
+        "Endangered Languages Project. (n.d.). *Language search map*. https://www.endangeredlanguages.com/language-search-map",
+        "Instituto Socioambiental. (n.d.). *Povos Indígenas no Brasil*. https://pib.socioambiental.org/pt/P%C3%A1gina_principal",
+        "Década Internacional das Línguas Indígenas no Brasil. (n.d.). https://www.decadalinguasindigenasbr.com/",
+        "UNESCO. (n.d.). [Source cited in the original submission]. https://unesdoc.unesco.org/ark:/48223/pf0000392894",
+        "Museu do Índio. (n.d.). *Portal Japiim*. https://japiim.museudoindio.gov.br/index.php"
+      ],
+      "contributors": ["Clarice Carvalho"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "shi",
       "name": "Tachelhit",
       "isoName": "Tachelhit",
@@ -35137,6 +35670,66 @@
       "reviewers": []
     },
     {
+      "id": "swo",
+      "name": "Shanenawa",
+      "isoName": "Shanenawa",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 769,
+      "speakersDate": "2020",
+      "autonyms": [""],
+      "orthographies": [
+        {
+          "id": "swo/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã B D E Ẽ H I Ĩ K M N O Õ P R S T U Ũ W X Y Ỹ a ã b d e ẽ h i ĩ k m n o õ p r s t u ũ w x y ỹ",
+              "requirements": "A B D E H I K M N O P R S T U W X Y a b d e h i k m n o p r s t u w x y Ã Õ ã õ Ĩ ĩ Ũ ũ Ẽ ẽ Ỹ ỹ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission states that the language can also be found under the name Xinanenawa and is part of the Yanenawa linguistic complex. It also reports, citing Professor Francisco Francineudo Batista Brandão, that only 25% of the population speaks Shanenawa."
+      ],
+      "sources": [
+        "Comissão Pró-Índio do Acre. (n.d.). *Povo Shanenawa*. Retrieved October 14, 2025, from https://cpiacre.org.br/shanenawa/",
+        "Ferreira, H. P. (2020). *Relatório descritivo dos sistemas ortográficos – Prodoclin (Produto 01)* [Technical report]. Projeto 914BRZ4019, Contrato SA-3993/2019. https://drive.google.com/file/d/1qodjbOcUZSYglMVRttpYbi7cAyXDjH2z/view",
+        "Instituto Socioambiental. (n.d.). *Povo Shanenawa*. Povos Indígenas no Brasil. Retrieved October 14, 2025, from https://pib.socioambiental.org/pt/Povo:Shanenawa",
+        "Instituto Socioambiental. (n.d.). *Quadro geral dos povos indígenas no Brasil*. Retrieved October 14, 2025, from https://www.povosindigenas.org.br/pt/Quadro_Geral_dos_Povos",
+        "Hammarström, H., Forkel, R., Haspelmath, M., & Bank, S. (Eds.). (2023). *Shanenawa (shan1283)*. Glottolog 5.2. Max Planck Institute for Evolutionary Anthropology. Retrieved October 29, 2025, from https://glottolog.org/resource/languoid/id/shan1283"
+      ],
+      "contributors": ["Clara Rodrigues"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "sxw",
       "name": "Saxwe Gbe",
       "isoName": "Saxwe Gbe",
@@ -37095,8 +37688,8 @@
           "grouped": false,
           "categories": {
             "base": {
-              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Ā Á Ē É Ī Í Ō Ó Ū Ú a b c d e f g h i j k l m n o p q r s t u v w x y z ā á ē é ī í ō ó ū ú",
-              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z Á É Í Ó Ú á é í ó ú Ā ā Ē ē Ī ī Ō ō Ū ū",
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Ā Á Ē É Ī Í Ō Ó Ū Ú a b c d e f g h i j k l m n o p q r s t u v w x y z ā á ē é ī í ō ó ū ú ʻ",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z Á É Í Ó Ú á é í ó ú Ā ā Ē ē Ī ī Ō ō Ū ū ʻ",
               "sequences": ""
             },
             "auxiliary": {
@@ -37120,7 +37713,9 @@
               "sequences": ""
             }
           },
-          "notes": []
+          "notes": [
+            "The ‹ʻ› (okina) should appear as an “up-turned comma” above the baseline that is ideally sufficiently distinguished from the left single quote (e.g.  positioned slightly lower)."
+          ]
         }
       ],
       "notes": [
@@ -37128,7 +37723,9 @@
       ],
       "sources": [
         "Ager, S. (2021, May 4). *Omniglot* https://www.omniglot.com",
+        "ʻOkina. (2026, April 21). In *Wikipedia*. https://en.wikipedia.org/wiki/%CA%BBOkina",
         "Tonga. (2024, August 27). In *Wikipedia*. https://en.wikipedia.org/wiki/Tonga?oldid=1242530613",
+        "Tongan language. (2026, April 21). In *Wikipedia*. https://en.wikipedia.org/wiki/Tongan_language",
         "*The Unicode Common Locale Data Repository (CLDR)*. (2024, September 27). The Unicode Consortium. https://cldr.unicode.org"
       ],
       "contributors": ["David Březina"],
@@ -38458,6 +39055,72 @@
       "reviewers": []
     },
     {
+      "id": "urb",
+      "name": "Kaapor",
+      "isoName": "Kaapor",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 1241,
+      "speakersDate": "2010",
+      "autonyms": [
+        "",
+        "Urubú-Kaapor, Urubú, Kaaporté, Caapor, Ka'apor, Anambé, Guajá, Urubú, Amanajé, Manaze, Amanage, Manaxo, Manajo, Manazo, Ka'apór, Urubú-Ka'apór"
+      ],
+      "orthographies": [
+        {
+          "id": "urb/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Urubú-Kaapor, Urubú, Kaaporté, Caapor, Ka'apor, Anambé, Guajá, Urubú, Amanajé, Manaze, Amanage, Manaxo, Manajo, Manazo, Ka'apór, Urubú-Ka'apór",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A E H I J K M N O P S T U W X Ã Ẽ Ĩ Õ a e h i j k m n o p s t u w x ã ẽ ĩ õ",
+              "requirements": "A E H I J K M N O P S T U W X a e h i j k m n o p s t u w x Ã Õ ã õ Ĩ ĩ Ẽ ẽ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": [
+            "The original submission also lists the sign ’ among its marks, citing Kakumasu & Kakumasu (1988)."
+          ]
+        }
+      ],
+      "notes": [
+        "The original submission describes the language vitality as shifting."
+      ],
+      "sources": [
+        "Museu do Índio. (n.d.). *Portal Japiim*. https://japiim.museudoindio.gov.br/",
+        "Instituto Socioambiental. (n.d.). *Povos Indígenas no Brasil*. https://pib.socioambiental.org/",
+        "Ethnologue. (n.d.). *Kaapor*. https://www.ethnologue.com/",
+        "Hammarström, H., Forkel, R., Haspelmath, M., & Bank, S. (Eds.). (2025). *Glottolog 5.2*. Max Planck Institute for Evolutionary Anthropology.",
+        "*Kaʼapor language*. (2026, August 9). In *Wikipedia*. https://en.wikipedia.org/w/index.php?title=Kaʼapor_language&oldid=1330599593",
+        "Endangered Languages Project. (n.d.). *Kaapor*. https://endangeredlanguages.com/elp-context/context-5757-kaapor-source-world-oral-literature-project#language-context-menu-anchor"
+      ],
+      "contributors": ["Daniel Lustosa"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "urd",
       "name": "Urdu",
       "isoName": "Urdu",
@@ -38516,6 +39179,64 @@
       ],
       "contributors": ["David Březina"],
       "reviewers": []
+    },
+    {
+      "id": "urz",
+      "name": "Uru-Eu-Wau-Wau",
+      "isoName": "Uru-Eu-Wau-Wau",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 127,
+      "speakersDate": "2020",
+      "autonyms": ["", "Kagwahiva"],
+      "orthographies": [
+        {
+          "id": "urz/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Kagwahiva",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A E I K M N O P T W Y R H U X D B V C G J Ã Ẽ Ĩ Õ Ũ Ỹ ' a e i k m n o p t w y r h u x d b v c g j ã õ ẽ ỹ ĩ ũ",
+              "requirements": "' A B C D E G H I J K M N O P R T U V W X Y a b c d e g h i j k m n o p r t u v w x y Ã Õ ã õ Ĩ ĩ Ũ ũ Ẽ ẽ Ỹ ỹ",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission notes that Kawahiva has multiple dialects and ISO codes and that Uru-Eu-Wau-Wau was selected as a non-extinct variety."
+      ],
+      "sources": [
+        "Eberhard, D. M., Simons, G. F., & Fennig, C. D. (Eds.). (2025). *Uru-Eu-Wau-Wau language (urz)*. In *Ethnologue: Languages of the World* (28th ed.). SIL International. https://www.ethnologue.com/language/urz",
+        "Instituto Socioambiental. (n.d.). *Povo Uru-Eu-Wau-Wau*. Povos Indígenas no Brasil. Retrieved October 21, 2025, from https://pib.socioambiental.org/pt/Povo:Uru-Eu-Wau-Wau",
+        "Ferreira, H. P. (2020). *Relatório descritivo dos sistemas ortográficos: Produto 01 do Projeto 914BRZ4019, contrato SA-3993/2019*. Prodoclin / UNESCO / Ministério da Educação."
+      ],
+      "contributors": ["Maria Eduarda Krewer"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "uum",
@@ -39188,6 +39909,68 @@
       ],
       "contributors": ["David Březina"],
       "reviewers": []
+    },
+    {
+      "id": "waw",
+      "name": "Waiwai",
+      "isoName": "Waiwai",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 2200,
+      "speakersDate": "2000",
+      "autonyms": ["Waiwai"],
+      "orthographies": [
+        {
+          "id": "waw/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Waiwai",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A B C E H I K M N N̂ O P R S T U W X Y Â Î a b c e h i k m n n̂ o p r s t u w x y â î",
+              "requirements": "A B C E H I K M N O P R S T U W X Y a b c e h i k m n o p r s t u w x y Â Î â î ̂",
+              "sequences": "N̂ n̂"
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "̂",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "0 1 2 3 4 5 6 7 8 9 + − ± ÷ × = ≈ ≠ % ‰",
+              "requirements": "% + 0 1 2 3 4 5 6 7 8 9 = ± × ÷ ‰ − ≈ ≠",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": ". , : ; ! ? - ‐ – — _ ~ ( ) [ ] { } / | ¦ \\ ' \" ^ § • ¶ # & @ © ® ™ ′ ″ ° … * ·",
+              "requirements": "! \" # & ' ( ) * , - . / : ; ? @ [ \\ ] ^ _ { | } ~ ¦ § © ® ° ¶ · ‐ – — • … ′ ″ ™",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": [
+            "Orthography developed by missionaries (Hawkins brothers) from 1949."
+          ]
+        }
+      ],
+      "notes": [
+        "Alternative names in the original submission: Wai-Wai, Uaiuai, Uaieue, Ouayeone. Glottocode: waiw1244. Family: Cariban (Karib), subgroup Parukotoan. The speaker date is approximate (~2000). The original submission notes historical missionary influence on the orthography and later homogenization, especially through Bible translation."
+      ],
+      "sources": [
+        "Souza, J. M. C. (2024). *Waiwai: uma descrição mínima à história do contato*. Boletim do Museu Integrado de Roraima. https://doi.org/10.24979/bolmirr.v5i01.730",
+        "Chagas, A., & Cunningham, G. (2025). Wai Wai pedagogical grammar: Reflections and methodological practices on the preparation of teaching material for an Indigenous community. *Cadernos de Linguística, 6*(3), e810. https://doi.org/10.25189/2675-4916.2025.v6.n3.id810",
+        "Hawkins, R. E. (1998). Grammar sketch of the Wai Wai language of Brazil, Guyana, and Suriname. In D. C. Derbyshire & G. K. Pullum (Eds.), *Handbook of Amazonian Languages* (Vol. 4). Mouton de Gruyter.",
+        "Ager, S. (n.d.). *Waiwai language*. Omniglot.",
+        "Meira, S., Velupillai, V., et al. (n.d.). *Waiwai wordlist*. ASJP Database."
+      ],
+      "contributors": ["Rebeca Albuquerque de Moura Marques"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "wbp",
@@ -40223,6 +41006,66 @@
       "reviewers": []
     },
     {
+      "id": "xor",
+      "name": "Korubo",
+      "isoName": "Korubo",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 26,
+      "speakersDate": "2007",
+      "autonyms": ["Dslala", ""],
+      "orthographies": [
+        {
+          "id": "xor/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A E Ë I K L M N O P S T U V W X Y a e ë i k l m n o p s t u v w x y",
+              "requirements": "A E I K L M N O P S T U V W X Y a e i k l m n o p s t u v w x y Ë ë",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [
+        "The original submission additionally lists vowels a e ë i o u and consonants k l m n p s t v w x y; sample_text was marked unknown."
+      ],
+      "sources": [
+        "Ferreira, H. P. (2020). *Relatório descritivo dos sistemas ortográficos dos subprojetos – Prodoclin*.",
+        "*Korubo language*. (2025, November 3). In *Wikipedia*. https://en.wikipedia.org/w/index.php?title=Korubo_language&oldid=1320300429",
+        "Glottolog. (n.d.). *Korubo (koru1247)*. https://glottolog.org/resource/languoid/id/koru1247",
+        "Endangered Languages Project. (n.d.). *Korubo*. https://www.endangeredlanguages.com/lang/3090",
+        "Museu do Índio. (n.d.). *Korubo multimedia dictionary*. Portal Japiim. https://japiim.museudoindio.gov.br"
+      ],
+      "contributors": ["Guilherme Castro"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
+    },
+    {
       "id": "xqt",
       "name": "Qatabanian",
       "isoName": "Qatabanian",
@@ -40446,6 +41289,63 @@
       ],
       "contributors": ["Denis Moyogo Jacquerye"],
       "reviewers": []
+    },
+    {
+      "id": "xsu",
+      "name": "Sanumá",
+      "isoName": "Sanumá",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 4600,
+      "speakersDate": "2018",
+      "autonyms": ["Sanöma", ""],
+      "orthographies": [
+        {
+          "id": "xsu/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A Ã Ä Ä̃ E Ẽ H I Ĩ K L M N O Õ Ö Ö̃ P S T U Ũ W a ã ä ä̃ e ẽ h i ĩ k l m n o õ ö ö̃ p s t u ũ w",
+              "requirements": "A E H I K L M N O P S T U W a e h i k l m n o p s t u w Ã Ä Õ Ö ã ä õ ö Ĩ ĩ Ũ ũ ̃ ̈ Ẽ ẽ",
+              "sequences": "Ä̃ Ö̃ ä̃ ö̃"
+            },
+            "auxiliary": {
+              "characters": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü",
+              "requirements": "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z À Á Â Ã Ç É Ê Í Ó Ô Õ Ú Ü à á â ã ç é ê í ó ô õ ú ü ̃ ̈",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "0 1 2 3 4 5 6 7 8 9 + − ± ÷ × = ≈ ≠ % ‰",
+              "requirements": "% + 0 1 2 3 4 5 6 7 8 9 = ± × ÷ ‰ − ≈ ≠",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": ". , : ; ! ? - ‐ – — _ ~ ( ) [ ] { } / | ¦ \\ ' \" ^ § • ¶ # & @ © ® ™ ′ ″ ° … * ·",
+              "requirements": "! \" # & ' ( ) * , - . / : ; ? @ [ \\ ] ^ _ { | } ~ ¦ § © ® ° ¶ · ‐ – — • … ′ ″ ™",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [],
+      "sources": [
+        "Ferreira, H. P., Senra, E. B., & Machado, A. M. A. (2019). *As línguas Yanomami no Brasil: diversidade e vitalidade*. Instituto Socioambiental / Hutukara Associação Yanomami.",
+        "Ethnologue. (n.d.). *Sanumá*. Retrieved October 13, 2025, from https://www.ethnologue.com/language/xsu/",
+        "Endangered Languages Project. (n.d.). *Sanumá*. Retrieved October 13, 2025, from https://www.endangeredlanguages.com/pt-br/node/38493",
+        "Ferreira, H. P. (2020). *Relatório descritivo dos sistemas ortográficos – Prodoclin (Produto 01)*. https://drive.google.com/file/d/1qodjbOcUZSYglMVRttpYbi7cAyXDjH2z/view"
+      ],
+      "contributors": ["Sofia Mergener Brito"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "xwe",
@@ -40888,6 +41788,62 @@
       ],
       "contributors": ["Sergio Martins"],
       "reviewers": []
+    },
+    {
+      "id": "yro",
+      "name": "Yaroamë",
+      "isoName": "Yaroamë",
+      "status": "living",
+      "validity": "preliminary",
+      "speakers": 360,
+      "speakersDate": "2019",
+      "autonyms": ["", "Ỹaroamë tëma"],
+      "orthographies": [
+        {
+          "id": "yro/0/Latn/primary",
+          "script": "Latin",
+          "scriptCode": "Latn",
+          "status": "primary",
+          "autonym": "Ỹaroamë tëma",
+          "grouped": false,
+          "categories": {
+            "base": {
+              "characters": "A E O Ë I U P T K H M N R W X Y a e o ë i u p t k h m n r w x y",
+              "requirements": "A E H I K M N O P R T U W X Y a e h i k m n o p r t u w x y Ë ë",
+              "sequences": ""
+            },
+            "auxiliary": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            },
+            "numerals": {
+              "characters": "0 1 2 3 4 5 6 7 8 9 + − ± ÷ × = ≈ ≠ % ‰",
+              "requirements": "% + 0 1 2 3 4 5 6 7 8 9 = ± × ÷ ‰ − ≈ ≠",
+              "sequences": ""
+            },
+            "punctuation": {
+              "characters": ". , : ; ! ? - ‐ – — _ ~ ( ) [ ] { } / | ¦ \\ ' \" ^ § • ¶ # & @ © ® ™ ′ ″ ° … * ·",
+              "requirements": "! \" # & ' ( ) * , - . / : ; ? @ [ \\ ] ^ _ { | } ~ ¦ § © ® ° ¶ · ‐ – — • … ′ ″ ™",
+              "sequences": ""
+            },
+            "currency": {
+              "characters": "",
+              "requirements": "",
+              "sequences": ""
+            }
+          },
+          "notes": []
+        }
+      ],
+      "notes": [],
+      "sources": [
+        "Ethnologue. (2025). *Yaroamë*. https://www.ethnologue.com/language/yro/",
+        "*As línguas Yanomami no Brasil*. (n.d.). Instituto Socioambiental. https://acervo.socioambiental.org/sites/default/files/publications/YAL00061.pdf",
+        "Ferreira, H., Ỹaroamë, M., Goodwin-Gómez, G., Levi-Lazzaris, G., Xiriana, A., & Xirixana, I. (n.d.). *Ỹaroamë: Língua Yanomami falada na Serra do Pacu/RR*. Projeto de Documentação de Línguas Indígenas – ProDoclin. https://www.linguasyanomami.com/grm_yrm/grm_yrm.pdf"
+      ],
+      "contributors": ["Raphael Pimentel Brandão"],
+      "reviewers": ["Rafael Dietzsch", "Thiago Chacon"]
     },
     {
       "id": "yua",

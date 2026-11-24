@@ -264,7 +264,7 @@ struct LanguageDetail: View {
           )
           .accessibilityIdentifier("Language contributors text")
           Link(
-            "Hyperglot 0.8.1", destination: URL(string: "https://github.com/rosettatype/hyperglot")!
+            "Hyperglot 0.8.2", destination: URL(string: "https://github.com/rosettatype/hyperglot")!
           )
           .accessibilityIdentifier("Language source link")
         }.font(.system(size: 11)).padding(.leading, 16)

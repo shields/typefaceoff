@@ -16,7 +16,7 @@
 name = "typefaceoff-language-tooling"
 version = "0.0.0"
 requires-python = ">=3.15"
-dependencies = ["hyperglot==0.8.1"]
+dependencies = ["hyperglot==0.8.2"]
 
 [dependency-groups]
 dev = ["pytest", "ruff", "ty"]

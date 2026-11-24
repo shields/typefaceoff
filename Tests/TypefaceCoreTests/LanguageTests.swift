@@ -38,17 +38,17 @@ struct LanguageTests {
   @Test func bundledCatalogAndDefaults() throws {
     let database = LanguageDatabase.shared
     #expect(database.schema == 1)
-    #expect(database.version == "0.8.1")
-    #expect(database.languages.count == 705)
-    #expect(database.languages.reduce(0) { $0 + $1.orthographies.count } == 757)
+    #expect(database.version == "0.8.2")
+    #expect(database.languages.count == 722)
+    #expect(database.languages.reduce(0) { $0 + $1.orthographies.count } == 772)
     var filter = LanguageFilter()
     let current = database.languages.filter(filter.includes)
     #expect(current.count == 108)
-    #expect(current.reduce(0) { $0 + $1.orthographies(showHistorical: false).count } == 119)
+    #expect(current.reduce(0) { $0 + $1.orthographies(showHistorical: false).count } == 117)
     filter.showHistorical = true
     let historical = database.languages.filter(filter.includes)
     #expect(historical.count == 130)
-    #expect(historical.reduce(0) { $0 + $1.orthographies.count } == 150)
+    #expect(historical.reduce(0) { $0 + $1.orthographies.count } == 148)
     #expect(database.languages.filter(\.historical).count == 22)
     filter.query = "latin latn"
     #expect(!database.languages.filter(filter.includes).isEmpty)
@@ -69,7 +69,7 @@ struct LanguageTests {
     #expect(english.speakersDate != nil)
     #expect(!english.sources.isEmpty)
     #expect(database.source.contains("hyperglot"))
-    #expect(database.excluded["data confidence"] == 76)
+    #expect(database.excluded["data confidence"] == 77)
     #expect(throws: (any Error).self) { try LanguageDatabase.decode(Data("{broken".utf8)) }
   }
 
@@ -237,7 +237,7 @@ struct LanguageTests {
       await progress.record(partial)
     }
     #expect(await progress.first == ["eng"])
-    #expect(results.count == 705)
+    #expect(results.count == 722)
     let english = try #require(database.languages.first { $0.id == "eng" })
     #expect(results["eng"]?.complete(english) == true)
     let task = Task {

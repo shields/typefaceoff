@@ -57,6 +57,7 @@ write_jobs() {
     jq -n --arg gate "$gate" --arg conclusion "$1" --arg group "$2" \
         '{jobs: [
             {name: $gate, conclusion: "skipped", runner_group_name: null},
+            {name: "Dispatch release", conclusion: "skipped", runner_group_name: null},
             {name: "Build, lint, and test", conclusion: "success", runner_group_name: "GitHub Actions"},
             {name: "Test on macOS 15", conclusion: $conclusion, runner_group_name: $group}]}' \
         >"$test_directory/jobs.json"

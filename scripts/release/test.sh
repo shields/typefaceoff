@@ -66,6 +66,9 @@ case $2 in
     }
     sha=${2##*head_sha=}
     sha=${sha%%&*}
+    if [[ ${MOCK_FIRST_PENDING:-} == true && $(wc -l <"$CALLS") -eq 1 ]]; then
+        MOCK_OUTCOMES=$(jq -nc --arg sha "$sha" '{($sha): ["pending"]}')
+    fi
     jq -n --arg sha "$sha" --argjson outcomes "$MOCK_OUTCOMES" '($outcomes[$sha][0] // "success") as $outcome |
         {workflow_runs: (if $outcome == "absent" then [] else ["ci", "actions-lock", "zizmor"] | map((".github/workflows/" + . + ".yml") as $path |
             ({id: 1, path: $path, conclusion: "failure"}, {id: 2, path: $path, conclusion: (if $outcome == "pending" then null else $outcome end)})) end)} |
@@ -93,6 +96,9 @@ git switch -q --detach "$first"
 check "$first" "$first" "" 2
 git switch -q main
 check "$fourth" "$fourth" "" 5
+CI_SHA=$fourth MOCK_FIRST_PENDING=true check "$fourth" "$fourth" "" 7
+if CI_SHA=$fourth MOCK_OUTCOMES=$(by_commit "$fourth=failure") bash "$root/scripts/release/queue.sh" 2>"$work/error"; then exit 1; fi
+grep -Fqx "Required checks failed for $fourth" "$work/error"
 MOCK_STATUSES=$(by_commit "$second=success:release/dmg")
 check "$fourth" "$fourth" "$second" 5
 MOCK_STATUSES=$(by_commit "$third=success:release/dmg" "$third=success:release/store" "$third=success:release/tap")

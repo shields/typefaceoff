@@ -185,3 +185,18 @@ jobs:
         run: make smoke-launch
       - name: Test
         run: make test-without-building
+
+  release:
+    name: Dispatch release
+    needs: [reuse, test, build-tests, stage-support, test-older-macos]
+    if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: write # Dispatches the release workflow after the main push passes its tests.
+    steps:
+      - run:
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main -f
+          "ci_sha=$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}

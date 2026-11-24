@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  schedule:
-    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
+    inputs:
+      ci_sha:
+        description: Main push whose checks must finish (supplied by CI)
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -33,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          # Selection starts at main's current tip; the default checkout is the event SHA, which is stale for a run queued behind another and for a re-run.
+          # A queued run may start after a newer main push.
           ref: main
           persist-credentials: false
           fetch-depth: 0
@@ -41,6 +44,7 @@ jobs:
         run: bash scripts/release/queue.sh
         env:
           GH_TOKEN: ${{ github.token }}
+          CI_SHA: ${{ inputs.ci_sha }}
 
   dmg:
     name: Sign and notarize disk image
@@ -152,19 +156,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   tap:
-    name: Propose checked cask update
-    needs: queue
-    if: needs.queue.outputs.tap != ''
+    name: Update Homebrew cask
+    needs: [queue, publish]
+    if: >-
+      !cancelled() && needs.queue.result == 'success' && (needs.publish.result
+      == 'success' || needs.queue.outputs.tap != '')
     runs-on: ubuntu-26.04
     environment: homebrew
-    timeout-minutes: 10
+    timeout-minutes: 40
     permissions:
       contents: read
       statuses: write # Records the merged tap update.
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ needs.queue.outputs.tap }}
+          ref:
+            ${{ needs.publish.result == 'success' && needs.queue.outputs.dmg ||
+            needs.queue.outputs.tap }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/create-github-app-token@v3.4.0
@@ -181,7 +189,25 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           SOURCE_TOKEN: ${{ github.token }}
-      - if: steps.propose.outputs.merged == 'true'
-        run: bash scripts/release/complete.sh tap
+      - name: Wait for tap checks and merge
+        if: steps.propose.outputs.merged != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SOURCE_TOKEN: ${{ github.token }}
+        run: |
+          branch="release/typefaceoff-$(tools/gitcalver.sh --prefix 0.)"
+          pr=$(gh pr list -R shields/homebrew-tap --base main --head "$branch" --state all --json number,isCrossRepository |
+            jq -er '[.[] | select(.isCrossRepository == false)] | max_by(.number).number')
+          while true; do
+            state=$(gh pr view "$pr" -R shields/homebrew-tap --json state --jq .state)
+            case "$state" in
+              MERGED) break ;;
+              OPEN) sleep 20 ;;
+              *) echo "Tap PR #$pr is $state" >&2; exit 1 ;;
+            esac
+          done
+          GITHUB_OUTPUT="$RUNNER_TEMP/tap-confirmation" bash scripts/release/tap.sh
+          grep -Fxq merged=true "$RUNNER_TEMP/tap-confirmation"
+      - run: bash scripts/release/complete.sh tap
         env:
           GH_TOKEN: ${{ github.token }}

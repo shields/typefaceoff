@@ -80,7 +80,7 @@ while read -r arguments; do
     fi
 done <<'ARGUMENTS'
 test vm image 1 artifacts
-test vm image 1 artifacts products extra
+test vm image 1 artifacts products TypefaceOffTests/ReviewScreens extra
 setup vm image 1 artifacts driver
 run vm image 1 artifacts driver
 bogus vm image 1 artifacts driver app

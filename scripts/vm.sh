@@ -17,7 +17,7 @@ set -eu
 
 usage() {
     echo "usage: $0 setup|run <vm> <image> <disk-gb> <artifacts> <driver-app> <app> [ui-fuzz run options...]" >&2
-    echo "       $0 test <vm> <image> <disk-gb> <artifacts> <products-tar>" >&2
+    echo "       $0 test <vm> <image> <disk-gb> <artifacts> <products-tar> [test-identifier]" >&2
     exit 64
 }
 
@@ -38,8 +38,9 @@ setup | run)
     events="$artifacts/campaign-events.jsonl"
     ;;
 test)
-    [ $# -eq 1 ] || usage
+    [ $# -ge 1 ] && [ $# -le 2 ] || usage
     tests=$1
+    test_identifier=${2:-}
     state="$PWD/.build/test-vm"
     events=
     ;;
@@ -247,6 +248,8 @@ run_campaign() {
 }
 
 run_tests() {
+    selection=
+    if [ -n "$test_identifier" ]; then selection=$(quote "-only-testing:$test_identifier"); fi
     status=0
     vm_ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 "admin@$ip" "
         set -e
@@ -258,7 +261,7 @@ run_tests() {
         tar -xf $(quote "$shares/repo/$tests") -C .build/xcode/Build
         test_status=0
         sh scripts/test-app.sh -quiet -destination 'platform=macOS' -derivedDataPath .build/xcode \
-            -xctestrun .build/xcode/Build/Products/*.xctestrun test-without-building || test_status=\$?
+            -xctestrun .build/xcode/Build/Products/*.xctestrun $selection test-without-building || test_status=\$?
         [ ! -d .build/TestResults.xcresult ] ||
             ditto .build/TestResults.xcresult $(quote "$shares/artifacts/TestResults.xcresult")
         [ ! -d .build/xcode/Build/ProfileData ] ||

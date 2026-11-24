@@ -185,7 +185,7 @@ import TypefaceCore
         scroll.zoomChanged(2)
         try await Task.sleep(for: .milliseconds(100))
       }
-      try save(host, as: name, in: folder)
+      try save(host, as: name, in: folder, opaque: storeScreenshots)
       #expect(abs(host.bounds.width - width) < 0.5)
       #expect(abs(host.bounds.height - height) < 0.5)
       if name == "text" && !storeScreenshots {
@@ -300,10 +300,25 @@ import TypefaceCore
     try png.write(to: URL(fileURLWithPath: folder).appendingPathComponent("text-window.png"))
   }
 
-  private func save(_ view: NSView, as name: String, in folder: String) throws {
+  private func save(_ view: NSView, as name: String, in folder: String, opaque: Bool = false) throws
+  {
     view.layoutSubtreeIfNeeded()
-    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    var bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
     view.cacheDisplay(in: view.bounds, to: bitmap)
+    if opaque {
+      let image = try #require(bitmap.cgImage)
+      let colorSpace = try #require(image.colorSpace)
+      let context = try #require(
+        CGContext(
+          data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+          space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+      let rect = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+      context.setFillColor(CGColor(gray: 1, alpha: 1))
+      context.fill(rect)
+      context.draw(image, in: rect)
+      let rgb = try #require(context.makeImage())
+      bitmap = NSBitmapImageRep(cgImage: rgb)
+    }
     let data = try #require(bitmap.representation(using: .png, properties: [:]))
     try data.write(to: URL(fileURLWithPath: folder).appendingPathComponent(name + ".png"))
   }

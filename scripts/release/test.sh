@@ -351,6 +351,18 @@ MOCK
 chmod +x "$work/"{swiftc,state,make}
 export MOCK_STATE_TOOL="$work/state" MOCK_STATES="$work/states" MOCK_UPLOADS="$work/uploads" MOCK_SWIFTC_CALLS="$work/swiftc-calls"
 export STORE_PROFILE_UUID=test ASC_KEY_PATH=/dev/null ASC_KEY_ID=test ASC_ISSUER_ID=test ASC_APP_ID=1
+cat >"$work/export-env" <<'MOCK'
+xcodebuild() {
+    while [[ $1 != -exportOptionsPlist ]]; do shift; done
+    plutil -convert json -o - "$2" | jq -e '
+        .signingStyle == "manual" and .provisioningProfiles["com.typefaceoff"] == "test" and
+        .signingCertificate == "Apple Distribution" and .installerSigningCertificate == "Mac Installer Distribution"' >/dev/null
+}
+MOCK
+(
+    cd "$root"
+    BASH_ENV="$work/export-env" APPLE_TEAM_ID=TESTTEAM01 bash scripts/release/store-export.sh "$work/archive" "$work/export"
+)
 for existing in VALID PROCESSING ABSENT; do
     printf '%s\n' "$existing" VALID >"$MOCK_STATES"
     : >"$MOCK_UPLOADS"

@@ -22,4 +22,5 @@ TypefaceOff.xcodeproj/
 Config/
 node_modules/
 bun.lock
+uv.lock
 Package.resolved

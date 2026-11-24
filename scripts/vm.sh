@@ -15,20 +15,37 @@
 
 set -eu
 
-if [ $# -lt 7 ]; then
+usage() {
     echo "usage: $0 setup|run <vm> <image> <disk-gb> <artifacts> <driver-app> <app> [ui-fuzz run options...]" >&2
+    echo "       $0 test <vm> <image> <disk-gb> <artifacts> <products-tar>" >&2
     exit 64
-fi
+}
+
+[ $# -ge 5 ] || usage
 mode=$1
 vm=$2
 image=$3
 disk_gb=$4
 artifacts=$5
-driver_app=$6
-app=$7
-shift 7
+shift 5
+case $mode in
+setup | run)
+    [ $# -ge 2 ] || usage
+    driver_app=$1
+    app=$2
+    shift 2
+    state="$PWD/.build/fuzz-vm"
+    events="$artifacts/campaign-events.jsonl"
+    ;;
+test)
+    [ $# -eq 1 ] || usage
+    tests=$1
+    state="$PWD/.build/test-vm"
+    events=
+    ;;
+*) usage ;;
+esac
 
-state="$PWD/.build/fuzz-vm"
 key="$state/id_ed25519"
 password="admin"
 shares="/Volumes/My Shared Files"
@@ -42,7 +59,7 @@ host_pid=$$
 ip=
 
 fail() {
-    echo "fuzz-vm: $*" >&2
+    echo "vm.sh: $*" >&2
     exit 1
 }
 
@@ -65,6 +82,7 @@ quote() {
 }
 
 campaign_event() {
+    [ -n "$events" ] || return 0
     now=$(date +%s)
     boot=$(sysctl -n kern.boottime) || return
     boot=$(printf '%s' "$boot" | sed -E 's/^[{] sec = ([0-9]+),.*/\1/')
@@ -76,7 +94,7 @@ campaign_event() {
         --argjson uptime "$((now - boot))" --argjson vmUptime "$((now - ${vm_started:-now}))" \
         '{event: $event, source: "vm-host", vm: $vm, timestamp: $timestamp,
           hostSecondsSinceBoot: $uptime, vmSecondsSinceStart: $vmUptime, detail: $detail}' \
-        >>"$artifacts/campaign-events.jsonl"
+        >>"$events"
 }
 
 observe_vm() {
@@ -120,6 +138,9 @@ stop_vm() {
 }
 
 start_vm() {
+    running=$(tart get "$vm" --format json | plutil -extract Running raw -o - -) ||
+        fail "could not read whether $vm is running"
+    [ "$running" = false ] || fail "$vm is already running; wait for the run that started it to finish"
     mkdir -p "$state" "$artifacts"
     trap stop_vm EXIT
     trap 'stop_reason=SIGINT; exit 130' INT
@@ -129,9 +150,12 @@ start_vm() {
     tart_pid=$!
     vm_started=$(date +%s)
     campaign_event vm-start
-    observe_vm &
-    observer_pid=$!
+    if [ -n "$events" ]; then
+        observe_vm &
+        observer_pid=$!
+    fi
     ip=$(tart ip "$vm" --wait 180) || fail "$vm did not get an IP address"
+    kill -0 "$tart_pid" 2>/dev/null || fail "tart run $vm exited; another run may have started $vm first"
     attempt=0
     until /usr/bin/nc -z -G 2 "$ip" 22 2>/dev/null; do
         kill -0 "$tart_pid" 2>/dev/null || fail "tart run $vm exited"
@@ -169,6 +193,18 @@ ensure_disk_capacity() {
     fi
 }
 
+create_vm() {
+    if ! tart get "$vm" >/dev/null 2>&1; then
+        cpus=$(($(sysctl -n hw.ncpu) - 2))
+        [ "$cpus" -le 8 ] || cpus=8
+        [ "$cpus" -ge 2 ] || cpus=2
+        memory=$(($(sysctl -n hw.memsize) / 2097152))
+        [ "$memory" -le 16384 ] || memory=16384
+        tart clone "$image" "$vm"
+        tart set "$vm" --cpu "$cpus" --memory "$memory" --display 2560x1440pt
+    fi
+}
+
 prepare_guest() {
     vm_ssh "admin@$ip" "
         set -e
@@ -179,7 +215,12 @@ prepare_guest() {
             xcode-select --switch /Users/admin/Xcode.app/Contents/Developer
             xcodebuild -license accept'
         rm -rf ~/typefaceoff
-        mkdir ~/typefaceoff
+        mkdir ~/typefaceoff"
+}
+
+install_fuzz_apps() {
+    vm_ssh "admin@$ip" "
+        set -e
         ditto $(quote "$shares/repo/$driver_app") ~/typefaceoff/UIFuzzDriver.app
         ditto $(quote "$shares/repo/$app") ~/typefaceoff/TypefaceOff.app"
 }
@@ -205,21 +246,36 @@ run_campaign() {
     stop_reason=completed
 }
 
+run_tests() {
+    status=0
+    vm_ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 "admin@$ip" "
+        set -e
+        rm -rf $(quote "$shares/artifacts/TestResults.xcresult") $(quote "$shares/artifacts/ProfileData")
+        xcodebuild -checkFirstLaunchStatus || echo $password | sudo -S -p '' xcodebuild -runFirstLaunch
+        cd ~/typefaceoff
+        mkdir -p .build/xcode/Build scripts
+        cp $(quote "$shares/repo/scripts/test-app.sh") scripts/test-app.sh
+        tar -xf $(quote "$shares/repo/$tests") -C .build/xcode/Build
+        test_status=0
+        sh scripts/test-app.sh -quiet -destination 'platform=macOS' -derivedDataPath .build/xcode \
+            -xctestrun .build/xcode/Build/Products/*.xctestrun test-without-building || test_status=\$?
+        [ ! -d .build/TestResults.xcresult ] ||
+            ditto .build/TestResults.xcresult $(quote "$shares/artifacts/TestResults.xcresult")
+        [ ! -d .build/xcode/Build/ProfileData ] ||
+            ditto .build/xcode/Build/ProfileData $(quote "$shares/artifacts/ProfileData")
+        exit \$test_status" || status=$?
+    [ "$status" -eq 0 ] || return "$status"
+    stop_reason=completed
+}
+
 case $mode in
 setup)
-    if ! tart get "$vm" >/dev/null 2>&1; then
-        cpus=$(($(sysctl -n hw.ncpu) - 2))
-        [ "$cpus" -le 8 ] || cpus=8
-        [ "$cpus" -ge 2 ] || cpus=2
-        memory=$(($(sysctl -n hw.memsize) / 2097152))
-        [ "$memory" -le 16384 ] || memory=16384
-        tart clone "$image" "$vm"
-        tart set "$vm" --cpu "$cpus" --memory "$memory" --display 2560x1440pt
-    fi
+    create_vm
     ensure_disk_capacity
     start_vm
     authorize_key
     prepare_guest
+    install_fuzz_apps
     echo "In the $vm window, allow UIFuzzDriver in System Settings > Privacy & Security > Accessibility."
     run_campaign --duration 1s
     ;;
@@ -230,10 +286,17 @@ run)
     ensure_disk_capacity
     start_vm --no-graphics
     prepare_guest
+    install_fuzz_apps
     set_display
     run_campaign "$@"
     ;;
-*)
-    fail "unknown mode: $mode"
+test)
+    create_vm
+    ensure_disk_capacity
+    start_vm --no-graphics
+    authorize_key
+    prepare_guest
+    set_display
+    run_tests
     ;;
 esac

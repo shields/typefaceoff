@@ -2,7 +2,7 @@
 set -euo pipefail
 archive=$1
 directory=$2
-work=$(mktemp -d)
+work=$(mktemp -d "${TMPDIR:-/tmp}/typefaceoff-export.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 options=Config/TestFlight.plist
 args=(-allowProvisioningUpdates)

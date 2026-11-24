@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-work=$(mktemp -d)
+work=$(mktemp -d "${TMPDIR:-/tmp}/typefaceoff-screenshots.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 output=.build/app-store/screenshots
 xcodebuild -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Debug \

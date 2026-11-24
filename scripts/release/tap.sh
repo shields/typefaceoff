@@ -9,7 +9,7 @@ digest=$(jq -er --arg name "TypefaceOff-$version.dmg" '
 [[ $(GH_TOKEN="$SOURCE_TOKEN" gh api "repos/shields/typefaceoff/commits/$tag" --jq .sha) == "$(git rev-parse HEAD)" ]]
 repo=shields/homebrew-tap
 branch="release/typefaceoff-$version"
-work=$(mktemp -d)
+work=$(mktemp -d "${TMPDIR:-/tmp}/typefaceoff-tap.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 git_auth() { git -c credential.helper= -c 'credential.helper=!gh auth git-credential' "$@"; }
 git_auth clone -q "https://github.com/$repo.git" "$work/tap"
@@ -29,6 +29,19 @@ if [[ -f $cask ]]; then
         exit 0
     fi
 fi
+proposals=$(gh pr list -R "$repo" --base main --state open --limit 100 --json number,headRefName,isCrossRepository,mergeable --jq '
+    .[] | select(.isCrossRepository == false and (.headRefName | startswith("release/typefaceoff-"))) |
+    "\(.number) \(.headRefName | ltrimstr("release/typefaceoff-")) \(.mergeable)"')
+while read -r number other mergeable; do
+    if ! [[ $other =~ ^0\.[0-9]{8}\.[1-9][0-9]*$ ]]; then continue; fi
+    if [[ $other == "$version" ]]; then
+        if [[ $mergeable != CONFLICTING ]]; then continue; fi
+        gh pr close "$number" -R "$repo" --delete-branch --comment "Conflicts with main; recreating from main."
+        git update-ref -d "refs/remotes/origin/$branch"
+    elif [[ $(printf '%s\n' "$version" "$other" | sort -V | tail -1) == "$version" ]]; then
+        gh pr close "$number" -R "$repo" --delete-branch --comment "Superseded by Typeface/Off $version."
+    fi
+done <<<"$proposals"
 if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
     commit=$(git rev-parse "origin/$branch")
     [[ $(git diff --name-only "origin/main...$commit") == "$cask" ]]
@@ -47,6 +60,7 @@ if [[ -z $pr ]]; then
     printf 'Install Typeface/Off %s from the notarized GitHub release at %s.\n' "$version" "$tag" >"$work/body"
     pr=$(gh pr create -R "$repo" --head "$branch" --base main --title "Update Typeface/Off to $version" --body-file "$work/body")
 fi
-if [[ $(gh pr view "$pr" -R "$repo" --json autoMergeRequest --jq '.autoMergeRequest == null') == true ]]; then
+auto_merge_unset=$(gh pr view "$pr" -R "$repo" --json autoMergeRequest --jq '.autoMergeRequest == null')
+if [[ $auto_merge_unset == true ]]; then
     gh pr merge "$pr" -R "$repo" --auto --squash --match-head-commit "$commit"
 fi

@@ -108,10 +108,9 @@ targets:
       configs:
         Release:
           ENABLE_HARDENED_RUNTIME: YES
-          TYPEFACEOFF_SIGNING_STYLE: Automatic
-          CODE_SIGN_STYLE: $(TYPEFACEOFF_SIGNING_STYLE)
+          TYPEFACEOFF_ENTITLEMENTS: Config/TestFlight.entitlements
+          CODE_SIGN_ENTITLEMENTS: $(TYPEFACEOFF_ENTITLEMENTS)
           PROVISIONING_PROFILE_SPECIFIER: $(TYPEFACEOFF_PROFILE)
-          CODE_SIGN_ENTITLEMENTS: Config/TestFlight.entitlements
         FuzzCoverage:
           PRODUCT_BUNDLE_IDENTIFIER: com.typefaceoff.fuzz.coverage
           CODE_SIGN_ENTITLEMENTS: ""

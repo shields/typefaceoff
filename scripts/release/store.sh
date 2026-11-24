@@ -2,11 +2,17 @@
 set -euo pipefail
 : "${STORE_PROFILE_UUID:?}" "${ASC_KEY_PATH:?}" "${ASC_KEY_ID:?}" "${ASC_ISSUER_ID:?}" "${ASC_APP_ID:?}"
 version=$(tools/gitcalver.sh --prefix 0.)
-swiftc scripts/release/store-state.swift -o "$RUNNER_TEMP/store-state"
+swiftc -swift-version 6 -warnings-as-errors scripts/release/store-state.swift -o "$RUNNER_TEMP/store-state"
 state() { "$RUNNER_TEMP/store-state" "${version#0.}" <"${ASC_KEY_PATH:?}"; }
+reject() {
+    echo rejected=true >>"$GITHUB_OUTPUT"
+    echo "Apple rejected build $version: $1" >&2
+    exit 1
+}
 status=$(state)
 case "$status" in
-ABSENT | FAILED | INVALID) make testflight ;;
+ABSENT) make testflight ;;
+FAILED | INVALID) reject "$status" ;;
 PROCESSING | VALID) ;;
 *)
     echo "Unknown App Store Connect build status: $status" >&2
@@ -18,11 +24,7 @@ for ((attempt = 0; attempt < 60; attempt++)); do
     case "$status" in
     VALID) exit 0 ;;
     ABSENT | PROCESSING) sleep 30 ;;
-    FAILED | INVALID)
-        echo rejected=true >>"$GITHUB_OUTPUT"
-        echo "Apple rejected build $version: $status" >&2
-        exit 1
-        ;;
+    FAILED | INVALID) reject "$status" ;;
     *)
         echo "App Store Connect build $version: $status" >&2
         exit 1

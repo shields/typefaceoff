@@ -12,10 +12,10 @@ archive | developer-id-archive)
     args+=("MARKETING_VERSION=$version" "CURRENT_PROJECT_VERSION=${version#0.}" "TYPEFACEOFF_RELEASE_VERSION=$version")
     if [[ -n ${APPLE_TEAM_ID:-} ]]; then args+=("DEVELOPMENT_TEAM=$APPLE_TEAM_ID"); fi
     if [[ $mode == developer-id-archive ]]; then
-        args+=(TYPEFACEOFF_SIGNING_STYLE=Manual "CODE_SIGN_IDENTITY=${DEVELOPER_ID_IDENTITY:-Developer ID Application}"
-            CODE_SIGN_ENTITLEMENTS=Config/TypefaceOff.entitlements OTHER_CODE_SIGN_FLAGS=--timestamp)
+        args+=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=${DEVELOPER_ID_IDENTITY:-Developer ID Application}"
+            TYPEFACEOFF_ENTITLEMENTS=Config/TypefaceOff.entitlements OTHER_CODE_SIGN_FLAGS=--timestamp)
     elif [[ -n ${STORE_PROFILE_UUID:-} ]]; then
-        args+=(TYPEFACEOFF_SIGNING_STYLE=Manual "CODE_SIGN_IDENTITY=Apple Distribution" "TYPEFACEOFF_PROFILE=$STORE_PROFILE_UUID")
+        args+=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Apple Distribution" "TYPEFACEOFF_PROFILE=$STORE_PROFILE_UUID")
     else
         args+=(-allowProvisioningUpdates)
     fi

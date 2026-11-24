@@ -12,6 +12,10 @@ concurrency:
   group: typefaceoff-release
   cancel-in-progress: false
 
+env:
+  # The Xcode that ci.yml tests with, so a release is built by the tested toolchain.
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+
 jobs:
   queue:
     name: Select tested main commits
@@ -29,6 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          # Selection starts at main's current tip; the default checkout is the event SHA, which is stale for a run queued behind another and for a re-run.
+          ref: main
           persist-credentials: false
           fetch-depth: 0
       - id: queue

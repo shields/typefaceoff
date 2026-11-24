@@ -1,3 +1,5 @@
+(.total_count // error("workflow runs response lacks total_count")) as $total |
+if $total > (.workflow_runs | length) then error("more workflow runs than one page") else . end |
 .workflow_runs as $runs |
 ["ci", "zizmor", "actions-lock"] | map(
     . as $workflow | [$runs[] | select(.path == (".github/workflows/" + $workflow + ".yml"))]

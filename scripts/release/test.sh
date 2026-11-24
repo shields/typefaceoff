@@ -356,7 +356,7 @@ xcodebuild() {
     while [[ $1 != -exportOptionsPlist ]]; do shift; done
     plutil -convert json -o - "$2" | jq -e '
         .signingStyle == "manual" and .provisioningProfiles["com.typefaceoff"] == "test" and
-        .signingCertificate == "Apple Distribution" and .installerSigningCertificate == "Mac Installer Distribution"' >/dev/null
+        .signingCertificate == "Apple Distribution" and .installerSigningCertificate == "3rd Party Mac Developer Installer"' >/dev/null
 }
 MOCK
 (

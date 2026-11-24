@@ -11,7 +11,7 @@ if [[ -n ${STORE_PROFILE_UUID:-} ]]; then
     cp Config/TestFlight.plist "$options"
     plutil -replace signingStyle -string manual "$options"
     plutil -insert signingCertificate -string "Apple Distribution" "$options"
-    plutil -insert installerSigningCertificate -string "Mac Installer Distribution" "$options"
+    plutil -insert installerSigningCertificate -string "3rd Party Mac Developer Installer" "$options"
     plutil -insert provisioningProfiles -dictionary "$options"
     /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.typefaceoff string $STORE_PROFILE_UUID" "$options"
     plutil -insert teamID -string "${APPLE_TEAM_ID:?}" "$options"

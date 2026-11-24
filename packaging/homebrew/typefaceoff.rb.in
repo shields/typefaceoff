@@ -1,0 +1,16 @@
+# Copyright © 2026 Michael Shields
+# SPDX-License-Identifier: Apache-2.0
+
+cask "typefaceoff" do
+  version "@VERSION@"
+  sha256 "@SHA256@"
+
+  url "https://github.com/shields/typefaceoff/releases/download/v#{version}/TypefaceOff-#{version}.dmg"
+  name "Typeface/Off"
+  desc "Compare installed fonts, glyph shapes, and language coverage"
+  homepage "https://typefaceoff.com/"
+
+  depends_on macos: :sequoia
+
+  app "TypefaceOff.app"
+end

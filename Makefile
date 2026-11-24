@@ -52,7 +52,7 @@ GENERATE_SBOM = bash scripts/app-sbom.sh "$(ARCHIVE)" "$(SBOM_DERIVED_DATA)" "$(
 .PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm ci-reuse test-ci-reuse
-.PHONY: archive ci-archive testflight sbom
+.PHONY: archive ci-archive developer-id-archive dmg ci-dmg testflight sbom test-release store-screenshots
 .PHONY: languages languages-check test-languages
 
 project:
@@ -62,26 +62,25 @@ build: project
 	xcodebuild $(XCODE_FLAGS) build
 
 ci-archive: DISTRIBUTION_DIR = .build/ci-distribution
-archive ci-archive: project
-	@set -eu; \
-	if [ "$@" = archive ]; then \
-		version=$$(tools/gitcalver.sh --prefix 0.); \
-		build=$${version#0.}; \
-		echo "Archiving Typeface/Off $$version (build $$build)"; \
-		set -- -allowProvisioningUpdates MARKETING_VERSION="$$version" CURRENT_PROJECT_VERSION="$$build"; \
-	else \
-		set -- CODE_SIGNING_ALLOWED=NO; \
-	fi; \
-	rm -rf "$(ARCHIVE)"; \
-	xcodebuild $(ARCHIVE_FLAGS) "$$@" archive
+developer-id-archive dmg: DISTRIBUTION_DIR = .build/developer-id
+archive ci-archive developer-id-archive: project
+	bash scripts/release/archive.sh "$@" "$(ARCHIVE)" $(ARCHIVE_FLAGS)
 	$(GENERATE_SBOM)
 
 sbom:
 	$(GENERATE_SBOM)
 
 testflight: archive
-	rm -rf .build/distribution/upload
-	env PATH="/usr/bin:/bin:/usr/sbin:/sbin" xcodebuild -exportArchive -archivePath "$(ARCHIVE)" -exportPath .build/distribution/upload -exportOptionsPlist Config/TestFlight.plist -allowProvisioningUpdates
+	bash scripts/release/store-export.sh "$(ARCHIVE)" "$(abspath $(DISTRIBUTION_DIR))/upload"
+
+dmg: developer-id-archive
+	bash scripts/release/dmg.sh "$(ARCHIVE)" "$(abspath $(DISTRIBUTION_DIR))/assets"
+
+ci-dmg: ci-archive
+	bash scripts/release/dmg.sh --unsigned "$(abspath .build/ci-distribution)/TypefaceOff.xcarchive" "$(abspath .build/ci-distribution)/assets"
+
+test-release:
+	bash scripts/release/test.sh
 
 run: build
 	open "$(APP)"
@@ -89,7 +88,7 @@ run: build
 test: test-package
 	$(MAKE) test-app
 
-test-package: test-fuzz-vm test-ci-reuse test-languages
+test-package: test-fuzz-vm test-ci-reuse test-languages test-release
 	# Font discovery shares macOS's font registry; serialize the package tests.
 	swift test $(SWIFT_FLAGS) --enable-code-coverage --no-parallel
 
@@ -204,6 +203,9 @@ REVIEW_DIR ?= $(CURDIR)/.build/review
 review: project
 	xcodebuild $(XCODE_FLAGS) CODE_SIGN_ENTITLEMENTS= TYPEFACEOFF_REVIEW_DIR="$(abspath $(REVIEW_DIR))" -only-testing:TypefaceOffTests/ReviewScreens test
 
+store-screenshots: project
+	bash scripts/release/screenshots.sh
+
 fuzz-build: project
 	swift build $(FUZZ_SWIFT_FLAGS) --product ui-fuzz
 	./scripts/build-fuzz-driver.sh "$(RAW_FUZZ_TOOL)" "$(FUZZ_DRIVER_APP)"
@@ -259,7 +261,7 @@ lint: actions-lock-verify-local
 	plutil -lint scripts/repros/axpress-25200/Info.plist
 	plutil -lint scripts/repros/tab-picker/Info.plist
 	bunx --no-install prettier --check .
-	shellcheck scripts/*.sh tools/*.sh
+	shellcheck scripts/*.sh scripts/release/*.sh tools/*.sh
 	shfmt -i 4 -d scripts tools
 	zizmor --persona pedantic .github/workflows
 

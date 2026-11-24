@@ -22,7 +22,9 @@ import TypefaceCore
 
 @Suite @MainActor struct ReviewScreens {
   @Test(
-    .enabled(if: !(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] ?? "").isEmpty))
+    .enabled(
+      if: !(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"] ?? "").isEmpty
+        && ProcessInfo.processInfo.environment["TYPEFACEOFF_STORE_SCREENSHOTS"] != "1"))
   func benchmarkGlyphGestures() throws {
     let folder = try #require(ProcessInfo.processInfo.environment["TYPEFACEOFF_REVIEW_DIR"])
     try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
@@ -144,6 +146,11 @@ import TypefaceCore
       variable.a.features["ot.cv11"] = 1
       cases.append(("variable", 1440, variable))
     }
+    let storeScreenshots =
+      ProcessInfo.processInfo.environment["TYPEFACEOFF_STORE_SCREENSHOTS"] == "1"
+    if storeScreenshots {
+      cases = cases.filter { ["text", "glyph-1440", "languages"].contains($0.0) }
+    }
     for (name, width, comparison) in cases {
       let height = width == 1440 ? 900.0 : 800.0
       let model = WorkbenchModel(comparison: comparison)
@@ -181,11 +188,12 @@ import TypefaceCore
       try save(host, as: name, in: folder)
       #expect(abs(host.bounds.width - width) < 0.5)
       #expect(abs(host.bounds.height - height) < 0.5)
-      if name == "text" {
+      if name == "text" && !storeScreenshots {
         try await saveTextWindow(window, in: folder)
       }
       window.close()
     }
+    if storeScreenshots { return }
     let match = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled],
       backing: .buffered, defer: false)

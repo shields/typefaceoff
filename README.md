@@ -21,6 +21,20 @@ typefaces, overlay individual glyphs to see where their shapes and spacing
 differ, and check which languages each font covers. The app runs offline on
 macOS 15 or later.
 
+<https://typefaceoff.com>
+
+## Install
+
+### From GitHub
+
+Published disk images appear on
+[GitHub Releases](https://github.com/shields/typefaceoff/releases). Open the DMG
+and drag `TypefaceOff` to `Applications`.
+
+### Using Homebrew
+
+`brew install --cask shields/tap/typefaceoff`
+
 ## Run from source
 
 Building requires Xcode 27 with Swift 6.4 or later. From the repository root,
@@ -36,4 +50,5 @@ make run
 - [Comparing fonts](docs/usage.md)
 - [Development and benchmarks](docs/development.md)
 - [UI fuzzing](docs/fuzzing.md)
+- [DMG, Homebrew, and Mac App Store releases](docs/releases.md)
 - [TestFlight distribution](docs/testflight.md)

@@ -24,7 +24,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group:
+    ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha ||
+    github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
@@ -111,7 +113,7 @@ jobs:
           retention-days: 1
       - name: Archive and verify third-party notices
         id: archive
-        run: make ci-archive
+        run: make ci-dmg
       - uses: actions/upload-artifact@v7.0.2
         if: ${{ !cancelled() && steps.archive.outcome != 'skipped' }}
         with:

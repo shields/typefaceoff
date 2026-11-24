@@ -87,6 +87,20 @@ executes no tests fails. A push to `main` skips the macOS jobs when
 `make ci-reuse` finds a branch run of the same tree, finished within the last
 day, whose every job passed on GitHub-hosted runners.
 
+`make test-vm` runs the native suite that `make test-app` runs, but in a macOS
+27 virtual machine, so the test windows never appear on this Mac’s desktop and
+nothing done there disturbs them. It builds the suite here with
+`xcodebuild build-for-testing`, runs it in the guest without rebuilding, and
+copies the result bundle to `.build/test-vm-results/TestResults.xcresult` and
+the guest’s coverage profile to `.build/xcode/Build/ProfileData`, where
+`make coverage` would have left it. `make coverage-vm` runs `make test-package`
+here and `make test-vm`, then checks coverage like `make coverage`. Like
+`make fuzz-vm`, these require [Tart](https://tart.run) and use this Mac’s Xcode
+read-only. The first run clones the fuzz VM’s image as `typefaceoff-test`, a
+separate VM, so a fuzz campaign can run at the same time. Only one run at a time
+can use that VM, so a second `make test-vm` or `make coverage-vm`, in this
+checkout or another worktree, fails until the first finishes.
+
 The project uses Swift 6 language mode, strict concurrency, and warnings as
 errors. See the
 [shared development conventions](https://github.com/shields/right-answers) and

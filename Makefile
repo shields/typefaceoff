@@ -29,11 +29,15 @@ FUZZ_COVERAGE_APP = .build/fuzz-coverage/Build/Products/FuzzCoverage/TypefaceOff
 FUZZ_BENCHMARK_APP = .build/fuzz-benchmark/FuzzBenchmark/TypefaceOff.app
 FUZZ_SWIFT_FLAGS = $(SWIFT_FLAGS) --scratch-path .build/fuzz-tool
 FUZZ_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz
+VM_IMAGE = ghcr.io/cirruslabs/macos-golden-gate-vanilla:latest
 FUZZ_VM = typefaceoff-fuzz
-FUZZ_VM_IMAGE = ghcr.io/cirruslabs/macos-golden-gate-vanilla:latest
 FUZZ_VM_DISK_GB ?= 100
 FUZZ_VM_ARTIFACTS ?= $(CURDIR)/.build/ui-fuzz-vm
-FUZZ_VM_FLAGS = $(FUZZ_VM) $(FUZZ_VM_IMAGE) $(FUZZ_VM_DISK_GB) "$(abspath $(FUZZ_VM_ARTIFACTS))" "$(FUZZ_DRIVER_APP)" "$(FUZZ_COVERAGE_APP)"
+FUZZ_VM_FLAGS = $(FUZZ_VM) $(VM_IMAGE) $(FUZZ_VM_DISK_GB) "$(abspath $(FUZZ_VM_ARTIFACTS))" "$(FUZZ_DRIVER_APP)" "$(FUZZ_COVERAGE_APP)"
+TEST_VM = typefaceoff-test
+TEST_VM_DISK_GB ?= 50
+TEST_VM_ARTIFACTS ?= $(CURDIR)/.build/test-vm-results
+TEST_VM_PRODUCTS = .build/test-vm-products.tar
 FREQUENCIES_BIN = .build/character-frequencies/character-frequencies
 STARTUP_APP = .build/startup/Build/Products/StartupBenchmark/TypefaceOff.app
 STARTUP_RUNS ?= 7
@@ -49,7 +53,7 @@ SBOM_OUTPUT = $(ARCHIVE)/TypefaceOff.spdx.json
 ARCHIVE_FLAGS = -quiet -project TypefaceOff.xcodeproj -scheme TypefaceOff -configuration Release -destination 'generic/platform=macOS' -derivedDataPath "$(SBOM_DERIVED_DATA)" -archivePath "$(ARCHIVE)" LD_GENERATE_MAP_FILE=YES
 GENERATE_SBOM = bash scripts/app-sbom.sh "$(ARCHIVE)" "$(SBOM_DERIVED_DATA)" "$(SBOM_OUTPUT)"
 
-.PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building smoke-launch coverage lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
+.PHONY: build project run test test-package test-app build-for-testing stage-support test-without-building test-vm smoke-launch coverage coverage-vm lint fmt setup review fuzz fuzz-build fuzz-vm-setup fuzz-vm fuzz-replay fuzz-minimize fuzz-benchmark frequencies benchmark startup-build benchmark-startup profile-startup
 .PHONY: axpress-repro-build axpress-repro tab-picker-repro-build tab-picker-repro
 .PHONY: benchmark-highlights test-fuzz-vm ci-reuse test-ci-reuse
 .PHONY: archive ci-archive testflight sbom
@@ -105,6 +109,14 @@ test-ci-reuse:
 test-app: project
 	rm -rf .build/xcode/Build/ProfileData
 	./scripts/test-app.sh $(XCODE_FLAGS) test
+
+# scripts/coverage.sh reads the guest's profile where test-app leaves its own.
+test-vm: project
+	rm -rf .build/xcode/Build/ProfileData .build/xcode/Build/Products/*.xctestrun
+	xcodebuild $(XCODE_FLAGS) build-for-testing
+	tar -cf $(TEST_VM_PRODUCTS) -C .build/xcode/Build Products
+	./scripts/vm.sh test $(TEST_VM) $(VM_IMAGE) $(TEST_VM_DISK_GB) "$(abspath $(TEST_VM_ARTIFACTS))" $(TEST_VM_PRODUCTS)
+	ditto "$(TEST_VM_ARTIFACTS)/ProfileData" .build/xcode/Build/ProfileData
 
 # CI builds these once and runs them on other macOS versions, some too old for this Xcode.
 build-for-testing: project
@@ -171,6 +183,10 @@ smoke-launch:
 coverage: test
 	./scripts/coverage.sh $(SWIFT_FLAGS)
 
+coverage-vm: test-package
+	$(MAKE) test-vm
+	./scripts/coverage.sh $(SWIFT_FLAGS)
+
 axpress-repro-build:
 	$(MAKE) -C scripts/repros/axpress-25200 BUILD_DIR="$(CURDIR)/.build/apple-axpress-repro" build
 
@@ -215,10 +231,10 @@ fuzz: fuzz-build
 	./scripts/run-fuzz-driver.sh "$(FUZZ_DRIVER_APP)" run --app "$(CURDIR)/$(FUZZ_COVERAGE_APP)" --artifacts "$(abspath $(FUZZ_ARTIFACTS))" $(FUZZ_ARGS)
 
 fuzz-vm-setup: fuzz-build
-	./scripts/fuzz-vm.sh setup $(FUZZ_VM_FLAGS)
+	./scripts/vm.sh setup $(FUZZ_VM_FLAGS)
 
 fuzz-vm: fuzz-build
-	./scripts/fuzz-vm.sh run $(FUZZ_VM_FLAGS) $(FUZZ_ARGS)
+	./scripts/vm.sh run $(FUZZ_VM_FLAGS) $(FUZZ_ARGS)
 
 fuzz-replay: fuzz-build
 	test -n "$(CASE)"

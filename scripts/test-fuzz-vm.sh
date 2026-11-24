@@ -18,7 +18,7 @@ set -eu
 test_directory=$(mktemp -d "${TMPDIR:-/tmp}/typefaceoff-vm-teardown.XXXXXX")
 trap 'rm -rf "$test_directory"' EXIT
 fixture="$test_directory/teardown.sh"
-sed -n '/^stop_vm() {$/,/^}$/p' "$(dirname "$0")/fuzz-vm.sh" >"$fixture"
+sed -n '/^stop_vm() {$/,/^}$/p' "$(dirname "$0")/vm.sh" >"$fixture"
 cat >>"$fixture" <<'SH'
 campaign_event() {
     printf 'event\n'
@@ -69,3 +69,19 @@ for initial_status in 0 23 143; do
         fi
     done
 done
+
+while read -r arguments; do
+    actual_status=0
+    # shellcheck disable=SC2086 # Word splitting separates the arguments.
+    sh "$(dirname "$0")/vm.sh" $arguments >/dev/null 2>&1 || actual_status=$?
+    if [ "$actual_status" -ne 64 ]; then
+        echo "vm.sh '$arguments' returned $actual_status; expected 64" >&2
+        exit 1
+    fi
+done <<'ARGUMENTS'
+test vm image 1 artifacts
+test vm image 1 artifacts products extra
+setup vm image 1 artifacts driver
+run vm image 1 artifacts driver
+bogus vm image 1 artifacts driver app
+ARGUMENTS

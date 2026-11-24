@@ -815,8 +815,8 @@ independent configuration.
 
 - A second guest doubles throughput (Apple allows two macOS guests; use
   `tart clone typefaceoff-fuzz <name>` and `FUZZ_VM=<name>`).
-- Harden `scripts/fuzz-vm.sh`: liveness detection, bounded waits, stale-VM
-  adoption, IP-based ssh assumptions.
+- Harden `scripts/vm.sh`: liveness detection, bounded waits, stale-VM adoption,
+  IP-based ssh assumptions.
 - Host campaigns hold no keep-awake assertion, so display sleep and lock pause
   them.
 - Discovery costs about 115 ms per pass at 7-12 AX round trips per element;

@@ -20,8 +20,12 @@ Follow `../right-answers/README.md`, `../right-answers/swift.md`, and
 `../right-answers/ci.md` for shared conventions.
 
 Use `make build`, `make test`, `make coverage`, `make lint`, and `make fmt`.
-`project.yml` is the source of truth for the generated Xcode project and app
-metadata. The Swift package owns the font engine and its tests.
+Outside CI, run `make test-package` and `make test-vm` instead of `make test` or
+`make test-app`, and `make coverage-vm` instead of `make coverage`. The host
+targets open the app's windows on this Mac's desktop, where normal use of the
+Mac can disturb them. `project.yml` is the source of truth for the generated
+Xcode project and app metadata. The Swift package owns the font engine and its
+tests.
 
 Preserve calibrated links, independent typography, native-unit metrics, and
 fixed-baseline glyph navigation when changing the app. Missing fonts or

@@ -29,7 +29,7 @@ import TypefaceCore
     #expect(browser.hiddenMatches == 0)
     await browser.update(request)
     #expect(!browser.checking && browser.problem == nil)
-    #expect(browser.a.count == 705 && browser.b.count == 705)
+    #expect(browser.a.count == 722 && browser.b.count == 722)
     #expect(browser.comparing && browser.rows.count == 108)
     #expect(browser.maximumSpeakers == 920_000_000)
     browser.selection = "eng"
@@ -44,7 +44,7 @@ import TypefaceCore
     #expect(browser.hiddenMatches > 0)
     browser.clearFilters()
     #expect(browser.filter.showHistorical && browser.filter.minimumSpeakers == 0)
-    #expect(browser.a.count == 705)
+    #expect(browser.a.count == 722)
     #expect(other.filter.minimumSpeakers == 8_300_000 && other.selection == nil)
     await browser.update(request)
     #expect(browser.selection == "eng" && browser.scrollID == "eng")
@@ -70,7 +70,7 @@ import TypefaceCore
     await newest.value
     await loader.finish(0)
     await old.value
-    #expect(browser.b.isEmpty && browser.a.count == 705 && !browser.checking)
+    #expect(browser.b.isEmpty && browser.a.count == 722 && !browser.checking)
     let cancelled = LanguageBrowserModel(load: { throw CancellationError() })
     await cancelled.update(LanguageBrowserModel.Request(Comparison()))
     #expect(cancelled.problem == nil && !cancelled.checking)
@@ -158,7 +158,7 @@ import TypefaceCore
     model.languages.filter.query = "English"
     model.updatePresentation { $0.mode = .languages }
     await model.languages.update(.init(model.comparison))
-    #expect(model.languages.a.count == 705 && model.languages.b.count == 705)
+    #expect(model.languages.a.count == 722 && model.languages.b.count == 722)
     let host = WorkbenchTestHost(WorkbenchView(model: model), height: height)
     defer { host.window.close() }
     try await host.settle()
@@ -192,7 +192,7 @@ import TypefaceCore
     try await host.incrementSlider("Language speaker slider", title: "Minimum speaker count")
     try await host.settle()
     #expect(model.languages.filter.minimumSpeakers > previousThreshold)
-    #expect(model.languages.a.count == 705 && model.languages.b.count == 705)
+    #expect(model.languages.a.count == 722 && model.languages.b.count == 722)
     let threshold = try #require(
       host.subviews.compactMap { $0 as? NSTextField }.first {
         $0.placeholderString == "Minimum speaker count"

@@ -17,23 +17,23 @@ limitations under the License.
 # Language coverage
 
 The Languages view compares the selected fonts against
-[Hyperglot 0.8.1](https://github.com/rosettatype/hyperglot)'s orthography
+[Hyperglot 0.8.2](https://github.com/rosettatype/hyperglot)'s orthography
 inventories. Open it with ⌘3 or **View → Languages view**. The inspectors remain
 available. Missing characters open the existing Glyph view.
 
 ## Catalog and display filters
 
-The app ships 705 language records and 757 orthographies. Importing retains
+The app ships 722 language records and 772 orthographies. Importing retains
 **preliminary** and **verified** data and **primary** and **historical**
-orthographies. It excludes 76 records with lower data confidence and 7 records
+orthographies. It excludes 77 records with lower data confidence and 7 records
 without a retained orthography. Secondary orthographies, transliterations, and
 draft and todo records are outside this catalog.
 
 The default minimum is **8,300,000 speakers**, the fixed 0.1% threshold chosen
 using an 8.3 billion global population. It does not track world population. The
 default **Show historical** setting is off. Together these filters show **108
-languages and 119 primary orthographies**. Turning historical on at the same
-threshold shows **130 languages and 150 orthographies**. Historical language
+languages and 117 primary orthographies**. Turning historical on at the same
+threshold shows **130 languages and 148 orthographies**. Historical language
 records bypass the speaker threshold when enabled. Historical orthographies of
 living languages are also hidden by default.
 
@@ -99,7 +99,7 @@ individual grapheme in Glyph view.
 The committed JSON and upstream Apache license are package resources. NOTICE
 credits Rosetta Type/Research and the Hyperglot contributors. Normal app builds
 and use are offline and require no Python. Developer tools use uv, Python 3.15
-or later, and the locked Hyperglot 0.8.1 dependency:
+or later, and the locked Hyperglot 0.8.2 dependency:
 
 ```sh
 make languages

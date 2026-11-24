@@ -42,16 +42,17 @@ def language() -> Record:
 def test_release_counts_and_default_scope() -> None:
     data = database()
     languages = cast("list[Record]", data["languages"])
-    assert data["version"] == "0.8.1"
-    assert len(languages) == 705
+    assert data["version"] == "0.8.2"
+    assert len(languages) == 722
     assert (
         sum(len(cast("list[Record]", lang["orthographies"])) for lang in languages)
-        == 757
+        == 772
     )
     visible = [
         lang
         for lang in languages
-        if lang["status"] != "historical" and cast("int", lang["speakers"]) >= 8_300_000
+        if lang["status"] != "historical"
+        and (cast("int | None", lang["speakers"]) or 0) >= 8_300_000
     ]
     assert len(visible) == 108
     assert (
@@ -60,7 +61,7 @@ def test_release_counts_and_default_scope() -> None:
             for lang in visible
             for ort in cast("list[Record]", lang["orthographies"])
         )
-        == 119
+        == 117
     )
     assert sum(lang["status"] == "historical" for lang in languages) == 22
 
@@ -136,7 +137,7 @@ def test_regeneration_and_license_verification(tmp_path: Path) -> None:
     (tmp_path / "Hyperglot-LICENSE").write_text("wrong", encoding="utf-8")
     with pytest.raises(ValueError, match="license differs"):
         write(output, check=True)
-    assert len(json.loads(initial)["languages"]) == 705
+    assert len(json.loads(initial)["languages"]) == 722
 
 
 def test_text_metadata_rejects_invalid_shapes() -> None:

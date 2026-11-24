@@ -78,14 +78,14 @@ Suggested English description:
 > differ, and explore the languages each font covers. Typeface/Off runs offline
 > and keeps your specimen text on your Mac.
 
-Run `make store-screenshots` to capture the Text, Glyph, and Languages views and
-create uploadable JPEGs in `.build/app-store/screenshots/`. Supply the owner’s
-review contact information in App Store Connect, complete the age rating
-questionnaire, and set the privacy response to **Data Not Collected** for the
-current offline app. For review notes, explain that the reviewer can select two
-installed fonts and switch among Text, Glyph, and Languages without an account.
-Select a processed build for the matching version, submit it for App Review, and
-release the approved version for free.
+Run `make store-screenshots` to capture the Text, Glyph, and Languages views in
+the Tart test VM as lossless, opaque PNGs in `.build/app-store/screenshots/`.
+Supply the owner’s review contact information in App Store Connect, complete the
+age rating questionnaire, and set the privacy response to **Data Not Collected**
+for the current offline app. For review notes, explain that the reviewer can
+select two installed fonts and switch among Text, Glyph, and Languages without
+an account. Select a processed build for the matching version, submit it for App
+Review, and release the approved version for free.
 
 ## Retries
 

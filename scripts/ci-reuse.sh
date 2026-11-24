@@ -39,7 +39,7 @@ if [ -n "$run" ]; then
     status=0
     printf '%s\n' "$jobs" |
         jq -e --arg gate "$gate_job" '
-            [.jobs[] | select(.name != $gate)]
+            [.jobs[] | select(.name != $gate and .name != "Dispatch release")]
             | length > 0
                 and all(.conclusion == "success" and .runner_group_name == "GitHub Actions")' \
             >/dev/null || status=$?

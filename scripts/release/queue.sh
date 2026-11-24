@@ -1,6 +1,25 @@
 #!/bin/bash
 set -euo pipefail
 
+checks() {
+    gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&event=push&head_sha=$1&per_page=100" |
+        jq -er -f scripts/release/checks.jq
+}
+if [[ -n ${CI_SHA:-} ]]; then
+    [[ $CI_SHA =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$CI_SHA" HEAD || exit 1
+    while true; do
+        state=$(checks "$CI_SHA")
+        case "$state" in
+        ready) break ;;
+        failed)
+            echo "Required checks failed for $CI_SHA" >&2
+            exit 1
+            ;;
+        pending | absent) sleep 10 ;;
+        esac
+    done
+fi
+
 git rev-list --first-parent HEAD >"$RUNNER_TEMP/main-commits"
 channels=(dmg store tap)
 declare -a next=("" "" "")
@@ -29,8 +48,7 @@ while [[ $open != " " ]] && read -r sha; do
             open=${open/ $channel / }
         fi
         if [[ -z $state ]]; then
-            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&event=push&head_sha=$sha&per_page=100")
-            state=$(jq -er -f scripts/release/checks.jq <<<"$runs") || {
+            state=$(checks "$sha") || {
                 echo "queue.sh: cannot read the workflow runs of $sha" >&2
                 exit 1
             }

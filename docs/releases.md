@@ -1,8 +1,9 @@
 # Release Typeface/Off
 
-The **Release** workflow checks for passing main pushes every 15 minutes and on
-manual dispatch. It uses the full source history for gitcalver. A release has
-the tag `v0.YYYYMMDD.N`, marketing version `0.YYYYMMDD.N`, and Mac build number
+CI dispatches **Release** after a main push passes its tests. The release
+workflow waits for the CI, security, and lockfile results for that commit. It
+uses the full source history for gitcalver. A release has the tag
+`v0.YYYYMMDD.N`, marketing version `0.YYYYMMDD.N`, and Mac build number
 `YYYYMMDD.N`. GitHub and App Store Connect each release only the newest passing
 main push, and Homebrew only the newest published disk image, so a push that a
 newer passing push has superseded by the time of a run is never released. App
@@ -24,8 +25,8 @@ Review is manual.
    their private keys into the password-protected PKCS#12 files below.
 4. Merge the release workflow into main when you’re ready to publish. The main
    push that introduces the workflow is the first release candidate. Once its
-   checks pass, the next scheduled run picks it up unless a newer push has
-   passed. You can also run **Release → Run workflow** on main.
+   checks pass, the release run picks it up unless a newer push has passed. You
+   can also run **Release → Run workflow** on main.
 
 | GitHub environment | Secrets                                                                                                                                                                                                                                | Variables                                                                           |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -93,7 +94,7 @@ The queue checks CI (including its tested-tree reuse), workflow provenance, and
 workflow security for the main push SHA. GitHub commit statuses named
 `release/dmg`, `release/store`, and `release/tap` record a published immutable
 release, an Apple-processed valid build, and a merged cask update respectively.
-Each interval picks, per channel, the newest passing push above the channel’s
+Each release run picks, per channel, the newest passing push above the channel’s
 newest status of any state, and the tap channel proposes the newest published
 disk image. A push whose checks are still running or failing does not hold back
 an older passing one, except that the tap channel proposes nothing while the
@@ -106,15 +107,12 @@ and records a failed Store status if Apple reports the build as failed or
 invalid. That failure stays visible while subsequent builds continue. The tap
 job reads the immutable release, closes its open PRs for older versions, opens
 or reuses its PR (replacing it with a new PR from tap main if it conflicts),
-enables checked auto-merge, and confirms the version on tap main on a subsequent
-run.
+enables auto-merge, and waits for the tap PR to merge in the same run.
 
-A failed channel retries the same commit on every interval, and dispatching
-**Release** on main retries it too, until a newer push passes (for Homebrew,
-until a newer disk image is published). Retry by dispatching, not by re-running
-failed jobs of an older run, which replays that run’s commit even after a newer
-one was released. Re-running a push’s checks makes the queue treat that push as
-not passing until they pass again. Each job runs the scripts of the commit it
+To retry a failed channel, dispatch **Release** on main with the optional
+`ci_sha` field empty. The queue selects the newest eligible release for each
+channel. Re-running a push’s checks makes the queue treat that push as not
+passing until they pass again. Each job runs the scripts of the commit it
 releases, so a fix for a failure in them lands in that newer push. To stop
 retrying a commit that cannot be released, post a failure status for its
 channel, for example
